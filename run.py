@@ -7,7 +7,8 @@ from config import config
 
 # 获取环境配置
 env = os.environ.get('FLASK_ENV', 'development')
-app = create_app(config[env])
+# 传递配置名称字符串，而不是配置类
+app = create_app(env)
 
 if __name__ == '__main__':
     app.run(

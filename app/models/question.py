@@ -67,7 +67,7 @@ class Question(BaseModel):
         nullable=True,
         doc='图片数据（base64编码或文件路径）'
     )
-    metadata = db.Column(
+    question_metadata = db.Column(
         db.JSON,
         nullable=True,
         doc='额外元数据，如解析来源、难度标签等'
@@ -125,7 +125,7 @@ class Question(BaseModel):
         self.options = options or []
         self.has_image = has_image
         self.image_data = image_data
-        self.metadata = metadata or {}
+        self.question_metadata = metadata or {}
     
     @classmethod
     def get_by_exam(cls, exam_id: int) -> List['Question']:

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-box-arrow-in-right me-2"></i>用户登录</h4>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form id="loginForm" action="{{ url_for('auth.login') }}" method="post">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名或邮箱</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                <input type="text" class="form-control" id="username" name="username" 
+                                       required placeholder="请输入用户名或邮箱地址">
+                            </div>
+                            <div class="form-text">支持用户名或邮箱登录</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">密码</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input type="password" class="form-control" id="password" name="password" 
+                                       required placeholder="请输入密码">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                            <label class="form-check-label" for="remember">记住我</label>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="loginBtn">
+                                <span id="loginText">登录</span>
+                                <span id="loginSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            </button>
+                            
+                            <a href="{{ url_for('auth.register_page') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-person-plus me-1"></i>注册新账户
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('auth.forgot_password_page') }}" class="text-decoration-none">
+                            <i class="bi bi-question-circle me-1"></i>忘记密码？
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <p class="text-muted">
+                    登录即表示您同意我们的
+                    <a href="#" class="text-decoration-none">服务条款</a>和
+                    <a href="#" class="text-decoration-none">隐私政策</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 切换密码显示
+    document.getElementById('togglePassword').addEventListener('click', function() {
+        const passwordInput = document.getElementById('password');
+        const icon = this.querySelector('i');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+    
+    // 表单提交处理
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const remember = document.getElementById('remember').checked;
+        
+        const loginBtn = document.getElementById('loginBtn');
+        const loginText = document.getElementById('loginText');
+        const loginSpinner = document.getElementById('loginSpinner');
+        
+        // 显示加载状态
+        loginBtn.disabled = true;
+        loginText.textContent = '登录中...';
+        loginSpinner.classList.remove('d-none');
+        
+        try {
+            const response = await fetch("{{ url_for('auth.login') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password,
+                    remember: remember
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // 登录成功
+                showAlert('登录成功，正在跳转...', 'success');
+                
+                // 延迟跳转到仪表盘
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('main.dashboard') }}";
+                }, 1500);
+            } else {
+                // 登录失败
+                showAlert(data.message || '登录失败', 'danger');
+                
+                // 恢复按钮状态
+                loginBtn.disabled = false;
+                loginText.textContent = '登录';
+                loginSpinner.classList.add('d-none');
+            }
+        } catch (error) {
+            console.error('登录请求失败:', error);
+            showAlert('网络错误，请重试', 'danger');
+            
+            // 恢复按钮状态
+            loginBtn.disabled = false;
+            loginText.textContent = '登录';
+            loginSpinner.classList.add('d-none');
+        }
+    });
+    
+    function showAlert(message, type) {
+        // 移除现有警告
+        const existingAlerts = document.querySelectorAll('.alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        // 创建新警告
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // 插入到表单上方
+        const cardBody = document.querySelector('.card-body');
+        cardBody.insertAdjacentHTML('afterbegin', alertHtml);
+    }
+</script>
+{% endblock %}

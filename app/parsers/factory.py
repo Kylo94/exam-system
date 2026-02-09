@@ -3,7 +3,7 @@
 根据文件格式自动选择相应的解析器。
 """
 
-from typing import Dict, Optional, Type
+from typing import Dict, Optional, Type, Any
 from pathlib import Path
 
 from .base import BaseParser

@@ -8,6 +8,7 @@ from .questions import questions_bp
 from .submissions import submissions_bp
 from .answers import answers_bp
 from .upload import upload_bp
+from .auth import auth_bp
 
 __all__ = [
     'main_bp',
@@ -18,4 +19,5 @@ __all__ = [
     'submissions_bp',
     'answers_bp',
     'upload_bp',
+    'auth_bp',
 ]

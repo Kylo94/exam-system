@@ -1,6 +1,5 @@
 """Flask应用工厂"""
 
-import os
 from flask import Flask
 from config import config
 
@@ -21,9 +20,13 @@ def create_app(config_name='default'):
     config[config_name].init_app(app)
     
     # 初始化扩展
-    from .extensions import db, migrate
+    from .extensions import db, migrate, login_manager
     db.init_app(app)
     migrate.init_app(app, db)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login_page'
+    login_manager.login_message = '请先登录'
+    login_manager.login_message_category = 'warning'
     
     # 注册蓝图
     register_blueprints(app)
@@ -54,11 +57,15 @@ def register_blueprints(app: Flask):
         questions_bp,
         submissions_bp,
         answers_bp,
-        upload_bp
+        upload_bp,
+        auth_bp
     )
     
     # 注册主蓝图（无前缀）
     app.register_blueprint(main_bp)
+    
+    # 注册认证蓝图
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     
     # 注册API蓝图
     app.register_blueprint(subjects_bp, url_prefix='/api')
@@ -78,13 +85,13 @@ def register_error_handlers(app: Flask):
 
 def register_context_processors(app: Flask):
     """注册上下文处理器"""
-    from datetime import datetime
+    from datetime import datetime, timezone
     
     @app.context_processor
     def inject_template_variables():
         """注入模板变量"""
         return {
             'app_name': app.config['APP_NAME'],
-            'now': datetime.utcnow(),
+            'now': datetime.now(timezone.utc),
             'config': app.config
         }

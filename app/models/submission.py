@@ -2,7 +2,7 @@
 
 import json
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 from .base import BaseModel
 
@@ -29,6 +29,13 @@ class Submission(BaseModel):
         nullable=True,
         index=True,
         doc='学生标识（扩展后可关联用户表）'
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id'),
+        nullable=True,
+        index=True,
+        doc='关联的用户ID'
     )
     student_name = db.Column(
         db.String(100),
@@ -60,7 +67,7 @@ class Submission(BaseModel):
         nullable=False,
         doc='是否完成'
     )
-    metadata = db.Column(
+    submission_metadata = db.Column(
         db.JSON,
         nullable=True,
         doc='提交元数据，如IP地址、浏览器信息等'
@@ -86,6 +93,7 @@ class Submission(BaseModel):
         exam_id: int,
         student_name: str,
         student_id: Optional[str] = None,
+        user_id: Optional[int] = None,
         total_score: float = 0.0,
         duration_seconds: int = 0,
         is_completed: bool = True,
@@ -98,6 +106,7 @@ class Submission(BaseModel):
             exam_id: 试卷ID
             student_name: 学生姓名
             student_id: 学生标识（可选）
+            user_id: 关联的用户ID（可选）
             total_score: 总分，默认0.0
             duration_seconds: 答题时长（秒），默认0
             is_completed: 是否完成，默认True
@@ -106,11 +115,12 @@ class Submission(BaseModel):
         self.exam_id = exam_id
         self.student_name = student_name
         self.student_id = student_id
+        self.user_id = user_id
         self.total_score = total_score
         self.duration_seconds = duration_seconds
         self.is_completed = is_completed
-        self.metadata = metadata or {}
-        self.submit_time = datetime.utcnow()
+        self.submission_metadata = metadata or {}
+        self.submit_time = datetime.now(timezone.utc)
     
     @classmethod
     def get_by_student(cls, student_id: str) -> List['Submission']:

@@ -7,6 +7,7 @@ from .exam import Exam
 from .question import Question
 from .submission import Submission
 from .answer import Answer
+from .user import User
 
 __all__ = [
     'BaseModel',
@@ -16,4 +17,5 @@ __all__ = [
     'Question',
     'Submission',
     'Answer',
+    'User',
 ]
