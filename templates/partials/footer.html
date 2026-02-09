@@ -1,0 +1,52 @@
+<footer class="bg-light border-top py-4 mt-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <h5 class="text-primary">{{ app_name }}</h5>
+                <p class="text-muted small">
+                    基于Flask的模块化在线答题系统<br>
+                    支持Word文档解析、AI智能判卷
+                </p>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+                <h5 class="text-primary">功能特性</h5>
+                <ul class="list-unstyled small">
+                    <li><i class="bi bi-check-circle text-success me-1"></i> Word文档上传解析</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i> 多题型自动判卷</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i> AI智能解析支持</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i> 成绩统计分析</li>
+                </ul>
+            </div>
+            
+            <div class="col-md-4 mb-3">
+                <h5 class="text-primary">技术栈</h5>
+                <ul class="list-unstyled small">
+                    <li><span class="badge bg-secondary me-1">Flask</span> Python Web框架</li>
+                    <li><span class="badge bg-secondary me-1">SQLAlchemy</span> ORM数据库</li>
+                    <li><span class="badge bg-secondary me-1">Bootstrap 5</span> 前端框架</li>
+                    <li><span class="badge bg-secondary me-1">DeepSeek API</span> AI集成</li>
+                </ul>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <p class="small text-muted">
+                    &copy; {{ now.year }} {{ app_name }}. 保留所有权利。
+                </p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <p class="small text-muted">
+                    <i class="bi bi-github me-1"></i>
+                    <a href="https://github.com" class="text-muted">GitHub仓库</a>
+                    &nbsp;|&nbsp;
+                    <i class="bi bi-file-text me-1"></i>
+                    <a href="/api/health" class="text-muted">系统状态</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</footer>

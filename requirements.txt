@@ -1,0 +1,31 @@
+# Flask核心
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# 数据库
+SQLAlchemy==2.0.23
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+psycopg2-binary==2.9.9  # PostgreSQL支持
+
+# 文件处理
+python-docx==1.1.0
+Pillow==10.1.0
+
+# AI集成
+langchain==0.1.0
+langchain-openai==0.0.8
+openai==1.6.1
+
+# 环境配置
+python-dotenv==1.0.0
+
+# 表单处理（可选）
+Flask-WTF==1.2.1
+WTForms==3.1.1
+
+# 认证（可选）
+Flask-Login==0.6.3
+
+# 密码加密（可选）
+bcrypt==4.1.2

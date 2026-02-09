@@ -1,0 +1,64 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('main.index') }}">
+            <i class="bi bi-journal-text me-2"></i>
+            {{ app_name }}
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarMain">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.exams_page') }}">
+                        <i class="bi bi-list-task me-1"></i>
+                        考试列表
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.upload_page') }}">
+                        <i class="bi bi-upload me-1"></i>
+                        文档上传
+                    </a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-bar-chart me-1"></i>
+                        数据管理
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('main.subjects_page') }}">科目管理</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.levels_page') }}">难度级别</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.questions_page') }}">问题管理</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.submissions_page') }}">提交记录</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.dashboard') }}">
+                        <i class="bi bi-speedometer2 me-1"></i>
+                        控制面板
+                    </a>
+                </li>
+            </ul>
+            
+            <ul class="navbar-nav">
+                <!-- 用户认证功能暂时隐藏，后续实现 -->
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="bi bi-person-circle me-1"></i>
+                        访客模式
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.upload_page') }}">
+                        <i class="bi bi-cloud-upload me-1"></i>
+                        快速上传
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

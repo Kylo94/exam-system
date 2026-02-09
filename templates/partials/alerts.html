@@ -1,0 +1,38 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            {% set alert_class = 'alert-' + category if category in ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'] else 'alert-info' %}
+            <div class="alert {{ alert_class }} alert-dismissible fade show" role="alert">
+                {% if category == 'success' %}
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                {% elif category == 'danger' %}
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                {% elif category == 'warning' %}
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                {% elif category == 'info' %}
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                {% endif %}
+                
+                {{ message }}
+                
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+{% endif %}
+
+{% if success %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+{% endif %}

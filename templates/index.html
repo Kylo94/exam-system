@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 主页</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="text-center mb-5">
+            <h1 class="display-4 mb-3">欢迎使用 {{ app_name }}</h1>
+            <p class="lead text-muted">
+                一个功能完整的在线考试与答题系统，支持文档导入、自动评分和数据分析。
+            </p>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 border-primary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-text fs-1 text-primary mb-3"></i>
+                        <h3 class="card-title">文档导入</h3>
+                        <p class="card-text">
+                            支持Word文档导入，自动解析试题内容，快速创建考试。
+                        </p>
+                        <a href="{{ url_for('main.upload_page') }}" class="btn btn-primary">
+                            上传文档
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check-circle fs-1 text-success mb-3"></i>
+                        <h3 class="card-title">在线考试</h3>
+                        <p class="card-text">
+                            多种题型支持，实时答题反馈，自动评分与答案解析。
+                        </p>
+                        <a href="{{ url_for('main.exams_page') }}" class="btn btn-success">
+                            开始考试
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card h-100 border-info">
+                    <div class="card-body text-center">
+                        <i class="bi bi-bar-chart fs-1 text-info mb-3"></i>
+                        <h3 class="card-title">数据分析</h3>
+                        <p class="card-text">
+                            考试统计、成绩分析、知识点掌握情况可视化展示。
+                        </p>
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-info">
+                            查看统计
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-lg-8 mx-auto">
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h4 class="mb-0">系统功能</h4>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="bi bi-check2 text-success me-2"></i>
+                                <strong>多题型支持：</strong>单选题、多选题、判断题、填空题、简答题
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check2 text-success me-2"></i>
+                                <strong>智能解析：</strong>自动识别题目类型、提取选项、检测答案
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check2 text-success me-2"></i>
+                                <strong>灵活考试：</strong>可设置考试时间、时长、尝试次数、及格分数
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check2 text-success me-2"></i>
+                                <strong>数据统计：</strong>成绩分布、通过率、知识点掌握情况分析
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check2 text-success me-2"></i>
+                                <strong>用户管理：</strong>支持多用户系统，考试记录与成绩追踪
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    
+    {% include "partials/scripts.html" %}
+</body>
+</html>

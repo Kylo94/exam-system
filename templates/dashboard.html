@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 控制面板</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">系统控制面板</h1>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left me-1"></i>返回首页
+            </a>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-journal-text fs-1 text-primary mb-2"></i>
+                        <h5 class="card-title">科目数量</h5>
+                        <p class="card-text fs-3" id="subjects-count">加载中...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-check fs-1 text-success mb-2"></i>
+                        <h5 class="card-title">考试数量</h5>
+                        <p class="card-text fs-3" id="exams-count">加载中...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <i class="bi bi-question-circle fs-1 text-info mb-2"></i>
+                        <h5 class="card-title">问题数量</h5>
+                        <p class="card-text fs-3" id="questions-count">加载中...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check2-circle fs-1 text-warning mb-2"></i>
+                        <h5 class="card-title">提交记录</h5>
+                        <p class="card-text fs-3" id="submissions-count">加载中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">快速操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('main.upload_page') }}" class="btn btn-primary">
+                                <i class="bi bi-upload me-2"></i>上传文档创建考试
+                            </a>
+                            <a href="{{ url_for('main.exams_page') }}" class="btn btn-success">
+                                <i class="bi bi-list-task me-2"></i>管理考试
+                            </a>
+                            <a href="{{ url_for('main.subjects_page') }}" class="btn btn-info">
+                                <i class="bi bi-journal me-2"></i>管理科目
+                            </a>
+                            <a href="{{ url_for('main.levels_page') }}" class="btn btn-warning">
+                                <i class="bi bi-bar-chart me-2"></i>管理难度级别
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">系统信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0" id="system-info">
+                            <li class="mb-2">
+                                <i class="bi bi-info-circle text-primary me-2"></i>
+                                <strong>应用名称：</strong> {{ app_name }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-database text-primary me-2"></i>
+                                <strong>数据库：</strong> <span id="db-info">加载中...</span>
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-folder text-primary me-2"></i>
+                                <strong>上传目录：</strong> {{ config.UPLOAD_FOLDER }}
+                            </li>
+                            <li>
+                                <i class="bi bi-clock text-primary me-2"></i>
+                                <strong>当前时间：</strong> <span id="current-time"></span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        // 加载系统统计信息
+        fetch('/api/info')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const stats = data.data.stats;
+                    document.getElementById('subjects-count').textContent = stats.subjects;
+                    document.getElementById('exams-count').textContent = stats.exams;
+                    document.getElementById('questions-count').textContent = stats.questions;
+                    document.getElementById('submissions-count').textContent = stats.submissions;
+                    document.getElementById('db-info').textContent = data.data.database_url;
+                }
+            })
+            .catch(error => {
+                console.error('加载统计信息失败:', error);
+            });
+        
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                now.toLocaleString('zh-CN');
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+    </script>
+</body>
+</html>
