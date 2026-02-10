@@ -39,8 +39,13 @@ def create_app(config_name='default'):
     # 注册上下文处理器
     register_context_processors(app)
     
-    # 创建数据库表（开发环境）
+    # 开发环境额外配置
     if app.config['DEBUG']:
+        # 禁用模板缓存
+        app.config['TEMPLATES_AUTO_RELOAD'] = True
+        app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+        
+        # 创建数据库表
         with app.app_context():
             # 导入模型以确保它们被注册
             from . import models
