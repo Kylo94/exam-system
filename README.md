@@ -96,12 +96,12 @@ flask db upgrade
 python run.py
 
 # 或使用Flask CLI
-flask run --host=0.0.0.0 --port=5000
+flask run --host=0.0.0.0 --port=5002
 ```
 
 ### 4. 访问应用
-- 前端界面：http://localhost:5000
-- API文档：http://localhost:5000/api/docs
+- 前端界面：http://localhost:5002
+- API文档：http://localhost:5002/api/docs
 
 ## 开发指南
 
@@ -149,7 +149,7 @@ flask db downgrade
 docker build -t exam-system:v3.0 .
 
 # 运行容器
-docker run -d -p 5000:5000 --env-file .env exam-system:v3.0
+docker run -d -p 5002:5002 --env-file .env exam-system:v3.0
 ```
 
 ## 贡献指南

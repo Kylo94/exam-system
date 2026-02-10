@@ -153,8 +153,16 @@ def register_handlers(app):
             app.logger.debug(f'请求: {request.method} {request.path}')
     
     @app.after_request
-    def log_response_info(response):
-        """记录响应信息"""
+    def add_cors_headers(response):
+        """添加CORS头以支持跨域请求"""
+        # 允许所有来源（开发环境）
+        response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+        
+        # 记录响应信息
         if app.config['DEBUG']:
             app.logger.debug(f'响应: {response.status_code}')
+        
         return response
