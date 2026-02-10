@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 教师控制面板</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">教师控制面板</h1>
+            <div>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>返回个人面板
+                </a>
+                <a href="javascript:void(0);" class="btn btn-primary" id="refresh-stats">
+                    <i class="bi bi-arrow-clockwise me-1"></i>刷新统计
+                </a>
+            </div>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-people fs-1 text-primary mb-2"></i>
+                        <h5 class="card-title">学生总数</h5>
+                        <p class="card-text fs-3" id="student-count">{{ stats.student_count }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-check fs-1 text-success mb-2"></i>
+                        <h5 class="card-title">考试次数</h5>
+                        <p class="card-text fs-3" id="submission-count">{{ stats.submission_count }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <i class="bi bi-journal-text fs-1 text-info mb-2"></i>
+                        <h5 class="card-title">我的考试</h5>
+                        <p class="card-text fs-3" id="exam-count">{{ stats.exam_count }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <i class="bi bi-journal fs-1 text-warning mb-2"></i>
+                        <h5 class="card-title">科目数量</h5>
+                        <p class="card-text fs-3" id="subject-count">{{ stats.subject_count }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <i class="bi bi-bar-chart fs-1 text-danger mb-2"></i>
+                        <h5 class="card-title">难度级别</h5>
+                        <p class="card-text fs-3" id="level-count">{{ stats.level_count }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-secondary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-question-circle fs-1 text-secondary mb-2"></i>
+                        <h5 class="card-title">题目总数</h5>
+                        <p class="card-text fs-3" id="question-count">{{ stats.question_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 快速操作 -->
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>快速操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('teacher.my_students_page') }}" class="btn btn-primary">
+                                <i class="bi bi-people me-2"></i>管理我的学生
+                            </a>
+                            <a href="{{ url_for('main.exams_page') }}" class="btn btn-success">
+                                <i class="bi bi-list-task me-2"></i>查看考试大厅
+                            </a>
+                            <a href="{{ url_for('main.upload_page') }}" class="btn btn-info">
+                                <i class="bi bi-upload me-2"></i>上传文档创建考试
+                            </a>
+                            <a href="{{ url_for('main.subjects_page') }}" class="btn btn-warning">
+                                <i class="bi bi-journal me-2"></i>查看科目管理
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>教师信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="bi bi-person text-primary me-2"></i>
+                                <strong>教师ID：</strong> {{ current_user.id }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-person-badge text-primary me-2"></i>
+                                <strong>用户名：</strong> {{ current_user.username }}
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-envelope text-primary me-2"></i>
+                                <strong>邮箱：</strong> {{ current_user.email }}
+                            </li>
+                            <li>
+                                <i class="bi bi-calendar text-primary me-2"></i>
+                                <strong>注册时间：</strong> {{ current_user.created_at.strftime('%Y-%m-%d %H:%M') if current_user.created_at else '未知' }}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        // 刷新统计按钮
+        document.getElementById('refresh-stats').addEventListener('click', function(e) {
+            e.preventDefault();
+            // 重新加载页面以刷新统计
+            window.location.reload();
+        });
+    </script>
+</body>
+</html>

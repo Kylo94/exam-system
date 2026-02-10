@@ -24,7 +24,14 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def login_page():
     """登录页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/login.html')
 
 
@@ -32,7 +39,14 @@ def login_page():
 def register_page():
     """注册页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/register.html')
 
 
@@ -47,7 +61,14 @@ def profile_page():
 def forgot_password_page():
     """忘记密码页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/forgot_password.html')
 
 
@@ -55,7 +76,14 @@ def forgot_password_page():
 def reset_password_page(token):
     """重置密码页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/reset_password.html', token=token)
 
 
@@ -142,13 +170,14 @@ def register():
     password = data.get('password', '').strip()
     confirm_password = data.get('confirm_password', '').strip()
     role = data.get('role', 'student').strip()
+    teacher_id = data.get('teacher_id')
     
     # 批量验证
     validators = {
         'username': (validate_string, {'field_name': '用户名', 'min_length': 3, 'max_length': 20, 'allow_empty': False}),
         'email': (validate_email, {'field_name': '邮箱地址', 'allow_none': False}),
         'password': (validate_password, {'field_name': '密码', 'allow_none': False}),
-        'role': (validate_choice, {'field_name': '用户角色', 'choices': ['admin', 'teacher', 'student'], 'allow_none': True}),
+        'role': (validate_choice, {'field_name': '用户角色', 'choices': ['teacher', 'student'], 'allow_none': True}),
     }
     
     errors = batch_validate(validators, {
@@ -174,13 +203,24 @@ def register():
     if User.get_by_email(email):
         return error_response('邮箱地址已存在', 409)
     
+    # 验证教师ID（仅学生角色）
+    validated_teacher_id = None
+    if role == 'student' and teacher_id:
+        teacher = User.get_by_id(teacher_id)
+        if not teacher:
+            return error_response('教师ID不存在', 400)
+        if not teacher.is_teacher():
+            return error_response('指定的用户不是教师', 400)
+        validated_teacher_id = teacher_id
+    
     # 创建用户
     try:
         user = User(
             username=username,
             email=email,
             password=password,
-            role=role
+            role=role,
+            teacher_id=validated_teacher_id
         )
         db.session.add(user)
         db.session.commit()
@@ -390,6 +430,75 @@ def check_email(email):
         'available': not existing_user,
         'email': email
     }, 200
+
+
+@auth_bp.route('/api/verify-teacher/<int:teacher_id>', methods=['GET'])
+@api_response
+def verify_teacher(teacher_id):
+    """验证教师ID是否有效
+    
+    Args:
+        teacher_id: 教师ID
+    
+    Returns:
+        教师验证信息
+    """
+    teacher = User.get_by_id(teacher_id)
+    
+    if not teacher:
+        return error_response('教师ID不存在', 404)
+    
+    if not teacher.is_teacher():
+        return error_response('该用户不是教师', 400)
+    
+    return {
+        'valid': True,
+        'teacher_id': teacher_id,
+        'teacher_name': teacher.username
+    }, 200
+
+
+@auth_bp.route('/api/bind-teacher', methods=['POST'])
+@login_required
+@api_response
+def bind_teacher():
+    """绑定教师
+    
+    Request JSON:
+        teacher_id: 教师ID
+    
+    Returns:
+        绑定结果
+    """
+    if not current_user.is_student():
+        return error_response('只有学生可以绑定教师', 403)
+    
+    data = request.get_json()
+    if not data or 'teacher_id' not in data:
+        return error_response('缺少教师ID', 400)
+    
+    teacher_id = data.get('teacher_id')
+    
+    # 验证教师
+    teacher = User.get_by_id(teacher_id)
+    if not teacher:
+        return error_response('教师ID不存在', 404)
+    
+    if not teacher.is_teacher():
+        return error_response('指定的用户不是教师', 400)
+    
+    # 绑定教师
+    try:
+        if current_user.bind_teacher(teacher_id):
+            return {
+                'message': f'成功绑定教师：{teacher.username}',
+                'teacher_id': teacher_id,
+                'teacher_name': teacher.username
+            }, 200
+        else:
+            return error_response('绑定教师失败', 500)
+    except Exception as e:
+        return error_response(f'绑定教师失败: {str(e)}', 500)
 
 
 # ==================== 辅助函数 ====================

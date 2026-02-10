@@ -16,7 +16,7 @@
                     <i class="bi bi-info-circle me-2"></i>
                     此页面正在开发中，请稍后访问。
                 </div>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                <a href="{% if current_user.is_student() %}{{ url_for('main.index') }}{% elif current_user.is_teacher() %}{{ url_for('teacher.dashboard') }}{% elif current_user.is_admin() %}{{ url_for('admin.dashboard') }}{% else %}{{ url_for('main.dashboard') }}{% endif %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left me-2"></i>返回控制面板
                 </a>
             </div>

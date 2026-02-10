@@ -84,7 +84,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     // 切换密码显示
     document.getElementById('togglePassword').addEventListener('click', function() {
@@ -138,9 +138,21 @@
                 // 登录成功
                 showAlert('登录成功，正在跳转...', 'success');
                 
-                // 延迟跳转到仪表盘
+                // 根据用户角色决定跳转目标
+                let redirectUrl;
+                if (data.user.is_student) {
+                    redirectUrl = "{{ url_for('main.index') }}";
+                } else if (data.user.is_teacher) {
+                    redirectUrl = "{{ url_for('teacher.dashboard') }}";
+                } else if (data.user.is_admin) {
+                    redirectUrl = "{{ url_for('admin.dashboard') }}";
+                } else {
+                    redirectUrl = "{{ url_for('main.dashboard') }}";
+                }
+                
+                // 延迟跳转
                 setTimeout(() => {
-                    window.location.href = "{{ url_for('main.dashboard') }}";
+                    window.location.href = redirectUrl;
                 }, 1500);
             } else {
                 // 登录失败

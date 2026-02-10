@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 我的学生</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">我的学生</h1>
+            <div class="text-muted">
+                教师ID: <span class="badge bg-primary">{{ current_user.id }}</span>
+            </div>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">学生总数</div>
+                        <div class="fs-3 fw-bold text-primary" id="statTotal">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">活跃学生</div>
+                        <div class="fs-3 fw-bold text-success" id="statActive">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">总考试次数</div>
+                        <div class="fs-3 fw-bold text-info" id="statSubmissions">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">平均及格率</div>
+                        <div class="fs-3 fw-bold text-warning" id="statPassRate">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 学生列表 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">学生列表</h5>
+                <div>
+                    <input type="text" class="form-control form-control-sm" id="searchInput" 
+                           placeholder="搜索学生..." style="width: 200px;">
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>学生ID</th>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>注册时间</th>
+                                <th>考试次数</th>
+                                <th>及格率</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsBody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="emptyState" class="text-center py-5 d-none">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3 mb-0">暂无绑定学生</p>
+                <p class="text-muted small">学生注册时填写您的教师ID即可绑定</p>
+            </div>
+        </div>
+        
+        <!-- 教师ID提示 -->
+        <div class="alert alert-info mt-4">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>提示：</strong>您的教师ID是 <span class="badge bg-primary">{{ current_user.id }}</span>，
+            学生注册时填写此ID即可与您绑定。
+        </div>
+    </main>
+    
+    <!-- 学生详情模态框 -->
+    <div class="modal fade" id="studentDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">学生考试详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="studentDetailContent">
+                    <!-- 动态加载 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStudents();
+            
+            // 搜索功能
+            document.getElementById('searchInput').addEventListener('input', function() {
+                filterStudents(this.value);
+            });
+        });
+        
+        let allStudents = [];
+        
+        // 加载学生列表
+        function loadStudents() {
+            fetch('/api/teacher/students')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        allStudents = data.data;
+                        renderStudents(allStudents);
+                        updateStatistics(allStudents);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载学生失败:', error);
+                });
+        }
+        
+        // 渲染学生列表
+        function renderStudents(students) {
+            const tbody = document.getElementById('studentsBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (!students || students.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('d-none');
+                return;
+            }
+            
+            emptyState.classList.add('d-none');
+            
+            const html = students.map(student => {
+                const submissionCount = student.submission_count || 0;
+                const passRate = student.pass_rate || 0;
+                
+                return `
+                    <tr>
+                        <td>${student.id}</td>
+                        <td><strong>${student.username}</strong></td>
+                        <td>${student.email}</td>
+                        <td class="text-muted">${formatDate(student.created_at)}</td>
+                        <td>
+                            <span class="badge bg-info">${submissionCount}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                    <div class="progress-bar ${passRate >= 60 ? 'bg-success' : 'bg-warning'}" 
+                                         style="width: ${passRate}%"></div>
+                                </div>
+                                <span class="small">${passRate.toFixed(1)}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewStudentDetail(${student.id})">
+                                <i class="bi bi-eye"></i> 详情
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = html;
+        }
+        
+        // 筛选学生
+        function filterStudents(keyword) {
+            if (!keyword) {
+                renderStudents(allStudents);
+                return;
+            }
+            
+            const filtered = allStudents.filter(student => 
+                student.username.toLowerCase().includes(keyword.toLowerCase()) ||
+                student.email.toLowerCase().includes(keyword.toLowerCase()) ||
+                student.id.toString().includes(keyword)
+            );
+            
+            renderStudents(filtered);
+        }
+        
+        // 更新统计数据
+        function updateStatistics(students) {
+            const total = students.length;
+            const active = students.filter(s => (s.submission_count || 0) > 0).length;
+            const totalSubmissions = students.reduce((sum, s) => sum + (s.submission_count || 0), 0);
+            
+            const avgPassRate = total > 0 ? 
+                students.reduce((sum, s) => sum + (s.pass_rate || 0), 0) / total : 0;
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statActive').textContent = active;
+            document.getElementById('statSubmissions').textContent = totalSubmissions;
+            document.getElementById('statPassRate').textContent = avgPassRate.toFixed(1) + '%';
+        }
+        
+        // 查看学生详情
+        function viewStudentDetail(studentId) {
+            const student = allStudents.find(s => s.id === studentId);
+            if (!student) return;
+            
+            fetch(`/api/teacher/students/${studentId}/submissions`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const submissions = data.data;
+                        renderStudentDetail(student, submissions);
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('studentDetailModal')).show();
+                    }
+                })
+                .catch(error => {
+                    console.error('加载学生详情失败:', error);
+                });
+        }
+        
+        // 渲染学生详情
+        function renderStudentDetail(student, submissions) {
+            const container = document.getElementById('studentDetailContent');
+            
+            const submissionsHtml = submissions.length > 0 ? 
+                submissions.map(s => {
+                    const score = s.obtained_score !== null ? 
+                        `${s.obtained_score}/${s.total_score}` : '-';
+                    const percentage = s.obtained_score !== null ? 
+                        ((s.obtained_score / s.total_score) * 100).toFixed(1) : '-';
+                    
+                    return `
+                        <tr>
+                            <td>${s.exam ? s.exam.title : '未知考试'}</td>
+                            <td>${score}</td>
+                            <td>${percentage}%</td>
+                            <td>
+                                ${s.is_passed ? 
+                                    '<span class="badge bg-success">及格</span>' : 
+                                    '<span class="badge bg-danger">不及格</span>'}
+                            </td>
+                            <td class="text-muted">${formatDate(s.submitted_at)}</td>
+                        </tr>
+                    `;
+                }).join('') :
+                '<tr><td colspan="5" class="text-center text-muted">暂无考试记录</td></tr>';
+            
+            container.innerHTML = `
+                <div class="mb-4">
+                    <h6>基本信息</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>用户名：</strong>${student.username}</p>
+                            <p class="mb-1"><strong>邮箱：</strong>${student.email}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>注册时间：</strong>${formatDate(student.created_at)}</p>
+                            <p class="mb-1"><strong>考试次数：</strong>${student.submission_count || 0}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h6>考试记录</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>考试名称</th>
+                                <th>成绩</th>
+                                <th>百分比</th>
+                                <th>状态</th>
+                                <th>考试时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${submissionsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN') + ' ' + 
+                   date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+    </script>
+</body>
+</html>

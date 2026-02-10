@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 我的考试记录</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">我的考试记录</h1>
+            <a href="{{ url_for('main.exams_page') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>参加考试
+            </a>
+        </div>
+        
+        <!-- 筛选卡片 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">考试筛选</label>
+                        <select class="form-select" id="examFilter">
+                            <option value="">全部考试</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">状态筛选</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">全部状态</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="submitted">已完成</option>
+                            <option value="passed">及格</option>
+                            <option value="failed">不及格</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">时间范围</label>
+                        <select class="form-select" id="timeFilter">
+                            <option value="">全部时间</option>
+                            <option value="today">今天</option>
+                            <option value="week">最近一周</option>
+                            <option value="month">最近一月</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" onclick="loadSubmissions()">
+                            <i class="bi bi-search me-1"></i>筛选
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">考试总数</div>
+                        <div class="fs-3 fw-bold text-primary" id="statTotal">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">及格次数</div>
+                        <div class="fs-3 fw-bold text-success" id="statPassed">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">平均分</div>
+                        <div class="fs-3 fw-bold text-info" id="statAvg">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <div class="text-muted small mb-1">及格率</div>
+                        <div class="fs-3 fw-bold text-warning" id="statRate">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 考试记录列表 -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>考试名称</th>
+                                <th>成绩</th>
+                                <th>状态</th>
+                                <th>考试时间</th>
+                                <th>用时</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissionsBody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="emptyState" class="text-center py-5 d-none">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3 mb-0">暂无考试记录</p>
+                <a href="{{ url_for('main.exams_page') }}" class="btn btn-primary mt-3">
+                    <i class="bi bi-play-circle me-2"></i>开始您的第一次考试
+                </a>
+            </div>
+            
+            <!-- 分页 -->
+            <div class="card-footer" id="paginationFooter">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted" id="pageInfo">第 1 页，共 0 条</span>
+                    <nav aria-label="记录分页" id="paginationNav">
+                        <!-- 动态加载 -->
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalPages = 1;
+        
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExams();
+            loadSubmissions();
+        });
+        
+        // 加载考试列表
+        function loadExams() {
+            fetch('/api/exams?per_page=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const exams = data.data.items;
+                        const select = document.getElementById('examFilter');
+                        
+                        select.innerHTML = '<option value="">全部考试</option>' + 
+                            exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+                    }
+                });
+        }
+        
+        // 加载考试记录
+        function loadSubmissions(page = 1) {
+            currentPage = page;
+            
+            const examId = document.getElementById('examFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            let url = `/api/submissions?page=${page}&per_page=${pageSize}`;
+            if (examId) url += `&exam_id=${examId}`;
+            if (status) url += `&status=${status}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const submissions = data.data.items;
+                        const pagination = data.data.pagination;
+                        
+                        renderSubmissions(submissions);
+                        renderPagination(pagination);
+                        updateStatistics(submissions);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载考试记录失败:', error);
+                });
+        }
+        
+        // 渲染考试记录
+        function renderSubmissions(submissions) {
+            const tbody = document.getElementById('submissionsBody');
+            const emptyState = document.getElementById('emptyState');
+            const card = tbody.closest('.card');
+            
+            if (!submissions || submissions.length === 0) {
+                tbody.innerHTML = '';
+                card.classList.add('d-none');
+                emptyState.classList.remove('d-none');
+                return;
+            }
+            
+            card.classList.remove('d-none');
+            emptyState.classList.add('d-none');
+            
+            const html = submissions.map(s => {
+                const examTitle = s.exam ? s.exam.title : '未知考试';
+                const isPassed = s.is_passed;
+                const score = s.obtained_score !== null ? `${s.obtained_score}/${s.total_score}` : '-';
+                const percentage = s.obtained_score !== null ? 
+                    ((s.obtained_score / s.total_score) * 100).toFixed(1) : '-';
+                
+                // 计算用时
+                let duration = '-';
+                if (s.started_at && s.submitted_at) {
+                    const start = new Date(s.started_at);
+                    const end = new Date(s.submitted_at);
+                    const diff = Math.floor((end - start) / 1000); // 秒
+                    if (diff < 60) {
+                        duration = diff + '秒';
+                    } else if (diff < 3600) {
+                        duration = Math.floor(diff / 60) + '分' + (diff % 60) + '秒';
+                    } else {
+                        duration = Math.floor(diff / 3600) + '小时' + 
+                                   Math.floor((diff % 3600) / 60) + '分';
+                    }
+                }
+                
+                // 状态标签
+                let statusBadge;
+                if (s.status === 'in_progress') {
+                    statusBadge = '<span class="badge bg-warning">进行中</span>';
+                } else if (isPassed) {
+                    statusBadge = '<span class="badge bg-success">及格</span>';
+                } else {
+                    statusBadge = '<span class="badge bg-danger">不及格</span>';
+                }
+                
+                return `
+                    <tr>
+                        <td>
+                            <strong>${examTitle}</strong>
+                        </td>
+                        <td>
+                            <div class="fw-bold">${score}</div>
+                            <small class="text-muted">${percentage}%</small>
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td class="text-muted">${formatDate(s.submitted_at || s.started_at)}</td>
+                        <td class="text-muted">${duration}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                ${s.status === 'in_progress' ? 
+                                    `<a href="/exam/${s.id}" class="btn btn-outline-primary">
+                                        <i class="bi bi-play-fill"></i> 继续
+                                    </a>` :
+                                    `<a href="/submission/${s.id}/result" class="btn btn-outline-info">
+                                        <i class="bi bi-eye"></i> 结果
+                                    </a>`
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = html;
+        }
+        
+        // 渲染分页
+        function renderPagination(pagination) {
+            const nav = document.getElementById('paginationNav');
+            const info = document.getElementById('pageInfo');
+            
+            totalPages = pagination.total_pages;
+            
+            info.textContent = `第 ${pagination.page} 页，共 ${pagination.total} 条`;
+            
+            let html = '<ul class="pagination mb-0">';
+            
+            // 上一页
+            html += `
+                <li class="page-item ${pagination.has_prev ? '' : 'disabled'}">
+                    <a class="page-link" href="#" onclick="${pagination.has_prev ? `loadSubmissions(${pagination.page - 1})` : ''}; return false;">
+                        上一页
+                    </a>
+                </li>
+            `;
+            
+            // 页码
+            const startPage = Math.max(1, pagination.page - 2);
+            const endPage = Math.min(totalPages, pagination.page + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadSubmissions(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            }
+            
+            // 下一页
+            html += `
+                <li class="page-item ${pagination.has_next ? '' : 'disabled'}">
+                    <a class="page-link" href="#" onclick="${pagination.has_next ? `loadSubmissions(${pagination.page + 1})` : ''}; return false;">
+                        下一页
+                    </a>
+                </li>
+            `;
+            
+            html += '</ul>';
+            nav.innerHTML = html;
+        }
+        
+        // 更新统计数据
+        function updateStatistics(submissions) {
+            if (!submissions || submissions.length === 0) {
+                document.getElementById('statTotal').textContent = '0';
+                document.getElementById('statPassed').textContent = '0';
+                document.getElementById('statAvg').textContent = '-';
+                document.getElementById('statRate').textContent = '0%';
+                return;
+            }
+            
+            const total = submissions.length;
+            const passed = submissions.filter(s => s.is_passed).length;
+            const scored = submissions.filter(s => s.obtained_score !== null && s.total_score !== null);
+            const avgScore = scored.length > 0 ? 
+                scored.reduce((sum, s) => sum + (s.obtained_score / s.total_score * 100), 0) / scored.length : 0;
+            const passRate = total > 0 ? (passed / total * 100) : 0;
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPassed').textContent = passed;
+            document.getElementById('statAvg').textContent = avgScore.toFixed(1);
+            document.getElementById('statRate').textContent = passRate.toFixed(1) + '%';
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN') + ' ' + 
+                   date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+    </script>
+</body>
+</html>

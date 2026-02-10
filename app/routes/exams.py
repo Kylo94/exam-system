@@ -334,18 +334,28 @@ def get_ongoing_exams():
     """获取进行中的考试"""
     try:
         service = ExamService(exams_bp.app.extensions['sqlalchemy'])
+        subject_service = SubjectService(exams_bp.app.extensions['sqlalchemy'])
+        level_service = LevelService(exams_bp.app.extensions['sqlalchemy'])
+        
         exams = service.get_ongoing_exams()
         
-        items = [{
-            'id': exam.id,
-            'title': exam.title,
-            'description': exam.description,
-            'subject_id': exam.subject_id,
-            'level_id': exam.level_id,
-            'duration_minutes': exam.duration_minutes,
-            'start_time': exam.start_time.isoformat() if exam.start_time else None,
-            'end_time': exam.end_time.isoformat() if exam.end_time else None
-        } for exam in exams]
+        items = []
+        for exam in exams:
+            subject = subject_service.get_by_id(exam.subject_id)
+            level = level_service.get_by_id(exam.level_id)
+            
+            items.append({
+                'id': exam.id,
+                'title': exam.title,
+                'description': exam.description,
+                'subject_id': exam.subject_id,
+                'subject': {'name': subject.name} if subject else None,
+                'level_id': exam.level_id,
+                'level': {'name': level.name} if level else None,
+                'duration_minutes': exam.duration_minutes,
+                'start_time': exam.start_time.isoformat() if exam.start_time else None,
+                'end_time': exam.end_time.isoformat() if exam.end_time else None
+            })
         
         return jsonify({
             'success': True,
