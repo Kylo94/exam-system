@@ -7,98 +7,324 @@
 <body>
     {% include "partials/navbar.html" %}
     
+    <!-- 主页横幅 -->
+    <section class="bg-primary text-white py-5 mb-5">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h1 class="display-4 fw-bold mb-3">开始您的考试之旅</h1>
+                    <p class="lead mb-4">发现适合您的考试，在线答题，即时查看成绩</p>
+                    <a href="{{ url_for('main.exams_page') }}" class="btn btn-light btn-lg">
+                        <i class="bi bi-search me-2"></i>浏览考试
+                    </a>
+                </div>
+                <div class="col-lg-4 text-center d-none d-lg-block">
+                    <i class="bi bi-pencil-square" style="font-size: 8rem; opacity: 0.3;"></i>
+                </div>
+            </div>
+        </div>
+    </section>
+    
     <main class="container py-5">
-        <div class="text-center mb-5">
-            <h1 class="display-4 mb-3">欢迎使用 {{ app_name }}</h1>
-            <p class="lead text-muted">
-                一个功能完整的在线考试与答题系统，支持文档导入、自动评分和数据分析。
-            </p>
-        </div>
+        <!-- 正在进行的考试 -->
+        <section class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h4">
+                    <i class="bi bi-lightning-charge text-warning me-2"></i>正在进行的考试
+                </h2>
+                <a href="{{ url_for('main.exams_page') }}" class="text-decoration-none">
+                    查看全部 <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            
+            <div id="ongoing-exams" class="row g-4">
+                <!-- 动态加载 -->
+            </div>
+            
+            <div id="ongoing-empty" class="text-center py-5 d-none">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3 mb-0">暂无正在进行的考试</p>
+            </div>
+        </section>
         
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card h-100 border-primary">
-                    <div class="card-body text-center">
-                        <i class="bi bi-file-text fs-1 text-primary mb-3"></i>
-                        <h3 class="card-title">文档导入</h3>
-                        <p class="card-text">
-                            支持Word文档导入，自动解析试题内容，快速创建考试。
-                        </p>
-                        <a href="{{ url_for('main.upload_page') }}" class="btn btn-primary">
-                            上传文档
-                        </a>
+        <!-- 我的考试记录 -->
+        <section class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="h4">
+                    <i class="bi bi-clock-history text-info me-2"></i>最近考试记录
+                </h2>
+                <a href="/my-submissions" class="text-decoration-none">
+                    查看全部 <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            
+            <div id="recent-submissions" class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>考试名称</th>
+                                    <th>成绩</th>
+                                    <th>状态</th>
+                                    <th>考试时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="submissions-body">
+                                <!-- 动态加载 -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
             
-            <div class="col-md-4">
-                <div class="card h-100 border-success">
-                    <div class="card-body text-center">
-                        <i class="bi bi-check-circle fs-1 text-success mb-3"></i>
-                        <h3 class="card-title">在线考试</h3>
-                        <p class="card-text">
-                            多种题型支持，实时答题反馈，自动评分与答案解析。
-                        </p>
-                        <a href="{{ url_for('main.exams_page') }}" class="btn btn-success">
-                            开始考试
-                        </a>
+            <div id="submissions-empty" class="text-center py-5 d-none">
+                <i class="bi bi-clipboard-x fs-1 text-muted"></i>
+                <p class="text-muted mt-3 mb-0">暂无考试记录</p>
+                <a href="{{ url_for('main.exams_page') }}" class="btn btn-primary mt-3">
+                    <i class="bi bi-play-circle me-2"></i>开始您的第一次考试
+                </a>
+            </div>
+        </section>
+        
+        <!-- 统计概览 -->
+        <section>
+            <h2 class="h4 mb-4">
+                <i class="bi bi-bar-chart-line text-success me-2"></i>我的统计
+            </h2>
+            
+            <div class="row g-4" id="stats-section">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="text-muted small mb-1">考试次数</div>
+                            <div class="fs-3 fw-bold text-primary" id="stat-total">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="text-muted small mb-1">及格次数</div>
+                            <div class="fs-3 fw-bold text-success" id="stat-passed">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="text-muted small mb-1">平均分</div>
+                            <div class="fs-3 fw-bold text-info" id="stat-avg">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div class="text-muted small mb-1">及格率</div>
+                            <div class="fs-3 fw-bold text-warning" id="stat-rate">-</div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="col-md-4">
-                <div class="card h-100 border-info">
-                    <div class="card-body text-center">
-                        <i class="bi bi-bar-chart fs-1 text-info mb-3"></i>
-                        <h3 class="card-title">数据分析</h3>
-                        <p class="card-text">
-                            考试统计、成绩分析、知识点掌握情况可视化展示。
-                        </p>
-                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-info">
-                            查看统计
-                        </a>
-                    </div>
-                </div>
+            <div id="stats-empty" class="alert alert-info mt-4 d-none">
+                <i class="bi bi-info-circle me-2"></i>
+                完成考试后这里将显示您的统计数据
             </div>
-        </div>
-        
-        <div class="row mt-5">
-            <div class="col-lg-8 mx-auto">
-                <div class="card">
-                    <div class="card-header bg-light">
-                        <h4 class="mb-0">系统功能</h4>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-unstyled">
-                            <li class="mb-2">
-                                <i class="bi bi-check2 text-success me-2"></i>
-                                <strong>多题型支持：</strong>单选题、多选题、判断题、填空题、简答题
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check2 text-success me-2"></i>
-                                <strong>智能解析：</strong>自动识别题目类型、提取选项、检测答案
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check2 text-success me-2"></i>
-                                <strong>灵活考试：</strong>可设置考试时间、时长、尝试次数、及格分数
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check2 text-success me-2"></i>
-                                <strong>数据统计：</strong>成绩分布、通过率、知识点掌握情况分析
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check2 text-success me-2"></i>
-                                <strong>用户管理：</strong>支持多用户系统，考试记录与成绩追踪
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </section>
     </main>
     
     {% include "partials/footer.html" %}
-    
     {% include "partials/scripts.html" %}
+    
+    <script>
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOngoingExams();
+            loadRecentSubmissions();
+            loadUserStats();
+        });
+        
+        // 加载正在进行的考试
+        function loadOngoingExams() {
+            fetch('/api/exams/ongoing')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const exams = data.data;
+                        const container = document.getElementById('ongoing-exams');
+                        const emptyState = document.getElementById('ongoing-empty');
+                        
+                        if (!exams || exams.length === 0) {
+                            container.innerHTML = '';
+                            emptyState.classList.remove('d-none');
+                            return;
+                        }
+                        
+                        emptyState.classList.add('d-none');
+                        
+                        const html = exams.slice(0, 4).map(exam => {
+                            const progress = exam.progress || { current: 0, total: exam.question_count || 0 };
+                            
+                            return `
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="card-title text-truncate mb-2">${exam.title}</h5>
+                                            <p class="card-text text-muted small mb-2">
+                                                <i class="bi bi-journal-text me-1"></i>${exam.subject ? exam.subject.name : '-'} | 
+                                                <i class="bi bi-bar-chart me-1"></i>${exam.level ? exam.level.name : '-'}
+                                            </p>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">
+                                                    <i class="bi bi-clock me-1"></i>${exam.duration_minutes || '-'} 分钟
+                                                </small>
+                                                <span class="badge bg-success">进行中</span>
+                                            </div>
+                                        </div>
+                                        <div class="card-footer bg-white border-0 pb-3">
+                                            <a href="/exams/${exam.id}" class="btn btn-primary w-100">
+                                                <i class="bi bi-play-circle me-1"></i>开始考试
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        container.innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载考试失败:', error);
+                });
+        }
+        
+        // 加载最近的考试记录
+        function loadRecentSubmissions() {
+            // 假设当前用户ID为1，实际应该从登录信息获取
+            const userId = 1;
+            
+            fetch(`/api/submissions?user_id=${userId}&per_page=5`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const submissions = data.data.items;
+                        const tbody = document.getElementById('submissions-body');
+                        const emptyState = document.getElementById('submissions-empty');
+                        const card = document.getElementById('recent-submissions');
+                        
+                        if (!submissions || submissions.length === 0) {
+                            tbody.innerHTML = '';
+                            card.classList.add('d-none');
+                            emptyState.classList.remove('d-none');
+                            return;
+                        }
+                        
+                        card.classList.remove('d-none');
+                        emptyState.classList.add('d-none');
+                        
+                        const html = submissions.map(s => {
+                            const examTitle = s.exam ? s.exam.title : '未知考试';
+                            const isPassed = s.is_passed;
+                            const score = s.obtained_score !== null ? `${s.obtained_score}/${s.total_score}` : '-';
+                            
+                            let statusBadge;
+                            if (s.status === 'in_progress') {
+                                statusBadge = '<span class="badge bg-warning">进行中</span>';
+                            } else if (isPassed) {
+                                statusBadge = '<span class="badge bg-success">及格</span>';
+                            } else {
+                                statusBadge = '<span class="badge bg-danger">不及格</span>';
+                            }
+                            
+                            return `
+                                <tr>
+                                    <td>${examTitle}</td>
+                                    <td><strong>${score}</strong></td>
+                                    <td>${statusBadge}</td>
+                                    <td class="text-muted small">${formatDate(s.submitted_at || s.started_at)}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            ${s.status === 'in_progress' ? 
+                                                `<a href="/exam/${s.id}" class="btn btn-outline-primary">
+                                                    <i class="bi bi-play-fill"></i> 继续
+                                                </a>` :
+                                                `<a href="/submission/${s.id}/result" class="btn btn-outline-info">
+                                                    <i class="bi bi-eye"></i> 结果
+                                                </a>`
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('');
+                        
+                        tbody.innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载考试记录失败:', error);
+                });
+        }
+        
+        // 加载用户统计
+        function loadUserStats() {
+            const userId = 1;
+            
+            fetch(`/api/submissions?user_id=${userId}&per_page=100`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const submissions = data.data.items;
+                        const statsSection = document.getElementById('stats-section');
+                        const emptyState = document.getElementById('stats-empty');
+                        
+                        if (!submissions || submissions.length === 0) {
+                            statsSection.classList.add('d-none');
+                            emptyState.classList.remove('d-none');
+                            return;
+                        }
+                        
+                        statsSection.classList.remove('d-none');
+                        emptyState.classList.add('d-none');
+                        
+                        // 计算统计数据
+                        const total = submissions.length;
+                        const passed = submissions.filter(s => s.is_passed).length;
+                        const scored = submissions.filter(s => s.obtained_score !== null && s.total_score !== null);
+                        const avgScore = scored.length > 0 ? 
+                            scored.reduce((sum, s) => sum + (s.obtained_score / s.total_score * 100), 0) / scored.length : 0;
+                        const passRate = total > 0 ? (passed / total * 100) : 0;
+                        
+                        document.getElementById('stat-total').textContent = total;
+                        document.getElementById('stat-passed').textContent = passed;
+                        document.getElementById('stat-avg').textContent = avgScore.toFixed(1);
+                        document.getElementById('stat-rate').textContent = passRate.toFixed(1) + '%';
+                    }
+                })
+                .catch(error => {
+                    console.error('加载统计数据失败:', error);
+                });
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+            
+            // 如果在24小时内，显示相对时间
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            
+            // 否则显示完整日期
+            return date.toLocaleDateString('zh-CN');
+        }
+    </script>
 </body>
 </html>
