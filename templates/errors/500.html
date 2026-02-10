@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>服务器错误 - {{ app_name }}</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 text-center">
+                <div class="card">
+                    <div class="card-body py-5">
+                        <h1 class="display-1 text-danger mb-4">500</h1>
+                        <h2 class="h3 mb-3">服务器错误</h2>
+                        <p class="text-muted mb-4">
+                            {% if message %}
+                                {{ message }}
+                            {% else %}
+                                服务器遇到了一些问题，请稍后再试。
+                            {% endif %}
+                        </p>
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-lg">
+                                <i class="bi bi-house-door me-1"></i>返回首页
+                            </a>
+                            <a href="{{ url_for('main.exams_page') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-list-ul me-1"></i>考试列表
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+</body>
+</html>

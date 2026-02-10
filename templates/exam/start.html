@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>开始考试 - {{ exam.title }} - {{ app_name }}</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-4">
+        <!-- 面包屑导航 -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.exams_page') }}">考试列表</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.exam_detail', exam_id=exam.id) }}">{{ exam.title }}</a></li>
+                <li class="breadcrumb-item active">开始考试</li>
+            </ol>
+        </nav>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h2 class="h4 mb-0"><i class="bi bi-play-circle me-2"></i>开始考试</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <h3 class="h3 mb-3">{{ exam.title }}</h3>
+                            <div class="d-inline-block">
+                                <span class="badge bg-info me-2">{{ exam.subject.name if exam.subject else '未指定' }}</span>
+                                <span class="badge bg-warning text-dark me-2">{{ exam.level.name if exam.level else '未指定' }}</span>
+                                <span class="badge bg-secondary">{{ exam.duration_minutes }}分钟</span>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mb-4">
+                            <h5 class="h5"><i class="bi bi-list-check me-1"></i>考试信息</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    考试时长
+                                    <span class="badge bg-primary">{{ exam.duration_minutes }}分钟</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    及格分数
+                                    <span class="badge bg-success">{{ exam.pass_score }}分</span>
+                                </li>
+                                {% if exam.max_attempts and exam.max_attempts > 1 %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    考试次数
+                                    <span class="badge bg-info">最多{{ exam.max_attempts }}次</span>
+                                </li>
+                                {% endif %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    题目数量
+                                    <span class="badge bg-secondary" id="questionCount">加载中...</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    总分
+                                    <span class="badge bg-warning text-dark" id="totalScore">加载中...</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-warning mb-4">
+                            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-1"></i>考试须知</h6>
+                            <ul class="mb-0">
+                                <li>考试开始后，计时器将立即启动</li>
+                                <li>请在规定时间内完成所有题目</li>
+                                <li>答题过程中可以保存进度</li>
+                                <li>提交后将无法修改答案</li>
+                                <li>请确保网络连接稳定</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <h6 class="alert-heading"><i class="bi bi-clock me-1"></i>时间提示</h6>
+                            <p class="mb-0">
+                                考试时间到后系统将自动提交，请合理安排答题时间。
+                                最后5分钟和1分钟时会有提醒。
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="confirmStart" required>
+                                <label class="form-check-label" for="confirmStart">
+                                    我已阅读考试须知，确认开始考试
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <form method="POST" id="startExamForm">
+                            <div class="d-grid gap-2">
+                                <button type="submit" 
+                                        class="btn btn-primary btn-lg" 
+                                        id="startBtn"
+                                        disabled
+                                        onclick="return confirm('确认开始考试？计时将立即开始。')">
+                                    <i class="bi bi-play-circle me-2"></i>开始考试
+                                </button>
+                                <a href="{{ url_for('main.exam_detail', exam_id=exam.id) }}" 
+                                   class="btn btn-outline-secondary btn-lg">
+                                    <i class="bi bi-arrow-left me-2"></i>返回
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        const examId = {{ exam.id }};
+        
+        // 加载考试信息
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExamInfo();
+            
+            // 启用开始按钮
+            document.getElementById('confirmStart').addEventListener('change', function() {
+                document.getElementById('startBtn').disabled = !this.checked;
+            });
+        });
+        
+        function loadExamInfo() {
+            fetch(`/api/exams/${examId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const exam = data.data;
+                        document.getElementById('questionCount').textContent = exam.question_count || 0;
+                        document.getElementById('totalScore').textContent = exam.total_score || 0;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载考试信息失败:', error);
+                    document.getElementById('questionCount').textContent = '--';
+                    document.getElementById('totalScore').textContent = '--';
+                });
+        }
+    </script>
+</body>
+</html>

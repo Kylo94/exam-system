@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 题目管理</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">题目管理</h1>
+            <div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>返回面板
+                </a>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createQuestionModal">
+                    <i class="bi bi-plus-circle me-1"></i>创建题目
+                </button>
+            </div>
+        </div>
+        
+        <!-- 筛选卡片 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">考试筛选</label>
+                        <select class="form-select" id="examFilter">
+                            <option value="">全部考试</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">题型筛选</label>
+                        <select class="form-select" id="typeFilter">
+                            <option value="">全部题型</option>
+                            <option value="single_choice">单选题</option>
+                            <option value="multiple_choice">多选题</option>
+                            <option value="true_false">判断题</option>
+                            <option value="fill_blank">填空题</option>
+                            <option value="short_answer">简答题</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">关键词搜索</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="输入关键词搜索题目内容">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" onclick="loadQuestions()">
+                            <i class="bi bi-search me-1"></i>搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 题目列表卡片 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>题目列表</span>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="viewToggle" checked>
+                    <label class="form-check-label" for="viewToggle">表格视图</label>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 表格视图 -->
+                <div class="table-responsive" id="tableView">
+                    <table class="table table-hover" id="questionsTable">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" class="form-check-input" id="selectAll">
+                                </th>
+                                <th width="60">ID</th>
+                                <th>题目内容</th>
+                                <th width="100">题型</th>
+                                <th width="80">分值</th>
+                                <th width="150">试卷</th>
+                                <th width="150">创建时间</th>
+                                <th width="180">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="questionsBody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 卡片视图 -->
+                <div id="cardView" class="d-none">
+                    <div class="row" id="questionsCards">
+                        <!-- 动态加载 -->
+                    </div>
+                </div>
+                
+                <div id="emptyState" class="text-center py-5 d-none">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">暂无题目数据</p>
+                </div>
+            </div>
+            
+            <!-- 分页 -->
+            <div class="card-footer" id="paginationFooter">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted" id="pageInfo">第 1 页，共 0 条</span>
+                    <nav aria-label="题目分页" id="paginationNav">
+                        <!-- 动态加载 -->
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 创建题目模态框 -->
+    <div class="modal fade" id="createQuestionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建题目</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createQuestionForm">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">考试 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="examSelect" required>
+                                    <option value="">请选择考试</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">题型 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="questionType" required onchange="updateFormFields()">
+                                    <option value="">请选择题型</option>
+                                    <option value="single_choice">单选题</option>
+                                    <option value="multiple_choice">多选题</option>
+                                    <option value="true_false">判断题</option>
+                                    <option value="fill_blank">填空题</option>
+                                    <option value="short_answer">简答题</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">题目内容 <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="questionContent" rows="3" required placeholder="请输入题目内容"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">分值</label>
+                                <input type="number" class="form-control" id="questionScore" value="1" min="0.1" step="0.1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">排序</label>
+                                <input type="number" class="form-control" id="questionOrder" value="0" min="0">
+                            </div>
+                            
+                            <!-- 选择题选项 -->
+                            <div id="choicesSection" class="col-12 d-none">
+                                <label class="form-label">选项</label>
+                                <div id="choicesContainer">
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">A</span>
+                                        <input type="text" class="form-control choice-input" data-index="0">
+                                    </div>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">B</span>
+                                        <input type="text" class="form-control choice-input" data-index="1">
+                                    </div>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">C</span>
+                                        <input type="text" class="form-control choice-input" data-index="2">
+                                    </div>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">D</span>
+                                        <input type="text" class="form-control choice-input" data-index="3">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addChoice()">
+                                    <i class="bi bi-plus me-1"></i>添加选项
+                                </button>
+                            </div>
+                            
+                            <!-- 正确答案 -->
+                            <div class="col-12">
+                                <label class="form-label">正确答案 <span class="text-danger">*</span></label>
+                                <div id="answerSingle" class="d-none">
+                                    <select class="form-select" id="singleCorrect">
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                    </select>
+                                </div>
+                                <div id="answerMultiple" class="d-none">
+                                    <div>
+                                        <input type="checkbox" class="form-check-input" id="checkA" value="A">
+                                        <label for="checkA">A</label>
+                                        <input type="checkbox" class="form-check-input ms-3" id="checkB" value="B">
+                                        <label for="checkB">B</label>
+                                        <input type="checkbox" class="form-check-input ms-3" id="checkC" value="C">
+                                        <label for="checkC">C</label>
+                                        <input type="checkbox" class="form-check-input ms-3" id="checkD" value="D">
+                                        <label for="checkD">D</label>
+                                    </div>
+                                </div>
+                                <div id="answerBool" class="d-none">
+                                    <select class="form-select" id="boolCorrect">
+                                        <option value="true">正确</option>
+                                        <option value="false">错误</option>
+                                    </select>
+                                </div>
+                                <div id="answerText" class="d-none">
+                                    <input type="text" class="form-control" id="textCorrect" placeholder="请输入正确答案">
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">答案解析</label>
+                                <textarea class="form-control" id="questionExplanation" rows="2" placeholder="请输入答案解析（可选）"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createQuestion()">
+                        <i class="bi bi-check-lg me-1"></i>创建
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑题目模态框 -->
+    <div class="modal fade" id="editQuestionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑题目</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editQuestionForm">
+                        <input type="hidden" id="editQuestionId">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">考试 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editExamSelect" required>
+                                    <option value="">请选择考试</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">题型 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editQuestionType" required onchange="updateEditFormFields()">
+                                    <option value="">请选择题型</option>
+                                    <option value="single_choice">单选题</option>
+                                    <option value="multiple_choice">多选题</option>
+                                    <option value="true_false">判断题</option>
+                                    <option value="fill_blank">填空题</option>
+                                    <option value="short_answer">简答题</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">题目内容 <span class="text-danger">*</span></label>
+                                <textarea class="form-control" id="editQuestionContent" rows="3" required placeholder="请输入题目内容"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">分值</label>
+                                <input type="number" class="form-control" id="editQuestionScore" value="1" min="0.1" step="0.1">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">排序</label>
+                                <input type="number" class="form-control" id="editQuestionOrder" value="0" min="0">
+                            </div>
+                            
+                            <!-- 选择题选项 -->
+                            <div id="editChoicesSection" class="col-12 d-none">
+                                <label class="form-label">选项</label>
+                                <div id="editChoicesContainer">
+                                    <!-- 动态加载 -->
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addEditChoice()">
+                                    <i class="bi bi-plus me-1"></i>添加选项
+                                </button>
+                            </div>
+                            
+                            <!-- 正确答案 -->
+                            <div class="col-12">
+                                <label class="form-label">正确答案 <span class="text-danger">*</span></label>
+                                <div id="editAnswerSingle" class="d-none">
+                                    <select class="form-select" id="editSingleCorrect">
+                                        <option value="A">A</option>
+                                        <option value="B">B</option>
+                                        <option value="C">C</option>
+                                        <option value="D">D</option>
+                                    </select>
+                                </div>
+                                <div id="editAnswerMultiple" class="d-none">
+                                    <div id="editMultipleChecks">
+                                        <!-- 动态加载 -->
+                                    </div>
+                                </div>
+                                <div id="editAnswerBool" class="d-none">
+                                    <select class="form-select" id="editBoolCorrect">
+                                        <option value="true">正确</option>
+                                        <option value="false">错误</option>
+                                    </select>
+                                </div>
+                                <div id="editAnswerText" class="d-none">
+                                    <input type="text" class="form-control" id="editTextCorrect" placeholder="请输入正确答案">
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <label class="form-label">答案解析</label>
+                                <textarea class="form-control" id="editQuestionExplanation" rows="2" placeholder="请输入答案解析（可选）"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="updateQuestion()">
+                        <i class="bi bi-check-lg me-1"></i>保存
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 预览题目模态框 -->
+    <div class="modal fade" id="previewQuestionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">题目预览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="previewContent">
+                    <!-- 动态加载 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 批量删除确认模态框 -->
+    <div class="modal fade" id="batchDeleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">批量删除确认</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除选中的 <strong id="deleteCount">0</strong> 个题目吗？</p>
+                    <p class="text-danger">此操作不可撤销！</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">
+                        <i class="bi bi-trash me-1"></i>确认删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        // 全局变量
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalPages = 1;
+        let selectedQuestions = new Set();
+        let editChoiceCount = 4;
+        
+        // 题型映射
+        const typeLabels = {
+            'single_choice': '单选题',
+            'multiple_choice': '多选题',
+            'true_false': '判断题',
+            'fill_blank': '填空题',
+            'short_answer': '简答题'
+        };
+        
+        const typeBadgeColors = {
+            'single_choice': 'bg-primary',
+            'multiple_choice': 'bg-warning',
+            'true_false': 'bg-success',
+            'fill_blank': 'bg-info',
+            'short_answer': 'bg-secondary'
+        };
+        
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExams();
+            loadQuestions();
+            
+            // 视图切换
+            document.getElementById('viewToggle').addEventListener('change', function() {
+                const tableView = document.getElementById('tableView');
+                const cardView = document.getElementById('cardView');
+                
+                if (this.checked) {
+                    tableView.classList.remove('d-none');
+                    cardView.classList.add('d-none');
+                } else {
+                    tableView.classList.add('d-none');
+                    cardView.classList.remove('d-none');
+                }
+            });
+            
+            // 全选
+            document.getElementById('selectAll').addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.question-checkbox');
+                checkboxes.forEach(cb => cb.checked = this.checked);
+                
+                selectedQuestions.clear();
+                if (this.checked) {
+                    checkboxes.forEach(cb => selectedQuestions.add(parseInt(cb.value)));
+                }
+            });
+            
+            // 搜索框回车事件
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loadQuestions();
+                }
+            });
+        });
+        
+        // 加载考试列表
+        function loadExams() {
+            fetch('/api/exams?per_page=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const exams = data.data.items;
+                        const examFilter = document.getElementById('examFilter');
+                        const examSelect = document.getElementById('examSelect');
+                        const editExamSelect = document.getElementById('editExamSelect');
+                        
+                        const options = '<option value="">全部考试</option>' + 
+                            exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+                        
+                        examFilter.innerHTML = options;
+                        
+                        const selectOptions = '<option value="">请选择考试</option>' + 
+                            exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+                        
+                        examSelect.innerHTML = selectOptions;
+                        editExamSelect.innerHTML = selectOptions;
+                    }
+                });
+        }
+        
+        // 加载题目列表
+        function loadQuestions(page = 1) {
+            currentPage = page;
+            selectedQuestions.clear();
+            
+            const examId = document.getElementById('examFilter').value;
+            const type = document.getElementById('typeFilter').value;
+            const content = document.getElementById('searchInput').value;
+            
+            let url = `/api/questions?page=${page}&per_page=${pageSize}`;
+            if (examId) url += `&exam_id=${examId}`;
+            if (type) url += `&type=${type}`;
+            if (content) url += `&content=${encodeURIComponent(content)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const questions = data.data.items;
+                        const pagination = data.data.pagination;
+                        
+                        renderQuestions(questions);
+                        renderPagination(pagination);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载题目失败:', error);
+                });
+        }
+        
+        // 渲染题目列表
+        function renderQuestions(questions) {
+            const tbody = document.getElementById('questionsBody');
+            const cardsContainer = document.getElementById('questionsCards');
+            const emptyState = document.getElementById('emptyState');
+            const tableView = document.getElementById('tableView');
+            const cardView = document.getElementById('cardView');
+            
+            if (!questions || questions.length === 0) {
+                tbody.innerHTML = '';
+                cardsContainer.innerHTML = '';
+                emptyState.classList.remove('d-none');
+                return;
+            }
+            
+            emptyState.classList.add('d-none');
+            
+            // 表格视图
+            const tableHtml = questions.map(q => {
+                const examTitle = q.exam ? q.exam.title : '未关联';
+                const typeLabel = typeLabels[q.type] || q.type;
+                const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
+                
+                return `
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input question-checkbox" value="${q.id}">
+                        </td>
+                        <td>${q.id}</td>
+                        <td>
+                            <div>${q.content.substring(0, 50)}${q.content.length > 50 ? '...' : ''}</div>
+                            ${q.explanation ? `<small class="text-muted">${q.explanation.substring(0, 30)}...</small>` : ''}
+                        </td>
+                        <td>
+                            <span class="badge ${badgeColor}">${typeLabel}</span>
+                        </td>
+                        <td>${q.score}</td>
+                        <td>
+                            <a href="/exams/${q.exam_id}" class="text-decoration-none">${examTitle}</a>
+                        </td>
+                        <td>${formatDate(q.created_at)}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-info" onclick="previewQuestion(${q.id})" title="预览">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="editQuestion(${q.id})" title="编辑">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteQuestion(${q.id})" title="删除">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = tableHtml;
+            
+            // 卡片视图
+            const cardsHtml = questions.map(q => {
+                const examTitle = q.exam ? q.exam.title : '未关联';
+                const typeLabel = typeLabels[q.type] || q.type;
+                const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
+                
+                return `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge ${badgeColor}">${typeLabel}</span>
+                                    <small class="text-muted">${q.score}分</small>
+                                </div>
+                                <h6 class="card-title">${q.content.substring(0, 60)}${q.content.length > 60 ? '...' : ''}</h6>
+                                <p class="card-text small text-muted mb-2">试卷: ${examTitle}</p>
+                                ${q.explanation ? `<p class="card-text small text-muted mb-2">解析: ${q.explanation.substring(0, 40)}...</p>` : ''}
+                            </div>
+                            <div class="card-footer bg-transparent border-top-0">
+                                <div class="btn-group btn-group-sm w-100">
+                                    <button class="btn btn-outline-info" onclick="previewQuestion(${q.id})">
+                                        <i class="bi bi-eye"></i> 预览
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="editQuestion(${q.id})">
+                                        <i class="bi bi-pencil"></i> 编辑
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="deleteQuestion(${q.id})">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            cardsContainer.innerHTML = cardsHtml;
+            
+            // 复选框事件
+            document.querySelectorAll('.question-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedQuestions.add(parseInt(this.value));
+                    } else {
+                        selectedQuestions.delete(parseInt(this.value));
+                    }
+                });
+            });
+        }
+        
+        // 渲染分页
+        function renderPagination(pagination) {
+            const nav = document.getElementById('paginationNav');
+            const info = document.getElementById('pageInfo');
+            
+            totalPages = pagination.total_pages;
+            
+            info.textContent = `第 ${pagination.page} 页，共 ${pagination.total} 条`;
+            
+            let html = '<ul class="pagination mb-0">';
+            
+            // 上一页
+            html += `
+                <li class="page-item ${pagination.has_prev ? '' : 'disabled'}">
+                    <a class="page-link" href="#" onclick="${pagination.has_prev ? `loadQuestions(${pagination.page - 1})` : ''}; return false;">
+                        上一页
+                    </a>
+                </li>
+            `;
+            
+            // 页码
+            const startPage = Math.max(1, pagination.page - 2);
+            const endPage = Math.min(totalPages, pagination.page + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadQuestions(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            }
+            
+            // 下一页
+            html += `
+                <li class="page-item ${pagination.has_next ? '' : 'disabled'}">
+                    <a class="page-link" href="#" onclick="${pagination.has_next ? `loadQuestions(${pagination.page + 1})` : ''}; return false;">
+                        下一页
+                    </a>
+                </li>
+            `;
+            
+            html += '</ul>';
+            nav.innerHTML = html;
+        }
+        
+        // 更新表单字段
+        function updateFormFields() {
+            const type = document.getElementById('questionType').value;
+            const choicesSection = document.getElementById('choicesSection');
+            const answerSingle = document.getElementById('answerSingle');
+            const answerMultiple = document.getElementById('answerMultiple');
+            const answerBool = document.getElementById('answerBool');
+            const answerText = document.getElementById('answerText');
+            
+            // 隐藏所有
+            choicesSection.classList.add('d-none');
+            answerSingle.classList.add('d-none');
+            answerMultiple.classList.add('d-none');
+            answerBool.classList.add('d-none');
+            answerText.classList.add('d-none');
+            
+            // 显示对应字段
+            if (type === 'single_choice') {
+                choicesSection.classList.remove('d-none');
+                answerSingle.classList.remove('d-none');
+            } else if (type === 'multiple_choice') {
+                choicesSection.classList.remove('d-none');
+                answerMultiple.classList.remove('d-none');
+            } else if (type === 'true_false') {
+                answerBool.classList.remove('d-none');
+            } else if (type === 'fill_blank' || type === 'short_answer') {
+                answerText.classList.remove('d-none');
+            }
+        }
+        
+        // 更新编辑表单字段
+        function updateEditFormFields() {
+            const type = document.getElementById('editQuestionType').value;
+            const choicesSection = document.getElementById('editChoicesSection');
+            const answerSingle = document.getElementById('editAnswerSingle');
+            const answerMultiple = document.getElementById('editAnswerMultiple');
+            const answerBool = document.getElementById('editAnswerBool');
+            const answerText = document.getElementById('editAnswerText');
+            
+            // 隐藏所有
+            choicesSection.classList.add('d-none');
+            answerSingle.classList.add('d-none');
+            answerMultiple.classList.add('d-none');
+            answerBool.classList.add('d-none');
+            answerText.classList.add('d-none');
+            
+            // 显示对应字段
+            if (type === 'single_choice') {
+                choicesSection.classList.remove('d-none');
+                answerSingle.classList.remove('d-none');
+            } else if (type === 'multiple_choice') {
+                choicesSection.classList.remove('d-none');
+                answerMultiple.classList.remove('d-none');
+            } else if (type === 'true_false') {
+                answerBool.classList.remove('d-none');
+            } else if (type === 'fill_blank' || type === 'short_answer') {
+                answerText.classList.remove('d-none');
+            }
+        }
+        
+        // 添加选项
+        function addChoice() {
+            const container = document.getElementById('choicesContainer');
+            const count = container.children.length;
+            const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            
+            const div = document.createElement('div');
+            div.className = 'input-group mb-2';
+            div.innerHTML = `
+                <span class="input-group-text">${labels[count]}</span>
+                <input type="text" class="form-control choice-input" data-index="${count}">
+                <button type="button" class="btn btn-outline-danger" onclick="removeChoice(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+        
+        // 移除选项
+        function removeChoice(btn) {
+            btn.parentElement.remove();
+            // 更新选项标签
+            const container = document.getElementById('choicesContainer');
+            const inputs = container.querySelectorAll('.choice-input');
+            const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            inputs.forEach((input, index) => {
+                input.parentElement.querySelector('.input-group-text').textContent = labels[index];
+                input.dataset.index = index;
+            });
+        }
+        
+        // 创建题目
+        function createQuestion() {
+            const examId = document.getElementById('examSelect').value;
+            const type = document.getElementById('questionType').value;
+            const content = document.getElementById('questionContent').value;
+            const score = document.getElementById('questionScore').value;
+            const order = document.getElementById('questionOrder').value;
+            const explanation = document.getElementById('questionExplanation').value;
+            
+            if (!examId || !type || !content) {
+                alert('请填写必填字段！');
+                return;
+            }
+            
+            const data = {
+                exam_id: parseInt(examId),
+                content: content,
+                type: type,
+                score: parseFloat(score),
+                order_index: parseInt(order),
+                explanation: explanation
+            };
+            
+            // 根据题型处理选项和答案
+            if (type === 'single_choice' || type === 'multiple_choice') {
+                const choiceInputs = document.querySelectorAll('.choice-input');
+                const choices = Array.from(choiceInputs).map(input => input.value).filter(v => v.trim());
+                
+                if (choices.length < 2) {
+                    alert('选择题至少需要2个选项！');
+                    return;
+                }
+                
+                data.choices = choices;
+                
+                if (type === 'single_choice') {
+                    data.correct_answer = document.getElementById('singleCorrect').value;
+                } else {
+                    const checked = [];
+                    document.querySelectorAll('#answerMultiple input:checked').forEach(cb => checked.push(cb.value));
+                    if (checked.length === 0) {
+                        alert('多选题至少需要选择一个正确答案！');
+                        return;
+                    }
+                    data.correct_answer = checked;
+                }
+            } else if (type === 'true_false') {
+                data.correct_answer = document.getElementById('boolCorrect').value === 'true';
+            } else {
+                const answer = document.getElementById('textCorrect').value;
+                if (!answer) {
+                    alert('请输入正确答案！');
+                    return;
+                }
+                data.correct_answer = answer;
+            }
+            
+            fetch('/api/questions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('createQuestionModal')).hide();
+                    alert('题目创建成功！');
+                    resetCreateForm();
+                    loadQuestions();
+                } else {
+                    alert('创建失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('创建题目失败:', error);
+                alert('创建失败，请稍后重试');
+            });
+        }
+        
+        // 重置创建表单
+        function resetCreateForm() {
+            document.getElementById('createQuestionForm').reset();
+            
+            // 重置选项
+            const container = document.getElementById('choicesContainer');
+            container.innerHTML = `
+                <div class="input-group mb-2">
+                    <span class="input-group-text">A</span>
+                    <input type="text" class="form-control choice-input" data-index="0">
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">B</span>
+                    <input type="text" class="form-control choice-input" data-index="1">
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">C</span>
+                    <input type="text" class="form-control choice-input" data-index="2">
+                </div>
+                <div class="input-group mb-2">
+                    <span class="input-group-text">D</span>
+                    <input type="text" class="form-control choice-input" data-index="3">
+                </div>
+            `;
+            
+            updateFormFields();
+        }
+        
+        // 编辑题目
+        function editQuestion(id) {
+            fetch(`/api/questions/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const q = data.data;
+                        
+                        document.getElementById('editQuestionId').value = q.id;
+                        document.getElementById('editExamSelect').value = q.exam_id;
+                        document.getElementById('editQuestionType').value = q.type;
+                        document.getElementById('editQuestionContent').value = q.content;
+                        document.getElementById('editQuestionScore').value = q.score;
+                        document.getElementById('editQuestionOrder').value = q.order_index || 0;
+                        document.getElementById('editQuestionExplanation').value = q.explanation || '';
+                        
+                        updateEditFormFields();
+                        
+                        // 处理选项
+                        if (q.type === 'single_choice' || q.type === 'multiple_choice') {
+                            const options = q.options || {};
+                            const choices = options.choices || [];
+                            
+                            const container = document.getElementById('editChoicesContainer');
+                            const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                            container.innerHTML = choices.map((choice, i) => `
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text">${labels[i]}</span>
+                                    <input type="text" class="form-control edit-choice-input" value="${choice}">
+                                </div>
+                            `).join('');
+                            
+                            // 处理正确答案
+                            if (q.type === 'single_choice') {
+                                document.getElementById('editSingleCorrect').value = q.correct_answer;
+                            } else {
+                                let correctAnswers;
+                                try {
+                                    correctAnswers = JSON.parse(q.correct_answer);
+                                } catch (e) {
+                                    correctAnswers = [q.correct_answer];
+                                }
+                                
+                                const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                                const checksHtml = choices.map((choice, i) => `
+                                    <input type="checkbox" class="form-check-input" 
+                                           id="editCheck${i}" value="${labels[i]}" 
+                                           ${correctAnswers.includes(labels[i]) ? 'checked' : ''}>
+                                    <label for="editCheck${i}">${labels[i]}</label>
+                                `).join(' ');
+                                document.getElementById('editMultipleChecks').innerHTML = checksHtml;
+                            }
+                        } else if (q.type === 'true_false') {
+                            document.getElementById('editBoolCorrect').value = q.correct_answer.toLowerCase();
+                        } else {
+                            document.getElementById('editTextCorrect').value = q.correct_answer;
+                        }
+                        
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('editQuestionModal')).show();
+                    }
+                });
+        }
+        
+        // 更新题目
+        function updateQuestion() {
+            const id = document.getElementById('editQuestionId').value;
+            const examId = document.getElementById('editExamSelect').value;
+            const type = document.getElementById('editQuestionType').value;
+            const content = document.getElementById('editQuestionContent').value;
+            const score = document.getElementById('editQuestionScore').value;
+            const order = document.getElementById('editQuestionOrder').value;
+            const explanation = document.getElementById('editQuestionExplanation').value;
+            
+            if (!examId || !type || !content) {
+                alert('请填写必填字段！');
+                return;
+            }
+            
+            const data = {
+                exam_id: parseInt(examId),
+                content: content,
+                type: type,
+                score: parseFloat(score),
+                order_index: parseInt(order),
+                explanation: explanation
+            };
+            
+            // 根据题型处理选项和答案
+            if (type === 'single_choice' || type === 'multiple_choice') {
+                const choiceInputs = document.querySelectorAll('.edit-choice-input');
+                const choices = Array.from(choiceInputs).map(input => input.value).filter(v => v.trim());
+                
+                if (choices.length < 2) {
+                    alert('选择题至少需要2个选项！');
+                    return;
+                }
+                
+                data.options = { choices: choices };
+                
+                if (type === 'single_choice') {
+                    data.correct_answer = document.getElementById('editSingleCorrect').value;
+                } else {
+                    const checked = [];
+                    document.querySelectorAll('#editMultipleChecks input:checked').forEach(cb => checked.push(cb.value));
+                    if (checked.length === 0) {
+                        alert('多选题至少需要选择一个正确答案！');
+                        return;
+                    }
+                    data.correct_answer = checked;
+                }
+            } else if (type === 'true_false') {
+                data.correct_answer = document.getElementById('editBoolCorrect').value;
+            } else {
+                const answer = document.getElementById('editTextCorrect').value;
+                if (!answer) {
+                    alert('请输入正确答案！');
+                    return;
+                }
+                data.correct_answer = answer;
+            }
+            
+            fetch(`/api/questions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('editQuestionModal')).hide();
+                    alert('题目更新成功！');
+                    loadQuestions(currentPage);
+                } else {
+                    alert('更新失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('更新题目失败:', error);
+                alert('更新失败，请稍后重试');
+            });
+        }
+        
+        // 预览题目
+        function previewQuestion(id) {
+            fetch(`/api/questions/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const q = data.data;
+                        const typeLabel = typeLabels[q.type] || q.type;
+                        const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
+                        
+                        let optionsHtml = '';
+                        if (q.type === 'single_choice' || q.type === 'multiple_choice') {
+                            const options = q.options || {};
+                            const choices = options.choices || [];
+                            const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                            optionsHtml = choices.map((choice, i) => `
+                                <div class="form-check">
+                                    <input class="form-check-input" type="${q.type === 'single_choice' ? 'radio' : 'checkbox'}" disabled>
+                                    <label class="form-check-label">${labels[i]}. ${choice}</label>
+                                </div>
+                            `).join('');
+                        }
+                        
+                        let answerHtml = '';
+                        if (q.type === 'single_choice' || q.type === 'multiple_choice') {
+                            answerHtml = `<span class="badge bg-success">${q.correct_answer}</span>`;
+                        } else if (q.type === 'true_false') {
+                            answerHtml = `<span class="badge bg-success">${q.correct_answer === 'true' ? '正确' : '错误'}</span>`;
+                        } else {
+                            answerHtml = `<span class="badge bg-success">${q.correct_answer}</span>`;
+                        }
+                        
+                        const html = `
+                            <div class="mb-3">
+                                <span class="badge ${badgeColor}">${typeLabel}</span>
+                                <span class="badge bg-secondary">${q.score}分</span>
+                            </div>
+                            <h5>${q.content}</h5>
+                            ${optionsHtml ? `<div class="mt-3">${optionsHtml}</div>` : ''}
+                            <hr>
+                            <div class="mt-3">
+                                <strong>正确答案：</strong>${answerHtml}
+                            </div>
+                            ${q.explanation ? `<div class="mt-2"><strong>答案解析：</strong>${q.explanation}</div>` : ''}
+                            <div class="mt-2 text-muted small">
+                                创建时间：${formatDate(q.created_at)}
+                            </div>
+                        `;
+                        
+                        document.getElementById('previewContent').innerHTML = html;
+                        bootstrap.Modal.getOrCreateInstance(document.getElementById('previewQuestionModal')).show();
+                    }
+                });
+        }
+        
+        // 删除题目
+        function deleteQuestion(id) {
+            if (confirm('确定要删除这个题目吗？此操作不可撤销！')) {
+                fetch(`/api/questions/${id}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('删除成功！');
+                            loadQuestions(currentPage);
+                        } else {
+                            alert('删除失败：' + (data.message || '未知错误'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('删除题目失败:', error);
+                        alert('删除失败，请稍后重试');
+                    });
+            }
+        }
+        
+        // 批量删除
+        function batchDelete() {
+            const checked = document.querySelectorAll('.question-checkbox:checked');
+            if (checked.length === 0) {
+                alert('请先选择要删除的题目！');
+                return;
+            }
+            
+            document.getElementById('deleteCount').textContent = checked.length;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('batchDeleteModal')).show();
+        }
+        
+        // 确认批量删除
+        function confirmBatchDelete() {
+            const ids = Array.from(selectedQuestions);
+            
+            Promise.all(ids.map(id => 
+                fetch(`/api/questions/${id}`, { method: 'DELETE' })
+                    .then(response => response.json())
+            ))
+            .then(results => {
+                bootstrap.Modal.getInstance(document.getElementById('batchDeleteModal')).hide();
+                alert(`成功删除 ${results.filter(r => r.success).length} 个题目！`);
+                loadQuestions(currentPage);
+            })
+            .catch(error => {
+                console.error('批量删除失败:', error);
+                alert('批量删除失败，请稍后重试');
+            });
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+    </script>
+</body>
+</html>

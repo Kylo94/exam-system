@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 编辑考试</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ url_for('main.exams_page') }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>返回列表
+                </a>
+            </div>
+            <h1 class="h3">编辑考试</h1>
+            <div></div>
+        </div>
+        
+        <div class="row">
+            <!-- 基本信息 -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">基本信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="editExamForm">
+                            <input type="hidden" id="examId" value="{{ exam.id }}">
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-8">
+                                    <label class="form-label">考试标题 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="examTitle" value="{{ exam.title }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">考试状态</label>
+                                    <select class="form-select" id="examStatus">
+                                        <option value="1" {{ 'selected' if exam.is_active else '' }}>启用</option>
+                                        <option value="0" {{ 'selected' if not exam.is_active else '' }}>禁用</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label">考试描述</label>
+                                <textarea class="form-control" id="examDescription" rows="3">{{ exam.description or '' }}</textarea>
+                            </div>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4">
+                                    <label class="form-label">科目 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="examSubject" required>
+                                        <option value="">请选择科目</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">难度 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="examLevel" required>
+                                        <option value="">请选择难度</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">时长（分钟）</label>
+                                    <input type="number" class="form-control" id="examDuration" value="{{ exam.duration_minutes }}" min="1">
+                                </div>
+                            </div>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">开始时间</label>
+                                    <input type="datetime-local" class="form-control" id="examStartTime" 
+                                           value="{{ exam.start_time.strftime('%Y-%m-%dT%H:%M') if exam.start_time else '' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">结束时间</label>
+                                    <input type="datetime-local" class="form-control" id="examEndTime" 
+                                           value="{{ exam.end_time.strftime('%Y-%m-%dT%H:%M') if exam.end_time else '' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">及格分数</label>
+                                    <input type="number" class="form-control" id="examPassScore" value="{{ exam.pass_score }}" min="0">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">最大尝试次数</label>
+                                    <input type="number" class="form-control" id="examMaxAttempts" value="{{ exam.max_attempts or '' }}" min="1">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- 题目管理 -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">题目管理</h5>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addQuestionModal">
+                            <i class="bi bi-plus-circle me-1"></i>添加题目
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="questionsList">
+                            <!-- 动态加载 -->
+                        </div>
+                        <div id="emptyQuestions" class="text-center py-4 d-none">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2 mb-0">暂无题目，请添加题目</p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted" id="questionStats">共 0 题，总分 0 分</span>
+                            <button class="btn btn-outline-primary btn-sm" onclick="saveQuestionsOrder()">
+                                <i class="bi bi-save me-1"></i>保存顺序
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 侧边栏 -->
+            <div class="col-lg-4">
+                <!-- 快速操作 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">快速操作</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" onclick="saveExam()">
+                                <i class="bi bi-save me-1"></i>保存修改
+                            </button>
+                            <button class="btn btn-outline-success" onclick="publishExam()">
+                                <i class="bi bi-send me-1"></i>发布考试
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="previewExam()">
+                                <i class="bi bi-eye me-1"></i>预览考试
+                            </button>
+                            <hr>
+                            <button class="btn btn-outline-warning" onclick="duplicateExam()">
+                                <i class="bi bi-copy me-1"></i>复制考试
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteExam()">
+                                <i class="bi bi-trash me-1"></i>删除考试
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 统计信息 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">统计信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <h6 class="text-muted small">题目数</h6>
+                                <h4 class="mb-0" id="statQuestionCount">0</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-muted small">总分</h6>
+                                <h4 class="mb-0" id="statTotalScore">0</h4>
+                            </div>
+                        </div>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h6 class="text-muted small">参与人数</h6>
+                                <h4 class="mb-0" id="statParticipantCount">0</h4>
+                            </div>
+                            <div class="col-6">
+                                <h6 class="text-muted small">及格率</h6>
+                                <h4 class="mb-0" id="statPassRate">0%</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 最近提交 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">最近提交</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recentSubmissions">
+                            <!-- 动态加载 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 添加题目模态框 -->
+    <div class="modal fade" id="addQuestionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加题目</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addQuestionForm">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label">选择题目</label>
+                                <select class="form-select" id="questionSelect" size="8">
+                                    <option value="">请选择要添加的题目...</option>
+                                </select>
+                                <small class="text-muted">搜索其他考试中的题目</small>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">题型筛选</label>
+                                <select class="form-select" id="questionTypeFilter" onchange="filterQuestions()">
+                                    <option value="">全部题型</option>
+                                    <option value="single_choice">单选题</option>
+                                    <option value="multiple_choice">多选题</option>
+                                    <option value="true_false">判断题</option>
+                                    <option value="fill_blank">填空题</option>
+                                    <option value="short_answer">简答题</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">排序</label>
+                                <input type="number" class="form-control" id="newQuestionOrder" value="0" min="0">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="addQuestionToExam()">
+                        <i class="bi bi-plus me-1"></i>添加
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        const examId = {{ exam.id }};
+        
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSubjects();
+            loadLevels();
+            loadQuestions();
+            loadStatistics();
+            loadRecentSubmissions();
+        });
+        
+        // 加载科目
+        function loadSubjects() {
+            fetch('/api/subjects')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('examSubject');
+                        const subjects = data.data.items || [];
+                        
+                        select.innerHTML = '<option value="">请选择科目</option>' + 
+                            subjects.map(s => `<option value="${s.id}" {{ 'selected' if s.id == exam.subject_id else '' }}>${s.name}</option>`).join('');
+                    }
+                });
+        }
+        
+        // 加载难度
+        function loadLevels() {
+            fetch('/api/levels')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('examLevel');
+                        const levels = data.data.items || [];
+                        
+                        select.innerHTML = '<option value="">请选择难度</option>' + 
+                            levels.map(l => `<option value="${l.id}" {{ 'selected' if l.id == exam.level_id else '' }}>${l.name}</option>`).join('');
+                    }
+                });
+        }
+        
+        // 加载题目
+        function loadQuestions() {
+            fetch(`/api/questions/exam/${examId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const questions = data.data;
+                        renderQuestions(questions);
+                        updateQuestionStats(questions);
+                    }
+                });
+        }
+        
+        // 渲染题目列表
+        function renderQuestions(questions) {
+            const container = document.getElementById('questionsList');
+            const emptyState = document.getElementById('emptyQuestions');
+            
+            if (!questions || questions.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('d-none');
+                return;
+            }
+            
+            emptyState.classList.add('d-none');
+            
+            const typeLabels = {
+                'single_choice': '单选题',
+                'multiple_choice': '多选题',
+                'true_false': '判断题',
+                'fill_blank': '填空题',
+                'short_answer': '简答题'
+            };
+            
+            const typeColors = {
+                'single_choice': 'primary',
+                'multiple_choice': 'warning',
+                'true_false': 'success',
+                'fill_blank': 'info',
+                'short_answer': 'secondary'
+            };
+            
+            const html = questions.map((q, index) => `
+                <div class="card mb-2 question-item" data-id="${q.id}">
+                    <div class="card-body py-2 px-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center flex-grow-1">
+                                <span class="badge bg-light text-dark me-2">${index + 1}</span>
+                                <span class="badge bg-${typeColors[q.type] || 'secondary'} me-2">${typeLabels[q.type] || q.type}</span>
+                                <span class="text-muted small me-2">${q.score}分</span>
+                                <span class="flex-grow-1">${q.content.substring(0, 60)}${q.content.length > 60 ? '...' : ''}</span>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <input type="number" class="form-control form-control-sm me-2" 
+                                       style="width: 70px;" 
+                                       value="${q.order_index}" 
+                                       onchange="updateQuestionOrder(${q.id}, this.value)">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" onclick="moveQuestion(${q.id}, -1)">
+                                        <i class="bi bi-arrow-up"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="moveQuestion(${q.id}, 1)">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="removeQuestion(${q.id})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        // 更新题目统计
+        function updateQuestionStats(questions) {
+            const count = questions.length;
+            const totalScore = questions.reduce((sum, q) => sum + q.score, 0);
+            
+            document.getElementById('questionStats').textContent = `共 ${count} 题，总分 ${totalScore} 分`;
+            document.getElementById('statQuestionCount').textContent = count;
+            document.getElementById('statTotalScore').textContent = totalScore;
+        }
+        
+        // 加载统计信息
+        function loadStatistics() {
+            fetch(`/api/submissions/exam/${examId}/statistics`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stats = data.data;
+                        document.getElementById('statParticipantCount').textContent = stats.total_submissions || 0;
+                        document.getElementById('statPassRate').textContent = (stats.pass_rate || 0).toFixed(1) + '%';
+                    }
+                });
+        }
+        
+        // 加载最近提交
+        function loadRecentSubmissions() {
+            fetch(`/api/submissions?exam_id=${examId}&per_page=5`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const submissions = data.data.items;
+                        const container = document.getElementById('recentSubmissions');
+                        
+                        if (!submissions || submissions.length === 0) {
+                            container.innerHTML = '<p class="text-muted text-center mb-0">暂无提交记录</p>';
+                            return;
+                        }
+                        
+                        const html = submissions.map(s => `
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <div>
+                                    <div class="small">用户 #${s.user_id}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">${formatDate(s.submitted_at)}</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">${s.obtained_score || '-'}/${s.total_score || '-'}</div>
+                                    <span class="badge ${s.is_passed ? 'bg-success' : 'bg-danger'}" style="font-size: 0.75rem;">
+                                        ${s.is_passed ? '及格' : '不及格'}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('');
+                        
+                        container.innerHTML = html;
+                    }
+                });
+        }
+        
+        // 保存考试
+        function saveExam() {
+            const data = {
+                title: document.getElementById('examTitle').value,
+                description: document.getElementById('examDescription').value,
+                subject_id: parseInt(document.getElementById('examSubject').value),
+                level_id: parseInt(document.getElementById('examLevel').value),
+                duration_minutes: parseInt(document.getElementById('examDuration').value) || null,
+                start_time: document.getElementById('examStartTime').value || null,
+                end_time: document.getElementById('examEndTime').value || null,
+                pass_score: parseFloat(document.getElementById('examPassScore').value) || null,
+                max_attempts: parseInt(document.getElementById('examMaxAttempts').value) || null,
+                is_active: document.getElementById('examStatus').value === '1'
+            };
+            
+            if (!data.title || !data.subject_id || !data.level_id) {
+                alert('请填写必填字段！');
+                return;
+            }
+            
+            fetch(`/api/exams/${examId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('保存成功！');
+                } else {
+                    alert('保存失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('保存考试失败:', error);
+                alert('保存失败，请稍后重试');
+            });
+        }
+        
+        // 发布考试
+        function publishExam() {
+            if (!confirm('确定要发布这个考试吗？发布后学生可以看到并开始考试。')) {
+                return;
+            }
+            
+            fetch(`/api/exams/${examId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_active: true })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('考试发布成功！');
+                    document.getElementById('examStatus').value = '1';
+                } else {
+                    alert('发布失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('发布考试失败:', error);
+                alert('发布失败，请稍后重试');
+            });
+        }
+        
+        // 预览考试
+        function previewExam() {
+            window.open(`/exams/${examId}`, '_blank');
+        }
+        
+        // 复制考试
+        function duplicateExam() {
+            if (!confirm('确定要复制这个考试吗？将创建一个包含相同题目和设置的新考试。')) {
+                return;
+            }
+            
+            // 获取当前考试信息
+            fetch(`/api/exams/${examId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const exam = data.data;
+                        const newExamData = {
+                            title: exam.title + ' (副本)',
+                            description: exam.description,
+                            subject_id: exam.subject_id,
+                            level_id: exam.level_id,
+                            duration_minutes: exam.duration_minutes,
+                            pass_score: exam.pass_score,
+                            max_attempts: exam.max_attempts
+                        };
+                        
+                        // 创建新考试
+                        fetch('/api/exams', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(newExamData)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                const newExamId = data.data.id;
+                                alert(`考试复制成功！新考试ID: ${newExamId}`);
+                                // 这里可以添加复制题目的逻辑
+                                window.location.href = `/exams/${newExamId}/edit`;
+                            } else {
+                                alert('复制失败：' + (data.message || '未知错误'));
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('复制考试失败:', error);
+                    alert('复制失败，请稍后重试');
+                });
+        }
+        
+        // 删除考试
+        function deleteExam() {
+            if (!confirm('确定要删除这个考试吗？此操作不可撤销！')) {
+                return;
+            }
+            
+            if (!confirm('再次确认：删除后所有相关的提交记录和题目关联都将被删除！')) {
+                return;
+            }
+            
+            fetch(`/api/exams/${examId}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('删除成功！');
+                        window.location.href = '/exams';
+                    } else {
+                        alert('删除失败：' + (data.message || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    console.error('删除考试失败:', error);
+                    alert('删除失败，请稍后重试');
+                });
+        }
+        
+        // 添加题目到考试
+        function addQuestionToExam() {
+            const questionId = document.getElementById('questionSelect').value;
+            const order = parseInt(document.getElementById('newQuestionOrder').value) || 0;
+            
+            if (!questionId) {
+                alert('请选择题目！');
+                return;
+            }
+            
+            // 更新题目的考试ID和顺序
+            fetch(`/api/questions/${questionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    exam_id: examId,
+                    order_index: order
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('addQuestionModal')).hide();
+                    alert('题目添加成功！');
+                    loadQuestions();
+                } else {
+                    alert('添加失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('添加题目失败:', error);
+                alert('添加失败，请稍后重试');
+            });
+        }
+        
+        // 从考试中移除题目
+        function removeQuestion(questionId) {
+            if (!confirm('确定要从考试中移除这个题目吗？')) {
+                return;
+            }
+            
+            fetch(`/api/questions/${questionId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('题目已移除！');
+                    loadQuestions();
+                } else {
+                    alert('移除失败：' + (data.message || '未知错误'));
+                }
+            })
+            .catch(error => {
+                console.error('移除题目失败:', error);
+                alert('移除失败，请稍后重试');
+            });
+        }
+        
+        // 更新题目顺序
+        function updateQuestionOrder(questionId, order) {
+            fetch(`/api/questions/${questionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_index: parseInt(order) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert('更新顺序失败：' + (data.message || '未知错误'));
+                    loadQuestions(); // 重新加载以恢复原值
+                }
+            })
+            .catch(error => {
+                console.error('更新题目顺序失败:', error);
+                loadQuestions(); // 重新加载以恢复原值
+            });
+        }
+        
+        // 移动题目
+        function moveQuestion(questionId, direction) {
+            const items = document.querySelectorAll('.question-item');
+            let currentIndex = -1;
+            
+            items.forEach((item, index) => {
+                if (parseInt(item.dataset.id) === questionId) {
+                    currentIndex = index;
+                }
+            });
+            
+            const newIndex = currentIndex + direction;
+            if (newIndex < 0 || newIndex >= items.length) {
+                return;
+            }
+            
+            // 更新顺序
+            items[currentIndex].querySelector('input').value = newIndex;
+            items[newIndex].querySelector('input').value = currentIndex;
+            
+            // 保存新顺序
+            saveQuestionsOrder();
+        }
+        
+        // 保存题目顺序
+        function saveQuestionsOrder() {
+            const items = document.querySelectorAll('.question-item');
+            const updates = Array.from(items).map(item => ({
+                id: parseInt(item.dataset.id),
+                order_index: parseInt(item.querySelector('input').value)
+            }));
+            
+            Promise.all(updates.map(update => 
+                fetch(`/api/questions/${update.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_index: update.order_index })
+                }).then(response => response.json())
+            ))
+            .then(results => {
+                const successCount = results.filter(r => r.success).length;
+                alert(`成功更新 ${successCount}/${updates.length} 个题目的顺序！`);
+                loadQuestions();
+            })
+            .catch(error => {
+                console.error('保存题目顺序失败:', error);
+                alert('保存失败，请稍后重试');
+            });
+        }
+        
+        // 筛选题目
+        function filterQuestions() {
+            const type = document.getElementById('questionTypeFilter').value;
+            const options = document.querySelectorAll('#questionSelect option');
+            
+            options.forEach(option => {
+                if (option.value === '') {
+                    option.style.display = 'block';
+                    return;
+                }
+                
+                const questionType = option.dataset.type;
+                if (type && questionType !== type) {
+                    option.style.display = 'none';
+                } else {
+                    option.style.display = 'block';
+                }
+            });
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+    </script>
+</body>
+</html>

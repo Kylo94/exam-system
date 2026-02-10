@@ -45,6 +45,41 @@ class DevelopmentConfig(Config):
     """开发环境配置"""
     DEBUG = True
     SQLALCHEMY_ECHO = True  # 输出SQL语句
+    
+    @classmethod
+    def init_app(cls, app):
+        Config.init_app(app)
+        
+        # 开发环境日志配置
+        import logging
+        from logging.handlers import RotatingFileHandler
+        
+        # 创建日志目录
+        log_dir = 'logs'
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # 文件处理器
+        file_handler = RotatingFileHandler(
+            os.path.join(log_dir, 'exam_system.log'),
+            maxBytes=10485760,  # 10MB
+            backupCount=5
+        )
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        app.logger.addHandler(file_handler)
+        
+        # 控制台处理器（开发环境同时输出到控制台）
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s'
+        ))
+        app.logger.addHandler(console_handler)
+        
+        app.logger.setLevel(logging.DEBUG)
+        app.logger.info('在线答题系统启动（开发模式）')
 
 
 class TestingConfig(Config):

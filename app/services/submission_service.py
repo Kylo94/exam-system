@@ -1,7 +1,7 @@
 """考试提交服务模块"""
 
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 
 from app.models import Submission, Exam, Answer
@@ -74,7 +74,7 @@ class SubmissionService(BaseService[Submission]):
         if not exam:
             raise ValueError(f"考试ID {exam_id} 不存在")
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if started_at is None:
             started_at = now
         
@@ -117,7 +117,7 @@ class SubmissionService(BaseService[Submission]):
         if not exam:
             return {'success': False, 'error': '考试不存在'}
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if now > exam.end_time:
             return {'success': False, 'error': '考试已结束，不能提交'}
         
@@ -211,7 +211,7 @@ class SubmissionService(BaseService[Submission]):
             # 如果状态改为submitted，设置提交时间
             if new_status == 'submitted' and instance.status != 'submitted':
                 if 'submitted_at' not in kwargs:
-                    kwargs['submitted_at'] = datetime.utcnow()
+                    kwargs['submitted_at'] = datetime.now(timezone.utc)
         
         return self.update(id, kwargs)
     

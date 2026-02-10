@@ -126,9 +126,9 @@
                                     <a href="/exams/${exam.id}" class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-eye"></i> 查看
                                     </a>
-                                    <button class="btn btn-sm btn-outline-warning" onclick="editExam(${exam.id})">
+                                    <a href="/exams/${exam.id}/edit" class="btn btn-sm btn-outline-warning">
                                         <i class="bi bi-pencil"></i> 编辑
-                                    </button>
+                                    </a>
                                 </td>
                             `;
                             tbody.appendChild(row);
@@ -254,11 +254,6 @@
                 });
             });
         });
-        
-        function editExam(id) {
-            alert('编辑考试功能开发中，考试ID: ' + id);
-            // 后续实现编辑功能
-        }
     </script>
 </body>
 </html>

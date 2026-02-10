@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>答题详情 - {{ app_name }}</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-4">
+        <!-- 面包屑导航 -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.exams_page') }}">考试列表</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.exam_detail', exam_id=submission.exam_id) }}">考试详情</a></li>
+                <li class="breadcrumb-item active">答题详情</li>
+            </ol>
+        </nav>
+        
+        <!-- 答题信息头部 -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="h4 mb-0">
+                    <i class="bi bi-file-earmark-text me-2"></i>答题详情
+                    <span class="badge bg-light text-dark ms-2">ID: {{ submission.id }}</span>
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>考试ID:</strong> {{ submission.exam_id }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>用户ID:</strong> {{ submission.user_id }}
+                        </p>
+                        <p class="mb-2">
+                            <strong>开始时间:</strong> 
+                            {{ submission.started_at.strftime('%Y-%m-%d %H:%M:%S') if submission.started_at else '--' }}
+                        </p>
+                        <p class="mb-0">
+                            <strong>提交时间:</strong> 
+                            {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if submission.submitted_at else '--' }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>状态:</strong> 
+                            <span class="badge {% if submission.status == 'completed' %}bg-success{% elif submission.status == 'in_progress' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {% if submission.status == 'completed' %}已完成
+                                {% elif submission.status == 'in_progress' %}进行中
+                                {% else %}{{ submission.status }}{% endif %}
+                            </span>
+                        </p>
+                        <p class="mb-2">
+                            <strong>得分:</strong> 
+                            {{ submission.obtained_score if submission.obtained_score is not none else '--' }} / 
+                            {{ submission.total_score if submission.total_score is not none else '--' }}
+                        </p>
+                        <p class="mb-0">
+                            <strong>通过:</strong> 
+                            <span class="badge {% if submission.is_passed %}bg-success{% else %}bg-danger{% endif %}">
+                                {% if submission.is_passed %}是{% else %}否{% endif %}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 答题列表 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="h5 mb-0">
+                    <i class="bi bi-list-check me-1"></i>答题列表
+                    <span class="badge bg-secondary ms-2">{{ submission.answers|length }}条</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if submission.answers %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>题型</th>
+                                <th>你的答案</th>
+                                <th>是否正确</th>
+                                <th>得分</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for answer in submission.answers %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        {% if answer.question.type == 'single_choice' %}单选题
+                                        {% elif answer.question.type == 'multiple_choice' %}多选题
+                                        {% elif answer.question.type == 'true_false' %}判断题
+                                        {% elif answer.question.type == 'fill_blank' %}填空题
+                                        {% elif answer.question.type == 'short_answer' %}简答题
+                                        {% elif answer.question.type == 'programming' %}编程题
+                                        {% else %}{{ answer.question.type }}{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if answer.user_answer %}
+                                        {% if answer.question.type == 'multiple_choice' %}
+                                            {{ answer.user_answer.split(',')|join(', ') }}
+                                        {% else %}
+                                            {{ answer.user_answer }}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">未作答</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if answer.is_correct is none %}
+                                        <span class="badge bg-secondary">未评分</span>
+                                    {% elif answer.is_correct %}
+                                        <span class="badge bg-success">正确</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">错误</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ answer.score if answer.score is not none else '--' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">暂无答题记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="mt-4 pt-3 border-top text-center">
+            {% if submission.status == 'completed' %}
+            <a href="{{ url_for('main.submission_result', submission_id=submission.id) }}" 
+               class="btn btn-success me-2">
+                <i class="bi bi-bar-chart me-1"></i>查看结果
+            </a>
+            {% elif submission.status == 'in_progress' %}
+            <a href="{{ url_for('main.take_exam', submission_id=submission.id) }}" 
+               class="btn btn-primary me-2">
+                <i class="bi bi-pencil me-1"></i>继续答题
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.exam_detail', exam_id=submission.exam_id) }}" 
+               class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i>返回考试详情
+            </a>
+            <a href="{{ url_for('main.exams_page') }}" class="btn btn-outline-info">
+                <i class="bi bi-list-ul me-1"></i>考试列表
+            </a>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+</body>
+</html>

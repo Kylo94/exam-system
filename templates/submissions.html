@@ -2,27 +2,575 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ app_name }} - 提交记录</title>
+    <title>{{ app_name }} - 提交记录管理</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}
     
     <main class="container py-5">
-        <div class="row">
-            <div class="col-md-12">
-                <h1 class="mb-4">提交记录</h1>
-                <p>提交记录功能开发中...</p>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle me-2"></i>
-                    此页面正在开发中，请稍后访问。
-                </div>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>返回控制面板
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3">提交记录管理</h1>
+            <div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>返回面板
                 </a>
+                <button class="btn btn-success" onclick="exportSubmissions()">
+                    <i class="bi bi-download me-1"></i>导出
+                </button>
+            </div>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">总记录数</h6>
+                        <h3 class="card-text mb-0" id="totalCount">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">平均分</h6>
+                        <h3 class="card-text mb-0" id="avgScore">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">及格率</h6>
+                        <h3 class="card-text mb-0" id="passRate">0%</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">今日提交</h6>
+                        <h3 class="card-text mb-0" id="todayCount">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 筛选卡片 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">考试筛选</label>
+                        <select class="form-select" id="examFilter">
+                            <option value="">全部考试</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">用户筛选</label>
+                        <input type="number" class="form-control" id="userFilter" placeholder="输入用户ID">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">状态筛选</label>
+                        <select class="form-select" id="statusFilter">
+                            <option value="">全部状态</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="submitted">已提交</option>
+                            <option value="graded">已评分</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" onclick="loadSubmissions()">
+                            <i class="bi bi-search me-1"></i>搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 提交记录列表 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>提交记录列表</span>
+                <div>
+                    <button class="btn btn-sm btn-outline-danger me-2" onclick="batchDelete()">
+                        <i class="bi bi-trash me-1"></i>批量删除
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="submissionsTable">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" class="form-check-input" id="selectAll">
+                                </th>
+                                <th width="60">ID</th>
+                                <th>考试</th>
+                                <th width="100">用户ID</th>
+                                <th width="120">状态</th>
+                                <th width="100">得分</th>
+                                <th width="80">及格</th>
+                                <th width="150">开始时间</th>
+                                <th width="150">提交时间</th>
+                                <th width="180">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissionsBody">
+                            <!-- 动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="emptyState" class="text-center py-5 d-none">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">暂无提交记录</p>
+                </div>
+            </div>
+            
+            <!-- 分页 -->
+            <div class="card-footer" id="paginationFooter">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted" id="pageInfo">第 1 页，共 0 条</span>
+                    <nav aria-label="提交记录分页" id="paginationNav">
+                        <!-- 动态加载 -->
+                    </nav>
+                </div>
             </div>
         </div>
     </main>
     
+    <!-- 批量删除确认模态框 -->
+    <div class="modal fade" id="batchDeleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">批量删除确认</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>确定要删除选中的 <strong id="deleteCount">0</strong> 条提交记录吗？</p>
+                    <p class="text-danger">此操作不可撤销！</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">
+                        <i class="bi bi-trash me-1"></i>确认删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 导出模态框 -->
+    <div class="modal fade" id="exportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">导出提交记录</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">导出格式</label>
+                        <select class="form-select" id="exportFormat">
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">导出范围</label>
+                        <select class="form-select" id="exportScope">
+                            <option value="all">全部记录</option>
+                            <option value="filtered">当前筛选结果</option>
+                            <option value="selected">选中记录</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-success" onclick="confirmExport()">
+                        <i class="bi bi-download me-1"></i>导出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        // 全局变量
+        let currentPage = 1;
+        let pageSize = 10;
+        let totalPages = 1;
+        let selectedSubmissions = new Set();
+        let currentSubmissions = [];
+        
+        // 状态映射
+        const statusLabels = {
+            'in_progress': '进行中',
+            'submitted': '已提交',
+            'graded': '已评分'
+        };
+        
+        const statusBadgeColors = {
+            'in_progress': 'bg-warning',
+            'submitted': 'bg-info',
+            'graded': 'bg-success'
+        };
+        
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExams();
+            loadSubmissions();
+            
+            // 全选
+            document.getElementById('selectAll').addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.submission-checkbox');
+                checkboxes.forEach(cb => cb.checked = this.checked);
+                
+                selectedSubmissions.clear();
+                if (this.checked) {
+                    checkboxes.forEach(cb => selectedSubmissions.add(parseInt(cb.value)));
+                }
+            });
+        });
+        
+        // 加载考试列表
+        function loadExams() {
+            fetch('/api/exams?per_page=100')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const exams = data.data.items;
+                        const examFilter = document.getElementById('examFilter');
+                        
+                        const options = '<option value="">全部考试</option>' + 
+                            exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+                        
+                        examFilter.innerHTML = options;
+                    }
+                });
+        }
+        
+        // 加载提交记录
+        function loadSubmissions(page = 1) {
+            currentPage = page;
+            selectedSubmissions.clear();
+            
+            const examId = document.getElementById('examFilter').value;
+            const userId = document.getElementById('userFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            
+            let url = `/api/submissions?page=${page}&per_page=${pageSize}`;
+            if (examId) url += `&exam_id=${examId}`;
+            if (userId) url += `&user_id=${userId}`;
+            if (status) url += `&status=${status}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const submissions = data.data.items;
+                        const pagination = data.data.pagination;
+                        
+                        currentSubmissions = submissions;
+                        renderSubmissions(submissions);
+                        renderPagination(pagination);
+                        updateStatistics(submissions);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载提交记录失败:', error);
+                });
+        }
+        
+        // 渲染提交记录
+        function renderSubmissions(submissions) {
+            const tbody = document.getElementById('submissionsBody');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (!submissions || submissions.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('d-none');
+                return;
+            }
+            
+            emptyState.classList.add('d-none');
+            
+            const html = submissions.map(s => {
+                const examTitle = s.exam ? s.exam.title : '未知考试';
+                const statusLabel = statusLabels[s.status] || s.status;
+                const badgeColor = statusBadgeColors[s.status] || 'bg-secondary';
+                const isPassed = s.is_passed;
+                const score = s.obtained_score !== null ? s.obtained_score : '-';
+                const totalScore = s.total_score !== null ? s.total_score : '-';
+                
+                return `
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input submission-checkbox" value="${s.id}">
+                        </td>
+                        <td>${s.id}</td>
+                        <td>
+                            <a href="/exams/${s.exam_id}" class="text-decoration-none">${examTitle}</a>
+                        </td>
+                        <td>${s.user_id}</td>
+                        <td>
+                            <span class="badge ${badgeColor}">${statusLabel}</span>
+                        </td>
+                        <td>${score} / ${totalScore}</td>
+                        <td>
+                            ${isPassed ? 
+                                '<span class="badge bg-success">是</span>' : 
+                                '<span class="badge bg-danger">否</span>'}
+                        </td>
+                        <td>${formatDate(s.started_at)}</td>
+                        <td>${formatDate(s.submitted_at)}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/submissions/${s.id}" class="btn btn-outline-info" title="查看详情">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="/submission/${s.id}/result" class="btn btn-outline-success" title="查看结果">
+                                    <i class="bi bi-trophy"></i>
+                                </a>
+                                <button class="btn btn-outline-danger" onclick="deleteSubmission(${s.id})" title="删除">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            
+            tbody.innerHTML = html;
+            
+            // 复选框事件
+            document.querySelectorAll('.submission-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedSubmissions.add(parseInt(this.value));
+                    } else {
+                        selectedSubmissions.delete(parseInt(this.value));
+                    }
+                });
+            });
+        }
+        
+        // 渲染分页
+        function renderPagination(pagination) {
+            const nav = document.getElementById('paginationNav');
+            const info = document.getElementById('pageInfo');
+            
+            totalPages = pagination.total_pages;
+            
+            info.textContent = `第 ${pagination.page} 页，共 ${pagination.total} 条`;
+            
+            let html = '<ul class="pagination mb-0">';
+            
+            // 上一页
+            html += `
+                <li class="page-item ${pagination.has_prev ? '' : 'disabled'}">
+                    <a class="page-link" href="#" onclick="${pagination.has_prev ? `loadSubmissions(${pagination.page - 1})` : ''}; return false;">
+                        上一页
+                    </a>
+                </li>
+            `;
+            
+            // 页码
+            const startPage = Math.max(1, pagination.page - 2);
+            const endPage = Math.min(totalPages, pagination.page + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <li class="page-item ${i === pagination.page ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="loadSubmissions(${i}); return false;">${i}</a>
+                    </li>
+                `;
+            }
+            
+            // 下一页
+            html += `
+                <li class="page-item ${pagination.has_next ? '' : 'disabled'}">
+                    <a class="page-link" href="#" onclick="${pagination.has_next ? `loadSubmissions(${pagination.page + 1})` : ''}; return false;">
+                        下一页
+                    </a>
+                </li>
+            `;
+            
+            html += '</ul>';
+            nav.innerHTML = html;
+        }
+        
+        // 更新统计数据
+        function updateStatistics(submissions) {
+            // 总记录数
+            document.getElementById('totalCount').textContent = submissions.length;
+            
+            // 计算平均分
+            const scoredSubmissions = submissions.filter(s => s.obtained_score !== null && s.total_score !== null);
+            if (scoredSubmissions.length > 0) {
+                const avg = scoredSubmissions.reduce((sum, s) => sum + (s.obtained_score / s.total_score * 100), 0) / scoredSubmissions.length;
+                document.getElementById('avgScore').textContent = avg.toFixed(1);
+            } else {
+                document.getElementById('avgScore').textContent = '0';
+            }
+            
+            // 计算及格率
+            const passedCount = submissions.filter(s => s.is_passed).length;
+            const passRate = submissions.length > 0 ? (passedCount / submissions.length * 100).toFixed(1) : 0;
+            document.getElementById('passRate').textContent = passRate + '%';
+            
+            // 今日提交数
+            const today = new Date().toDateString();
+            const todayCount = submissions.filter(s => {
+                const submitDate = s.submitted_at ? new Date(s.submitted_at).toDateString() : '';
+                return submitDate === today;
+            }).length;
+            document.getElementById('todayCount').textContent = todayCount;
+        }
+        
+        // 删除提交记录
+        function deleteSubmission(id) {
+            if (confirm('确定要删除这条提交记录吗？此操作不可撤销！')) {
+                fetch(`/api/submissions/${id}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('删除成功！');
+                            loadSubmissions(currentPage);
+                        } else {
+                            alert('删除失败：' + (data.message || '未知错误'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('删除提交记录失败:', error);
+                        alert('删除失败，请稍后重试');
+                    });
+            }
+        }
+        
+        // 批量删除
+        function batchDelete() {
+            const checked = document.querySelectorAll('.submission-checkbox:checked');
+            if (checked.length === 0) {
+                alert('请先选择要删除的提交记录！');
+                return;
+            }
+            
+            document.getElementById('deleteCount').textContent = checked.length;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('batchDeleteModal')).show();
+        }
+        
+        // 确认批量删除
+        function confirmBatchDelete() {
+            const ids = Array.from(selectedSubmissions);
+            
+            Promise.all(ids.map(id => 
+                fetch(`/api/submissions/${id}`, { method: 'DELETE' })
+                    .then(response => response.json())
+            ))
+            .then(results => {
+                bootstrap.Modal.getInstance(document.getElementById('batchDeleteModal')).hide();
+                alert(`成功删除 ${results.filter(r => r.success).length} 条提交记录！`);
+                loadSubmissions(currentPage);
+            })
+            .catch(error => {
+                console.error('批量删除失败:', error);
+                alert('批量删除失败，请稍后重试');
+            });
+        }
+        
+        // 导出提交记录
+        function exportSubmissions() {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('exportModal')).show();
+        }
+        
+        // 确认导出
+        function confirmExport() {
+            const format = document.getElementById('exportFormat').value;
+            const scope = document.getElementById('exportScope').value;
+            
+            let data = currentSubmissions;
+            if (scope === 'selected') {
+                data = currentSubmissions.filter(s => selectedSubmissions.has(s.id));
+                if (data.length === 0) {
+                    alert('请先选择要导出的记录！');
+                    return;
+                }
+            }
+            
+            if (format === 'csv') {
+                exportToCSV(data);
+            } else {
+                exportToExcel(data);
+            }
+            
+            bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+        }
+        
+        // 导出为CSV
+        function exportToCSV(submissions) {
+            const headers = ['ID', '考试', '用户ID', '状态', '得分', '总分', '及格', '开始时间', '提交时间'];
+            const rows = submissions.map(s => [
+                s.id,
+                s.exam ? s.exam.title : '未知',
+                s.user_id,
+                statusLabels[s.status] || s.status,
+                s.obtained_score || '-',
+                s.total_score || '-',
+                s.is_passed ? '是' : '否',
+                formatDate(s.started_at),
+                formatDate(s.submitted_at)
+            ]);
+            
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.join(',') + '\n';
+            });
+            
+            downloadFile(csv, 'submissions.csv', 'text/csv;charset=utf-8;');
+        }
+        
+        // 导出为Excel（简化版，实际需要使用库如SheetJS）
+        function exportToExcel(submissions) {
+            // 简化实现，导出为CSV格式
+            alert('Excel导出功能需要额外库支持，当前将导出为CSV格式');
+            exportToCSV(submissions);
+        }
+        
+        // 下载文件
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // 刷新数据
+        function refreshData() {
+            loadExams();
+            loadSubmissions(currentPage);
+        }
+        
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+    </script>
 </body>
 </html>
