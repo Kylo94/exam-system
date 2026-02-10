@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 提交记录</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="row">
+            <div class="col-md-12">
+                <h1 class="mb-4">提交记录</h1>
+                <p>提交记录功能开发中...</p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    此页面正在开发中，请稍后访问。
+                </div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>返回控制面板
+                </a>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+</body>
+</html>

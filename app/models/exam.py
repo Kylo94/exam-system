@@ -1,6 +1,6 @@
 """试卷模型"""
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 from datetime import datetime
 from app.extensions import db
 from .base import BaseModel
@@ -56,6 +56,44 @@ class Exam(BaseModel):
         nullable=True,
         doc='原始文件路径'
     )
+    description = db.Column(
+        db.Text,
+        nullable=True,
+        doc='考试描述'
+    )
+    is_active = db.Column(
+        db.Boolean,
+        default=True,
+        nullable=False,
+        doc='是否启用'
+    )
+    duration_minutes = db.Column(
+        db.Integer,
+        nullable=True,
+        doc='考试时长（分钟）'
+    )
+    start_time = db.Column(
+        db.DateTime,
+        nullable=True,
+        doc='开始时间'
+    )
+    end_time = db.Column(
+        db.DateTime,
+        nullable=True,
+        doc='结束时间'
+    )
+    max_attempts = db.Column(
+        db.Integer,
+        default=1,
+        nullable=False,
+        doc='最大尝试次数'
+    )
+    pass_score = db.Column(
+        db.Float,
+        default=60.0,
+        nullable=False,
+        doc='及格分数'
+    )
     
     # 关系定义
     subject = db.relationship(
@@ -75,7 +113,7 @@ class Exam(BaseModel):
         back_populates='exam',
         lazy='dynamic',
         cascade='all, delete-orphan',
-        order_by='Question.order_num',
+        order_by='Question.order_index',
         doc='关联的题目'
     )
     submissions = db.relationship(
@@ -92,23 +130,44 @@ class Exam(BaseModel):
         subject_id: Optional[int] = None,
         level_id: Optional[int] = None,
         total_points: int = 100,
-        file_path: Optional[str] = None
+        file_path: Optional[str] = None,
+        description: Optional[str] = None,
+        is_active: bool = True,
+        duration_minutes: Optional[int] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        max_attempts: int = 1,
+        pass_score: float = 60.0
     ):
         """
         初始化试卷
-        
+
         Args:
             title: 试卷标题
             subject_id: 科目ID（可选）
             level_id: 等级ID（可选）
             total_points: 总分，默认100
             file_path: 原始文件路径（可选）
+            description: 考试描述（可选）
+            is_active: 是否启用，默认True
+            duration_minutes: 考试时长（分钟）（可选）
+            start_time: 开始时间（可选）
+            end_time: 结束时间（可选）
+            max_attempts: 最大尝试次数，默认1
+            pass_score: 及格分数，默认60.0
         """
         self.title = title
         self.subject_id = subject_id
         self.level_id = level_id
         self.total_points = total_points
         self.file_path = file_path
+        self.description = description
+        self.is_active = is_active
+        self.duration_minutes = duration_minutes
+        self.start_time = start_time
+        self.end_time = end_time
+        self.max_attempts = max_attempts
+        self.pass_score = pass_score
         self.question_count = 0
         self.has_images = False
     
@@ -162,9 +221,10 @@ class Exam(BaseModel):
     
     def update_statistics(self) -> None:
         """更新试卷统计信息（题目数量、是否有图片）"""
+        from datetime import datetime, timezone
         self.question_count = self.questions.count()
         self.has_images = any(question.has_image for question in self.questions.all())
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
         db.session.commit()
     
     def get_subject_name(self) -> Optional[str]:

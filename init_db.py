@@ -66,7 +66,7 @@ def create_sample_data():
     question1 = Question(
         exam_id=exam.id,
         type="single_choice",
-        text="Python中用于定义类的关键字是？",
+        content="Python中用于定义类的关键字是？",
         options=[
             {"id": "A", "text": "class"},
             {"id": "B", "text": "def"},
@@ -75,25 +75,25 @@ def create_sample_data():
         ],
         correct_answer="A",
         points=10,
-        order_num=1
+        order_index=1
     )
-    
+
     question2 = Question(
         exam_id=exam.id,
         type="judgment",
-        text="Python是静态类型语言。",
+        content="Python是静态类型语言。",
         correct_answer="错误",
         points=10,
-        order_num=2
+        order_index=2
     )
-    
+
     question3 = Question(
         exam_id=exam.id,
         type="fill_blank",
-        text="Python中用于打印输出的函数是______。",
+        content="Python中用于打印输出的函数是______。",
         correct_answer="print",
         points=10,
-        order_num=3
+        order_index=3
     )
     
     db.session.add_all([question1, question2, question3])

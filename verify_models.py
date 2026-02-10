@@ -60,7 +60,7 @@ def verify_models():
         question = Question(
             exam_id=exam.id,
             type="single_choice",
-            text="测试题目：Python中用于定义类的关键字是？",
+            content="测试题目：Python中用于定义类的关键字是？",
             options=[
                 {"id": "A", "text": "class"},
                 {"id": "B", "text": "def"},
@@ -69,12 +69,12 @@ def verify_models():
             ],
             correct_answer="A",
             points=10,
-            order_num=1
+            order_index=1
         )
         db.session.add(question)
         db.session.commit()
-        
-        print(f"   创建题目: {question.text[:30]}... (ID: {question.id})")
+
+        print(f"   创建题目: {question.content[:30]}... (ID: {question.id})")
         print(f"   关联试卷: {question.exam.title if question.exam else '无'}")
         
         # 4. 创建答题提交
@@ -97,14 +97,14 @@ def verify_models():
         answer = Answer(
             submission_id=submission.id,
             question_id=question.id,
-            student_answer="A",
+            user_answer="A",
             score=10.0,
             is_correct=True
         )
         db.session.add(answer)
         db.session.commit()
-        
-        print(f"   创建答题记录: 答案{answer.student_answer} (ID: {answer.id})")
+
+        print(f"   创建答题记录: 答案{answer.user_answer} (ID: {answer.id})")
         print(f"   关联提交: {answer.submission.id if answer.submission else '无'}")
         print(f"   关联题目: {answer.question.id if answer.question else '无'}")
         

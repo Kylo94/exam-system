@@ -26,6 +26,18 @@ class Level(BaseModel):
         nullable=True,
         doc='等级描述'
     )
+    is_active = db.Column(
+        db.Boolean,
+        default=True,
+        nullable=False,
+        doc='是否启用'
+    )
+    order_index = db.Column(
+        db.Integer,
+        default=0,
+        nullable=False,
+        doc='排序索引'
+    )
     
     # 关系定义
     exams = db.relationship(
@@ -36,16 +48,26 @@ class Level(BaseModel):
         doc='关联的试卷'
     )
     
-    def __init__(self, name: str, description: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        is_active: bool = True,
+        order_index: int = 0
+    ):
         """
         初始化等级
-        
+
         Args:
             name: 等级名称
             description: 等级描述（可选）
+            is_active: 是否启用，默认True
+            order_index: 排序索引，默认0
         """
         self.name = name
         self.description = description
+        self.is_active = is_active
+        self.order_index = order_index
     
     @classmethod
     def get_by_name(cls, name: str) -> Optional['Level']:

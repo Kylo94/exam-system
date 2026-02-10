@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 管理控制面板</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">管理控制面板</h1>
+            <div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>返回用户面板
+                </a>
+                <a href="{{ url_for('admin.get_stats') }}" class="btn btn-primary" id="refresh-stats">
+                    <i class="bi bi-arrow-clockwise me-1"></i>刷新统计
+                </a>
+            </div>
+        </div>
+        
+        <!-- 统计卡片 -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-people fs-1 text-primary mb-2"></i>
+                        <h5 class="card-title">用户总数</h5>
+                        <p class="card-text fs-3" id="total-users">{{ stats.total_users }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-journal-text fs-1 text-success mb-2"></i>
+                        <h5 class="card-title">科目数量</h5>
+                        <p class="card-text fs-3" id="total-subjects">{{ stats.total_subjects }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <i class="bi bi-list-check fs-1 text-info mb-2"></i>
+                        <h5 class="card-title">试卷数量</h5>
+                        <p class="card-text fs-3" id="total-exams">{{ stats.total_exams }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <i class="bi bi-question-circle fs-1 text-warning mb-2"></i>
+                        <h5 class="card-title">题目数量</h5>
+                        <p class="card-text fs-3" id="total-questions">{{ stats.total_questions }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check2-circle fs-1 text-danger mb-2"></i>
+                        <h5 class="card-title">提交记录</h5>
+                        <p class="card-text fs-3" id="total-submissions">{{ stats.total_submissions }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-secondary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-person-check fs-1 text-secondary mb-2"></i>
+                        <h5 class="card-title">活跃用户</h5>
+                        <p class="card-text fs-3" id="active-users">{{ stats.active_users }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 管理导航 -->
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-people me-2"></i>用户管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">管理用户账户、权限和激活状态。</p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin.users_page') }}" class="btn btn-primary">
+                                <i class="bi bi-list me-1"></i>用户列表
+                            </a>
+                            <a href="{{ url_for('admin.users_page') }}#create" class="btn btn-outline-primary">
+                                <i class="bi bi-plus-circle me-1"></i>创建用户
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>内容管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">管理科目、难度等级、试卷和题目。</p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin.subjects_page') }}" class="btn btn-success">科目</a>
+                            <a href="{{ url_for('admin.levels_page') }}" class="btn btn-success">难度等级</a>
+                            <a href="{{ url_for('admin.exams_page') }}" class="btn btn-success">试卷</a>
+                            <a href="{{ url_for('admin.questions_page') }}" class="btn btn-success">题目</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-check2-circle me-2"></i>提交管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">查看和管理用户提交记录。</p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin.submissions_page') }}" class="btn btn-info">
+                                <i class="bi bi-list me-1"></i>提交记录
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 最近提交 -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>最近提交</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if stats.recent_submissions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>用户</th>
+                                        <th>试卷</th>
+                                        <th>分数</th>
+                                        <th>状态</th>
+                                        <th>提交时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for submission in stats.recent_submissions %}
+                                    <tr>
+                                        <td>{{ submission.id }}</td>
+                                        <td>{{ submission.user.username if submission.user else '匿名' }}</td>
+                                        <td>{{ submission.exam.title if submission.exam else '未知' }}</td>
+                                        <td>{{ submission.score|round(2) if submission.score else '未评分' }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if submission.status == 'completed' else 'warning' if submission.status == 'pending' else 'secondary' }}">
+                                                {{ submission.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ submission.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center mb-0">暂无提交记录</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    
+    {% include "partials/scripts.html" %}
+    
+    <script>
+        // 刷新统计按钮
+        document.getElementById('refresh-stats').addEventListener('click', function(e) {
+            e.preventDefault();
+            fetch('/admin/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const stats = data.data.stats;
+                        document.getElementById('total-users').textContent = stats.total_users;
+                        document.getElementById('total-subjects').textContent = stats.total_subjects;
+                        document.getElementById('total-exams').textContent = stats.total_exams;
+                        document.getElementById('total-questions').textContent = stats.total_questions;
+                        document.getElementById('total-submissions').textContent = stats.total_submissions;
+                        document.getElementById('active-users').textContent = stats.active_users;
+                        alert('统计信息已刷新');
+                    } else {
+                        alert('刷新失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('刷新失败:', error);
+                    alert('刷新失败');
+                });
+        });
+    </script>
+</body>
+</html>

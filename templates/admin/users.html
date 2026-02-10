@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 用户管理</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理面板</a></li>
+                <li class="breadcrumb-item active">用户管理</li>
+            </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">用户管理</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                <i class="bi bi-plus-circle me-1"></i>创建用户
+            </button>
+        </div>
+        
+        <!-- 过滤选项 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="filter-form" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="role-filter" class="form-label">角色</label>
+                        <select id="role-filter" class="form-select">
+                            <option value="">全部</option>
+                            <option value="admin">管理员</option>
+                            <option value="teacher">教师</option>
+                            <option value="student">学生</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="active-filter" class="form-label">激活状态</label>
+                        <select id="active-filter" class="form-select">
+                            <option value="">全部</option>
+                            <option value="true">已激活</option>
+                            <option value="false">未激活</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="search-input" class="form-label">搜索</label>
+                        <input type="text" id="search-input" class="form-control" placeholder="用户名或邮箱">
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 用户表格 -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="users-table" class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>邮箱</th>
+                                <th>角色</th>
+                                <th>激活状态</th>
+                                <th>最后登录</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr data-user-id="{{ user.id }}">
+                                <td>{{ user.id }}</td>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'warning' if user.role == 'teacher' else 'info' }}">
+                                        {{ user.role }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                    <span class="badge bg-success">已激活</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">未激活</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.last_login_at %}
+                                    {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') }}
+                                    {% else %}
+                                    从未登录
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary edit-user" data-user-id="{{ user.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger delete-user" data-user-id="{{ user.id }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% if user.id != current_user.id %}
+                                        <button class="btn btn-outline-{{ 'warning' if user.is_active else 'success' }} toggle-active" data-user-id="{{ user.id }}">
+                                            <i class="bi bi-{{ 'person-x' if user.is_active else 'person-check' }}"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 创建用户模态框 -->
+    <div class="modal fade" id="createUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="create-user-form">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名 *</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">邮箱地址 *</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">密码 *</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">确认密码 *</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="role" class="form-label">角色 *</label>
+                            <select class="form-select" id="role" name="role" required>
+                                <option value="student">学生</option>
+                                <option value="teacher">教师</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="is_active" name="is_active" checked>
+                            <label class="form-check-label" for="is_active">激活账户</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">创建</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 编辑用户模态框 -->
+    <div class="modal fade" id="editUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="edit-user-form">
+                    <input type="hidden" id="edit-user-id" name="id">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit-username" class="form-label">用户名 *</label>
+                            <input type="text" class="form-control" id="edit-username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-email" class="form-label">邮箱地址 *</label>
+                            <input type="email" class="form-control" id="edit-email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-password" class="form-label">密码 (留空不修改)</label>
+                            <input type="password" class="form-control" id="edit-password" name="password">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-role" class="form-label">角色 *</label>
+                            <select class="form-select" id="edit-role" name="role" required>
+                                <option value="student">学生</option>
+                                <option value="teacher">教师</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="edit-is_active" name="is_active">
+                            <label class="form-check-label" for="edit-is_active">激活账户</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    {% include "partials/footer.html" %}
+    
+    {% include "partials/scripts.html" %}
+    
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // 初始化DataTable
+            const table = $('#users-table').DataTable({
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/zh.json'
+                },
+                pageLength: 25,
+                order: [[0, 'desc']]
+            });
+            
+            // 过滤功能
+            $('#role-filter, #active-filter').on('change', function() {
+                table.draw();
+            });
+            
+            $('#search-input').on('keyup', function() {
+                table.search(this.value).draw();
+            });
+            
+            // 自定义过滤
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                const role = $('#role-filter').val();
+                const active = $('#active-filter').val();
+                
+                if (role && data[3] !== role) {
+                    return false;
+                }
+                
+                if (active) {
+                    const isActive = data[4].includes('已激活');
+                    if (active === 'true' && !isActive) return false;
+                    if (active === 'false' && isActive) return false;
+                }
+                
+                return true;
+            });
+            
+            // 创建用户表单
+            $('#create-user-form').on('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    username: $('#username').val(),
+                    email: $('#email').val(),
+                    password: $('#password').val(),
+                    confirm_password: $('#confirm_password').val(),
+                    role: $('#role').val(),
+                    is_active: $('#is_active').is(':checked')
+                };
+                
+                fetch('/admin/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('用户创建成功');
+                        location.reload();
+                    } else {
+                        alert('创建失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('创建失败:', error);
+                    alert('创建失败');
+                });
+            });
+            
+            // 编辑用户
+            $('.edit-user').on('click', function() {
+                const userId = $(this).data('user-id');
+                const row = $(`[data-user-id="${userId}"]`);
+                
+                fetch(`/admin/api/users/${userId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const user = data.data.user;
+                            $('#edit-user-id').val(user.id);
+                            $('#edit-username').val(user.username);
+                            $('#edit-email').val(user.email);
+                            $('#edit-role').val(user.role);
+                            $('#edit-is_active').prop('checked', user.is_active);
+                            
+                            $('#editUserModal').modal('show');
+                        } else {
+                            alert('获取用户信息失败: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取失败:', error);
+                        alert('获取用户信息失败');
+                    });
+            });
+            
+            // 保存编辑
+            $('#edit-user-form').on('submit', function(e) {
+                e.preventDefault();
+                
+                const userId = $('#edit-user-id').val();
+                const formData = {
+                    username: $('#edit-username').val(),
+                    email: $('#edit-email').val(),
+                    role: $('#edit-role').val(),
+                    is_active: $('#edit-is_active').is(':checked')
+                };
+                
+                const password = $('#edit-password').val();
+                if (password) {
+                    formData.password = password;
+                }
+                
+                fetch(`/admin/api/users/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('用户更新成功');
+                        location.reload();
+                    } else {
+                        alert('更新失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('更新失败:', error);
+                    alert('更新失败');
+                });
+            });
+            
+            // 删除用户
+            $('.delete-user').on('click', function() {
+                const userId = $(this).data('user-id');
+                
+                if (!confirm('确定要删除这个用户吗？此操作不可撤销。')) {
+                    return;
+                }
+                
+                fetch(`/admin/api/users/${userId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('用户删除成功');
+                        location.reload();
+                    } else {
+                        alert('删除失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('删除失败:', error);
+                    alert('删除失败');
+                });
+            });
+            
+            // 切换激活状态
+            $('.toggle-active').on('click', function() {
+                const userId = $(this).data('user-id');
+                
+                fetch(`/admin/api/users/${userId}/toggle-active`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('用户状态已更新');
+                        location.reload();
+                    } else {
+                        alert('更新失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('更新失败:', error);
+                    alert('更新失败');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

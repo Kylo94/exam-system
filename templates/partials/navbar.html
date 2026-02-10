@@ -45,19 +45,57 @@
             </ul>
             
             <ul class="navbar-nav">
-                <!-- 用户认证功能暂时隐藏，后续实现 -->
-                <li class="nav-item">
-                    <a class="nav-link" href="#">
-                        <i class="bi bi-person-circle me-1"></i>
-                        访客模式
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.upload_page') }}">
-                        <i class="bi bi-cloud-upload me-1"></i>
-                        快速上传
-                    </a>
-                </li>
+                {% if current_user.is_authenticated %}
+                    <!-- 管理员链接 -->
+                    {% if current_user.is_admin() %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                            <i class="bi bi-gear me-1"></i>
+                            管理面板
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- 用户下拉菜单 -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle me-1"></i>
+                            {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile_page') }}">
+                                <i class="bi bi-person me-1"></i>个人资料
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1"></i>控制面板
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                <i class="bi bi-box-arrow-right me-1"></i>退出登录
+                            </a></li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <!-- 未登录状态 -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login_page') }}">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>
+                            登录
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.register_page') }}">
+                            <i class="bi bi-person-plus me-1"></i>
+                            注册
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('main.upload_page') }}">
+                            <i class="bi bi-cloud-upload me-1"></i>
+                            快速上传
+                        </a>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </div>

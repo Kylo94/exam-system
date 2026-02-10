@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 等级管理</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理面板</a></li>
+                <li class="breadcrumb-item active">等级管理</li>
+            </ol>
+        </nav>
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">等级管理</h1>
+            <a href="{{ url_for('main.levels_page') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>创建等级
+            </a>
+        </div>
+        
+        <!-- 等级列表 -->
+        <div class="card">
+            <div class="card-body">
+                {% if levels %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>描述</th>
+                                <th>试卷数量</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for level in levels %}
+                            <tr>
+                                <td>{{ level.id }}</td>
+                                <td><strong>{{ level.name }}</strong></td>
+                                <td>{{ level.description or '无描述' }}</td>
+                                <td>{{ level.exams.count() }}</td>
+                                <td>{{ level.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('main.levels_page') }}?edit={{ level.id }}" class="btn btn-outline-primary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.levels_page') }}?delete={{ level.id }}" class="btn btn-outline-danger" onclick="return confirm('确定删除吗？')">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center mb-0">暂无等级数据</p>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+    
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+</body>
+</html>

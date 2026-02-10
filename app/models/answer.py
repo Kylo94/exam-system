@@ -2,7 +2,7 @@
 
 import json
 from typing import Dict, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from app.extensions import db
 from .base import BaseModel
 
@@ -31,10 +31,10 @@ class Answer(BaseModel):
         index=True,
         doc='题目ID'
     )
-    student_answer = db.Column(
+    user_answer = db.Column(
         db.Text,
         nullable=True,
-        doc='学生答案'
+        doc='用户答案'
     )
     score = db.Column(
         db.Numeric(5, 2),
@@ -56,7 +56,7 @@ class Answer(BaseModel):
     )
     answered_at = db.Column(
         db.DateTime,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
         doc='答题时间'
     )
@@ -79,29 +79,29 @@ class Answer(BaseModel):
         self,
         submission_id: int,
         question_id: int,
-        student_answer: Optional[str] = None,
+        user_answer: Optional[str] = None,
         score: float = 0.0,
         is_correct: bool = False,
         grading_details: Optional[Dict[str, Any]] = None
     ):
         """
         初始化答题记录
-        
+
         Args:
             submission_id: 提交记录ID
             question_id: 题目ID
-            student_answer: 学生答案（可选）
+            user_answer: 用户答案（可选）
             score: 得分，默认0.0
             is_correct: 是否正确，默认False
             grading_details: 判卷详情（可选）
         """
         self.submission_id = submission_id
         self.question_id = question_id
-        self.student_answer = student_answer
+        self.user_answer = user_answer
         self.score = score
         self.is_correct = is_correct
         self.grading_details = grading_details or {}
-        self.answered_at = datetime.utcnow()
+        self.answered_at = datetime.now(timezone.utc)
     
     @classmethod
     def get_by_submission_and_question(

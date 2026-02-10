@@ -50,7 +50,7 @@ class Submission(BaseModel):
     )
     submit_time = db.Column(
         db.DateTime,
-        default=datetime.utcnow,
+        default=lambda: datetime.now(timezone.utc),
         nullable=False,
         index=True,
         doc='提交时间'
@@ -71,6 +71,37 @@ class Submission(BaseModel):
         db.JSON,
         nullable=True,
         doc='提交元数据，如IP地址、浏览器信息等'
+    )
+    started_at = db.Column(
+        db.DateTime,
+        nullable=True,
+        doc='开始时间'
+    )
+    submitted_at = db.Column(
+        db.DateTime,
+        nullable=True,
+        doc='提交时间'
+    )
+    status = db.Column(
+        db.String(20),
+        default='in_progress',
+        nullable=False,
+        doc='状态（in_progress/submitted/graded/archived）'
+    )
+    obtained_score = db.Column(
+        db.Float,
+        nullable=True,
+        doc='实际得分'
+    )
+    score_percentage = db.Column(
+        db.Float,
+        nullable=True,
+        doc='得分百分比'
+    )
+    is_passed = db.Column(
+        db.Boolean,
+        nullable=True,
+        doc='是否及格'
     )
     
     # 关系定义
@@ -97,11 +128,17 @@ class Submission(BaseModel):
         total_score: float = 0.0,
         duration_seconds: int = 0,
         is_completed: bool = True,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        started_at: Optional[datetime] = None,
+        submitted_at: Optional[datetime] = None,
+        status: str = 'in_progress',
+        obtained_score: Optional[float] = None,
+        score_percentage: Optional[float] = None,
+        is_passed: Optional[bool] = None
     ):
         """
         初始化答题提交
-        
+
         Args:
             exam_id: 试卷ID
             student_name: 学生姓名
@@ -111,6 +148,12 @@ class Submission(BaseModel):
             duration_seconds: 答题时长（秒），默认0
             is_completed: 是否完成，默认True
             metadata: 提交元数据（可选）
+            started_at: 开始时间（可选）
+            submitted_at: 提交时间（可选）
+            status: 状态，默认'in_progress'
+            obtained_score: 实际得分（可选）
+            score_percentage: 得分百分比（可选）
+            is_passed: 是否及格（可选）
         """
         self.exam_id = exam_id
         self.student_name = student_name
@@ -121,6 +164,12 @@ class Submission(BaseModel):
         self.is_completed = is_completed
         self.submission_metadata = metadata or {}
         self.submit_time = datetime.now(timezone.utc)
+        self.started_at = started_at
+        self.submitted_at = submitted_at
+        self.status = status
+        self.obtained_score = obtained_score
+        self.score_percentage = score_percentage
+        self.is_passed = is_passed
     
     @classmethod
     def get_by_student(cls, student_id: str) -> List['Submission']:

@@ -13,7 +13,9 @@ def create_app(config_name='default'):
     Returns:
         Flask应用实例
     """
-    app = Flask(__name__)
+    app = Flask(__name__, 
+                template_folder='../templates',
+                static_folder='../static')
     
     # 加载配置
     app.config.from_object(config[config_name])
@@ -58,7 +60,8 @@ def register_blueprints(app: Flask):
         submissions_bp,
         answers_bp,
         upload_bp,
-        auth_bp
+        auth_bp,
+        admin_bp
     )
     
     # 注册主蓝图（无前缀）
@@ -66,6 +69,9 @@ def register_blueprints(app: Flask):
     
     # 注册认证蓝图
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    
+    # 注册管理蓝图
+    app.register_blueprint(admin_bp, url_prefix='/admin')
     
     # 注册API蓝图
     app.register_blueprint(subjects_bp, url_prefix='/api')

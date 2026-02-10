@@ -29,10 +29,10 @@ class Question(BaseModel):
         index=True,
         doc='题型（single_choice/multiple_choice/judgment/fill_blank/subjective/programming）'
     )
-    text = db.Column(
+    content = db.Column(
         db.Text,
         nullable=False,
-        doc='题目文本'
+        doc='题目内容'
     )
     options = db.Column(
         db.JSON,
@@ -50,11 +50,11 @@ class Question(BaseModel):
         nullable=False,
         doc='分值'
     )
-    order_num = db.Column(
+    order_index = db.Column(
         db.Integer,
         default=0,
         nullable=False,
-        doc='题目顺序'
+        doc='排序序号'
     )
     has_image = db.Column(
         db.Boolean,
@@ -66,6 +66,11 @@ class Question(BaseModel):
         db.Text,
         nullable=True,
         doc='图片数据（base64编码或文件路径）'
+    )
+    explanation = db.Column(
+        db.Text,
+        nullable=True,
+        doc='答案解析'
     )
     question_metadata = db.Column(
         db.JSON,
@@ -92,53 +97,56 @@ class Question(BaseModel):
         self,
         exam_id: int,
         type: str,
-        text: str,
+        content: str,
         correct_answer: str,
         points: int = 10,
-        order_num: int = 0,
+        order_index: int = 0,
         options: Optional[List[Dict[str, Any]]] = None,
         has_image: bool = False,
         image_data: Optional[str] = None,
+        explanation: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None
     ):
         """
         初始化题目
-        
+
         Args:
             exam_id: 试卷ID
             type: 题型
-            text: 题目文本
+            content: 题目内容
             correct_answer: 正确答案
             points: 分值，默认10
-            order_num: 题目顺序，默认0
+            order_index: 排序序号，默认0
             options: 选项列表（可选）
             has_image: 是否包含图片，默认False
             image_data: 图片数据（可选）
+            explanation: 答案解析（可选）
             metadata: 额外元数据（可选）
         """
         self.exam_id = exam_id
         self.type = type
-        self.text = text
+        self.content = content
         self.correct_answer = correct_answer
         self.points = points
-        self.order_num = order_num
+        self.order_index = order_index
         self.options = options or []
         self.has_image = has_image
         self.image_data = image_data
+        self.explanation = explanation
         self.question_metadata = metadata or {}
     
     @classmethod
     def get_by_exam(cls, exam_id: int) -> List['Question']:
         """
         根据试卷ID获取所有题目
-        
+
         Args:
             exam_id: 试卷ID
-            
+
         Returns:
             题目列表，按顺序排序
         """
-        return cls.query.filter_by(exam_id=exam_id).order_by(cls.order_num).all()
+        return cls.query.filter_by(exam_id=exam_id).order_by(cls.order_index).all()
     
     @classmethod
     def get_types_by_exam(cls, exam_id: int) -> Dict[str, int]:
