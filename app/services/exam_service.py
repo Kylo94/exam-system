@@ -296,13 +296,19 @@ class ExamService(BaseService[Exam]):
         if now > exam.end_time:
             return {'can_start': False, 'reason': '考试已结束'}
         
-        # TODO: 检查用户尝试次数（需要用户认证系统）
-        # if user_id:
-        #     attempt_count = Submission.query.filter_by(
-        #         exam_id=exam_id, user_id=user_id
-        #     ).count()
-        #     if attempt_count >= exam.max_attempts:
-        #         return {'can_start': False, 'reason': '已达到最大尝试次数'}
+        # 检查用户尝试次数
+        if user_id and exam.max_attempts:
+            from app.models import Submission
+            attempt_count = Submission.query.filter_by(
+                exam_id=exam_id, 
+                user_id=user_id
+            ).filter(Submission.status.in_(['submitted', 'graded'])).count()
+            
+            if attempt_count >= exam.max_attempts:
+                return {
+                    'can_start': False, 
+                    'reason': f'已达到最大尝试次数（{exam.max_attempts}次）'
+                }
         
         return {'can_start': True, 'reason': ''}
     
@@ -319,14 +325,48 @@ class ExamService(BaseService[Exam]):
         if not exam:
             raise ValueError(f"考试ID {exam_id} 不存在")
         
-        # TODO: 实现统计数据（需要提交记录）
-        # 目前返回基本数据，后续可以添加提交数量、平均分等
+        # 获取提交记录统计
+        from app.models import Submission
+        submissions = Submission.query.filter_by(exam_id=exam_id).all()
+        
+        total_submissions = len(submissions)
+        completed_submissions = [s for s in submissions if s.status in ['submitted', 'graded']]
+        passed_submissions = [s for s in completed_submissions if s.is_passed]
+        
+        # 计算平均分
+        scored_submissions = [s for s in completed_submissions 
+                             if s.obtained_score is not None and s.total_score is not None]
+        
+        if scored_submissions:
+            average_score = sum(s.obtained_score for s in scored_submissions) / len(scored_submissions)
+            average_percentage = sum(s.obtained_score / s.total_score * 100 
+                                   for s in scored_submissions) / len(scored_submissions)
+        else:
+            average_score = 0
+            average_percentage = 0
+        
+        # 计算及格率
+        if completed_submissions:
+            pass_rate = len(passed_submissions) / len(completed_submissions) * 100
+        else:
+            pass_rate = 0
+        
+        # 获取题目统计
+        questions = exam.questions if hasattr(exam, 'questions') else []
+        question_count = len(questions)
+        total_score = sum(q.score for q in questions)
         
         return {
-            'exam': exam,
-            'question_count': exam.questions.count() if hasattr(exam, 'questions') else 0,
-            'total_score': sum(q.score for q in exam.questions) if hasattr(exam, 'questions') else 0,
-            # 'submission_count': 0,
-            # 'average_score': 0,
-            # 'pass_rate': 0,
+            'exam_id': exam.id,
+            'exam_title': exam.title,
+            'question_count': question_count,
+            'total_score': total_score,
+            'total_submissions': total_submissions,
+            'completed_submissions': len(completed_submissions),
+            'passed_submissions': len(passed_submissions),
+            'average_score': round(average_score, 2),
+            'average_percentage': round(average_percentage, 2),
+            'pass_rate': round(pass_rate, 2),
+            'max_attempts': exam.max_attempts,
+            'pass_score': exam.pass_score,
         }
