@@ -14,12 +14,36 @@ from app.models.exam import Exam
 teacher_bp = Blueprint('teacher', __name__, url_prefix='/teacher')
 
 
+@teacher_bp.route('/dashboard')
+@login_required
+def dashboard():
+    """教师仪表板"""
+    if not current_user.is_teacher():
+        return jsonify({'error': '无权访问'}), 403
+    
+    # 统计信息
+    from app.models.subject import Subject
+    from app.models.level import Level
+    from app.models.question import Question
+    
+    stats = {
+        'student_count': User.query.filter_by(teacher_id=current_user.id, role='student').count(),
+        'submission_count': Submission.query.join(User).filter(User.teacher_id == current_user.id).count(),
+        'exam_count': 0,  # 暂时设置为0，Exam模型暂无created_by字段
+        'subject_count': Subject.query.count(),
+        'level_count': Level.query.count(),
+        'question_count': Question.query.count()
+    }
+    
+    return render_template('teacher/dashboard.html', stats=stats)
+
+
 @teacher_bp.route('/my-students', methods=['GET'])
 @login_required
 def my_students_page():
     """我的学生页面"""
     if not current_user.is_teacher():
-        return jsonify({'error': '无权访问'}), 403
+        return jsonify({'error': '无权参与'}), 403
     
     return render_template('teacher/my_students.html')
 

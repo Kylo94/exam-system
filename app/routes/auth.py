@@ -26,6 +26,10 @@ def login_page():
     if current_user.is_authenticated:
         if current_user.is_student():
             return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('main.dashboard'))
     return render_template('auth/login.html')
@@ -37,6 +41,10 @@ def register_page():
     if current_user.is_authenticated:
         if current_user.is_student():
             return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('main.dashboard'))
     return render_template('auth/register.html')
@@ -55,6 +63,10 @@ def forgot_password_page():
     if current_user.is_authenticated:
         if current_user.is_student():
             return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('main.dashboard'))
     return render_template('auth/forgot_password.html')
@@ -66,6 +78,10 @@ def reset_password_page(token):
     if current_user.is_authenticated:
         if current_user.is_student():
             return redirect(url_for('main.index'))
+        elif current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+        elif current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
         else:
             return redirect(url_for('main.dashboard'))
     return render_template('auth/reset_password.html', token=token)

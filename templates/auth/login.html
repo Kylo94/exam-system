@@ -139,9 +139,16 @@
                 showAlert('登录成功，正在跳转...', 'success');
                 
                 // 根据用户角色决定跳转目标
-                const redirectUrl = data.user.is_student ? 
-                    "{{ url_for('main.index') }}" : 
-                    "{{ url_for('main.dashboard') }}";
+                let redirectUrl;
+                if (data.user.is_student) {
+                    redirectUrl = "{{ url_for('main.index') }}";
+                } else if (data.user.is_teacher) {
+                    redirectUrl = "{{ url_for('teacher.dashboard') }}";
+                } else if (data.user.is_admin) {
+                    redirectUrl = "{{ url_for('admin.dashboard') }}";
+                } else {
+                    redirectUrl = "{{ url_for('main.dashboard') }}";
+                }
                 
                 // 延迟跳转
                 setTimeout(() => {

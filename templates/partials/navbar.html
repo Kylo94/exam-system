@@ -30,6 +30,12 @@
                 <!-- 教师导航 -->
                 {% if current_user.is_teacher() %}
                 <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('teacher.dashboard') }}">
+                        <i class="bi bi-speedometer2 me-1"></i>
+                        教师面板
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="/teacher/my-students">
                         <i class="bi bi-people me-1"></i>
                         我的学生
@@ -83,7 +89,11 @@
                         </a></li>
                         {% if current_user.is_admin() %}
                         <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}">
-                            <i class="bi bi-speedometer2 me-1"></i>控制面板
+                            <i class="bi bi-speedometer2 me-1"></i>系统控制面板
+                        </a></li>
+                        {% elif current_user.is_teacher() %}
+                        <li><a class="dropdown-item" href="{{ url_for('teacher.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-1"></i>教师控制面板
                         </a></li>
                         {% endif %}
                         <li><hr class="dropdown-divider"></li>
