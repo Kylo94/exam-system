@@ -412,7 +412,1118 @@ def toggle_user_active(user_id):
         return error_response(f'更新用户状态失败: {str(e)}', 500)
 
 
-# 其他实体的API路由可以后续添加（科目、等级、试卷、题目、提交等）
+# ==================== 科目管理API ====================
+
+@admin_bp.route('/api/subjects', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_subjects():
+    """获取科目列表API
+
+    Query Parameters:
+        page: 页码（可选，默认1）
+        per_page: 每页数量（可选，默认20）
+        search: 搜索关键词（可选）
+
+    Returns:
+        科目列表
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search = request.args.get('search', '').strip()
+
+    # 构建查询
+    query = Subject.query
+
+    if search:
+        query = query.filter(
+            db.or_(
+                Subject.name.ilike(f'%{search}%'),
+                Subject.description.ilike(f'%{search}%')
+            )
+        )
+
+    # 分页
+    pagination = query.order_by(Subject.order_index, Subject.name).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    subjects = pagination.items
+
+    return {
+        'subjects': [subject.to_dict() for subject in subjects],
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    }, 200
+
+
+@admin_bp.route('/api/subjects/<int:subject_id>', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_subject(subject_id):
+    """获取单个科目详情API
+
+    Args:
+        subject_id: 科目ID
+
+    Returns:
+        科目详情
+    """
+    subject = Subject.get_by_id(subject_id)
+    if not subject:
+        return error_response('科目不存在', 404)
+
+    return {
+        'subject': subject.to_dict(include_exams=True)
+    }, 200
+
+
+@admin_bp.route('/api/subjects', methods=['POST'])
+@login_required
+@admin_required
+@api_response
+def create_subject():
+    """创建科目API
+
+    Request JSON:
+        name: 科目名称
+        description: 科目描述（可选）
+        order_index: 排序索引（可选）
+        is_active: 是否激活（可选，默认true）
+
+    Returns:
+        创建的科目信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 验证必填字段
+    required_fields = ['name']
+    for field in required_fields:
+        if field not in data:
+            return error_response(f'缺少必填字段: {field}', 400)
+
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    order_index = data.get('order_index', 0)
+    is_active = data.get('is_active', True)
+
+    # 验证输入
+    is_valid, error_msg = validate_string(name, '科目名称', min_length=1, max_length=50, allow_empty=False)
+    if not is_valid:
+        return error_response(error_msg, 400)
+
+    # 检查名称是否已存在
+    if Subject.get_by_name(name):
+        return error_response('科目名称已存在', 400)
+
+    try:
+        subject = Subject(
+            name=name,
+            description=description,
+            order_index=order_index,
+            is_active=is_active
+        )
+        db.session.add(subject)
+        db.session.commit()
+
+        return {
+            'subject': subject.to_dict(),
+            'message': '科目创建成功'
+        }, 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'创建科目失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/subjects/<int:subject_id>', methods=['PUT'])
+@login_required
+@admin_required
+@api_response
+def update_subject(subject_id):
+    """更新科目API
+
+    Args:
+        subject_id: 科目ID
+
+    Request JSON:
+        name: 科目名称（可选）
+        description: 科目描述（可选）
+        order_index: 排序索引（可选）
+        is_active: 是否激活（可选）
+
+    Returns:
+        更新后的科目信息
+    """
+    subject = Subject.get_by_id(subject_id)
+    if not subject:
+        return error_response('科目不存在', 404)
+
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 更新字段
+    if 'name' in data:
+        name = data.get('name', '').strip()
+        if name and name != subject.name:
+            if Subject.get_by_name(name):
+                return error_response('科目名称已存在', 400)
+            subject.name = name
+
+    if 'description' in data:
+        subject.description = data.get('description', '').strip()
+
+    if 'order_index' in data:
+        subject.order_index = data.get('order_index', 0)
+
+    if 'is_active' in data:
+        subject.is_active = bool(data.get('is_active'))
+
+    try:
+        db.session.commit()
+        return {
+            'subject': subject.to_dict(),
+            'message': '科目更新成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'更新科目失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/subjects/<int:subject_id>', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def delete_subject(subject_id):
+    """删除科目API
+
+    Args:
+        subject_id: 科目ID
+
+    Returns:
+        删除成功信息
+    """
+    subject = Subject.get_by_id(subject_id)
+    if not subject:
+        return error_response('科目不存在', 404)
+
+    try:
+        db.session.delete(subject)
+        db.session.commit()
+        return {
+            'message': '科目删除成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'删除科目失败: {str(e)}', 500)
+
+
+# ==================== 等级管理API ====================
+
+@admin_bp.route('/api/levels', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_levels():
+    """获取等级列表API
+
+    Query Parameters:
+        page: 页码（可选，默认1）
+        per_page: 每页数量（可选，默认20）
+        search: 搜索关键词（可选）
+
+    Returns:
+        等级列表
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    search = request.args.get('search', '').strip()
+
+    # 构建查询
+    query = Level.query
+
+    if search:
+        query = query.filter(
+            db.or_(
+                Level.name.ilike(f'%{search}%'),
+                Level.description.ilike(f'%{search}%')
+            )
+        )
+
+    # 分页
+    pagination = query.order_by(Level.order_index, Level.name).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    levels = pagination.items
+
+    return {
+        'levels': [level.to_dict() for level in levels],
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    }, 200
+
+
+@admin_bp.route('/api/levels/<int:level_id>', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_level(level_id):
+    """获取单个等级详情API
+
+    Args:
+        level_id: 等级ID
+
+    Returns:
+        等级详情
+    """
+    level = Level.get_by_id(level_id)
+    if not level:
+        return error_response('等级不存在', 404)
+
+    return {
+        'level': level.to_dict(include_exams=True)
+    }, 200
+
+
+@admin_bp.route('/api/levels', methods=['POST'])
+@login_required
+@admin_required
+@api_response
+def create_level():
+    """创建等级API
+
+    Request JSON:
+        name: 等级名称
+        description: 等级描述（可选）
+        order_index: 排序索引（可选）
+        is_active: 是否激活（可选，默认true）
+
+    Returns:
+        创建的等级信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 验证必填字段
+    required_fields = ['name']
+    for field in required_fields:
+        if field not in data:
+            return error_response(f'缺少必填字段: {field}', 400)
+
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    order_index = data.get('order_index', 0)
+    is_active = data.get('is_active', True)
+
+    # 验证输入
+    is_valid, error_msg = validate_string(name, '等级名称', min_length=1, max_length=50, allow_empty=False)
+    if not is_valid:
+        return error_response(error_msg, 400)
+
+    # 检查名称是否已存在
+    if Level.get_by_name(name):
+        return error_response('等级名称已存在', 400)
+
+    try:
+        level = Level(
+            name=name,
+            description=description,
+            order_index=order_index,
+            is_active=is_active
+        )
+        db.session.add(level)
+        db.session.commit()
+
+        return {
+            'level': level.to_dict(),
+            'message': '等级创建成功'
+        }, 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'创建等级失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/levels/<int:level_id>', methods=['PUT'])
+@login_required
+@admin_required
+@api_response
+def update_level(level_id):
+    """更新等级API
+
+    Args:
+        level_id: 等级ID
+
+    Request JSON:
+        name: 等级名称（可选）
+        description: 等级描述（可选）
+        order_index: 排序索引（可选）
+        is_active: 是否激活（可选）
+
+    Returns:
+        更新后的等级信息
+    """
+    level = Level.get_by_id(level_id)
+    if not level:
+        return error_response('等级不存在', 404)
+
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 更新字段
+    if 'name' in data:
+        name = data.get('name', '').strip()
+        if name and name != level.name:
+            if Level.get_by_name(name):
+                return error_response('等级名称已存在', 400)
+            level.name = name
+
+    if 'description' in data:
+        level.description = data.get('description', '').strip()
+
+    if 'order_index' in data:
+        level.order_index = data.get('order_index', 0)
+
+    if 'is_active' in data:
+        level.is_active = bool(data.get('is_active'))
+
+    try:
+        db.session.commit()
+        return {
+            'level': level.to_dict(),
+            'message': '等级更新成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'更新等级失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/levels/<int:level_id>', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def delete_level(level_id):
+    """删除等级API
+
+    Args:
+        level_id: 等级ID
+
+    Returns:
+        删除成功信息
+    """
+    level = Level.get_by_id(level_id)
+    if not level:
+        return error_response('等级不存在', 404)
+
+    try:
+        db.session.delete(level)
+        db.session.commit()
+        return {
+            'message': '等级删除成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'删除等级失败: {str(e)}', 500)
+
+
+# ==================== 试卷管理API ====================
+
+@admin_bp.route('/api/exams', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_exams():
+    """获取试卷列表API
+
+    Query Parameters:
+        page: 页码（可选，默认1）
+        per_page: 每页数量（可选，默认20）
+        subject_id: 按科目ID过滤（可选）
+        level_id: 按等级ID过滤（可选）
+        search: 搜索关键词（可选）
+
+    Returns:
+        试卷列表
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    subject_id = request.args.get('subject_id', None)
+    level_id = request.args.get('level_id', None)
+    search = request.args.get('search', '').strip()
+
+    # 构建查询
+    query = Exam.query
+
+    if subject_id:
+        query = query.filter_by(subject_id=subject_id)
+
+    if level_id:
+        query = query.filter_by(level_id=level_id)
+
+    if search:
+        query = query.filter(Exam.title.ilike(f'%{search}%'))
+
+    # 分页
+    pagination = query.order_by(desc(Exam.created_at)).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    exams = pagination.items
+
+    return {
+        'exams': [exam.to_dict() for exam in exams],
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    }, 200
+
+
+@admin_bp.route('/api/exams/<int:exam_id>', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_exam(exam_id):
+    """获取单个试卷详情API
+
+    Args:
+        exam_id: 试卷ID
+
+    Returns:
+        试卷详情
+    """
+    exam = Exam.get_by_id(exam_id)
+    if not exam:
+        return error_response('试卷不存在', 404)
+
+    return {
+        'exam': exam.to_dict(include_questions=True)
+    }, 200
+
+
+@admin_bp.route('/api/exams', methods=['POST'])
+@login_required
+@admin_required
+@api_response
+def create_exam():
+    """创建试卷API
+
+    Request JSON:
+        title: 试卷标题
+        subject_id: 科目ID（可选）
+        level_id: 等级ID（可选）
+        total_points: 总分（可选，默认100）
+        description: 考试描述（可选）
+        duration_minutes: 考试时长（分钟）（可选）
+        start_time: 开始时间（可选）
+        end_time: 结束时间（可选）
+        max_attempts: 最大尝试次数（可选，默认1）
+        pass_score: 及格分数（可选，默认60.0）
+        is_active: 是否激活（可选，默认true）
+
+    Returns:
+        创建的试卷信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 验证必填字段
+    if 'title' not in data:
+        return error_response('缺少必填字段: title', 400)
+
+    title = data.get('title', '').strip()
+    subject_id = data.get('subject_id')
+    level_id = data.get('level_id')
+    total_points = data.get('total_points', 100)
+    description = data.get('description', '').strip()
+    duration_minutes = data.get('duration_minutes')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
+    max_attempts = data.get('max_attempts', 1)
+    pass_score = data.get('pass_score', 60.0)
+    is_active = data.get('is_active', True)
+
+    # 验证输入
+    is_valid, error_msg = validate_string(title, '试卷标题', min_length=1, max_length=200, allow_empty=False)
+    if not is_valid:
+        return error_response(error_msg, 400)
+
+    try:
+        from datetime import datetime
+
+        exam = Exam(
+            title=title,
+            subject_id=subject_id,
+            level_id=level_id,
+            total_points=total_points,
+            description=description,
+            duration_minutes=duration_minutes,
+            start_time=datetime.fromisoformat(start_time) if start_time else None,
+            end_time=datetime.fromisoformat(end_time) if end_time else None,
+            max_attempts=max_attempts,
+            pass_score=pass_score,
+            is_active=is_active
+        )
+        db.session.add(exam)
+        db.session.commit()
+
+        return {
+            'exam': exam.to_dict(),
+            'message': '试卷创建成功'
+        }, 201
+    except ValueError as e:
+        return error_response(f'时间格式错误: {str(e)}', 400)
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'创建试卷失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/exams/<int:exam_id>', methods=['PUT'])
+@login_required
+@admin_required
+@api_response
+def update_exam(exam_id):
+    """更新试卷API
+
+    Args:
+        exam_id: 试卷ID
+
+    Request JSON:
+        title: 试卷标题（可选）
+        subject_id: 科目ID（可选）
+        level_id: 等级ID（可选）
+        total_points: 总分（可选）
+        description: 考试描述（可选）
+        duration_minutes: 考试时长（可选）
+        start_time: 开始时间（可选）
+        end_time: 结束时间（可选）
+        max_attempts: 最大尝试次数（可选）
+        pass_score: 及格分数（可选）
+        is_active: 是否激活（可选）
+
+    Returns:
+        更新后的试卷信息
+    """
+    exam = Exam.get_by_id(exam_id)
+    if not exam:
+        return error_response('试卷不存在', 404)
+
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 更新字段
+    if 'title' in data:
+        exam.title = data.get('title', '').strip()
+
+    if 'subject_id' in data:
+        exam.subject_id = data.get('subject_id')
+
+    if 'level_id' in data:
+        exam.level_id = data.get('level_id')
+
+    if 'total_points' in data:
+        exam.total_points = data.get('total_points', 100)
+
+    if 'description' in data:
+        exam.description = data.get('description', '').strip()
+
+    if 'duration_minutes' in data:
+        exam.duration_minutes = data.get('duration_minutes')
+
+    if 'max_attempts' in data:
+        exam.max_attempts = data.get('max_attempts', 1)
+
+    if 'pass_score' in data:
+        exam.pass_score = data.get('pass_score', 60.0)
+
+    if 'is_active' in data:
+        exam.is_active = bool(data.get('is_active'))
+
+    # 处理时间字段
+    if 'start_time' in data:
+        try:
+            exam.start_time = datetime.fromisoformat(data['start_time']) if data['start_time'] else None
+        except ValueError as e:
+            return error_response(f'开始时间格式错误: {str(e)}', 400)
+
+    if 'end_time' in data:
+        try:
+            exam.end_time = datetime.fromisoformat(data['end_time']) if data['end_time'] else None
+        except ValueError as e:
+            return error_response(f'结束时间格式错误: {str(e)}', 400)
+
+    try:
+        db.session.commit()
+        return {
+            'exam': exam.to_dict(),
+            'message': '试卷更新成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'更新试卷失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/exams/<int:exam_id>', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def delete_exam(exam_id):
+    """删除试卷API
+
+    Args:
+        exam_id: 试卷ID
+
+    Returns:
+        删除成功信息
+    """
+    exam = Exam.get_by_id(exam_id)
+    if not exam:
+        return error_response('试卷不存在', 404)
+
+    try:
+        db.session.delete(exam)
+        db.session.commit()
+        return {
+            'message': '试卷删除成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'删除试卷失败: {str(e)}', 500)
+
+
+# ==================== 题目管理API ====================
+
+@admin_bp.route('/api/questions', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_questions():
+    """获取题目列表API
+
+    Query Parameters:
+        page: 页码（可选，默认1）
+        per_page: 每页数量（可选，默认20）
+        exam_id: 按试卷ID过滤（可选）
+        type: 按题型过滤（可选）
+        search: 搜索关键词（可选）
+
+    Returns:
+        题目列表
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    exam_id = request.args.get('exam_id', None)
+    question_type = request.args.get('type', None)
+    search = request.args.get('search', '').strip()
+
+    # 构建查询
+    query = Question.query
+
+    if exam_id:
+        query = query.filter_by(exam_id=exam_id)
+
+    if question_type:
+        query = query.filter_by(type=question_type)
+
+    if search:
+        query = query.filter(Question.content.ilike(f'%{search}%'))
+
+    # 分页
+    pagination = query.order_by(Question.order_index).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    questions = pagination.items
+
+    return {
+        'questions': [question.to_dict() for question in questions],
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    }, 200
+
+
+@admin_bp.route('/api/questions/<int:question_id>', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_question(question_id):
+    """获取单个题目详情API
+
+    Args:
+        question_id: 题目ID
+
+    Returns:
+        题目详情
+    """
+    question = Question.get_by_id(question_id)
+    if not question:
+        return error_response('题目不存在', 404)
+
+    return {
+        'question': question.to_dict(include_exam=True)
+    }, 200
+
+
+@admin_bp.route('/api/questions', methods=['POST'])
+@login_required
+@admin_required
+@api_response
+def create_question():
+    """创建题目API
+
+    Request JSON:
+        exam_id: 试卷ID
+        type: 题型
+        content: 题目内容
+        correct_answer: 正确答案
+        points: 分值（可选，默认10）
+        order_index: 排序索引（可选，默认0）
+        options: 选项列表（可选）
+        explanation: 答案解析（可选）
+        has_image: 是否包含图片（可选，默认false）
+
+    Returns:
+        创建的题目信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 验证必填字段
+    required_fields = ['exam_id', 'type', 'content', 'correct_answer']
+    for field in required_fields:
+        if field not in data:
+            return error_response(f'缺少必填字段: {field}', 400)
+
+    exam_id = data.get('exam_id')
+    question_type = data.get('type')
+    content = data.get('content', '').strip()
+    correct_answer = data.get('correct_answer')
+    points = data.get('points', 10)
+    order_index = data.get('order_index', 0)
+    options = data.get('options')
+    explanation = data.get('explanation', '').strip()
+    has_image = data.get('has_image', False)
+
+    # 验证输入
+    is_valid, error_msg = validate_string(content, '题目内容', min_length=1, allow_empty=False)
+    if not is_valid:
+        return error_response(error_msg, 400)
+
+    try:
+        question = Question(
+            exam_id=exam_id,
+            type=question_type,
+            content=content,
+            correct_answer=correct_answer,
+            points=points,
+            order_index=order_index,
+            options=options,
+            explanation=explanation,
+            has_image=has_image
+        )
+        db.session.add(question)
+        db.session.commit()
+
+        return {
+            'question': question.to_dict(),
+            'message': '题目创建成功'
+        }, 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'创建题目失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/questions/<int:question_id>', methods=['PUT'])
+@login_required
+@admin_required
+@api_response
+def update_question(question_id):
+    """更新题目API
+
+    Args:
+        question_id: 题目ID
+
+    Request JSON:
+        type: 题型（可选）
+        content: 题目内容（可选）
+        correct_answer: 正确答案（可选）
+        points: 分值（可选）
+        order_index: 排序索引（可选）
+        options: 选项列表（可选）
+        explanation: 答案解析（可选）
+
+    Returns:
+        更新后的题目信息
+    """
+    question = Question.get_by_id(question_id)
+    if not question:
+        return error_response('题目不存在', 404)
+
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 更新字段
+    if 'type' in data:
+        question.type = data.get('type')
+
+    if 'content' in data:
+        question.content = data.get('content', '').strip()
+
+    if 'correct_answer' in data:
+        question.correct_answer = data.get('correct_answer')
+
+    if 'points' in data:
+        question.points = data.get('points', 10)
+
+    if 'order_index' in data:
+        question.order_index = data.get('order_index', 0)
+
+    if 'options' in data:
+        question.options = data.get('options')
+
+    if 'explanation' in data:
+        question.explanation = data.get('explanation', '').strip()
+
+    if 'has_image' in data:
+        question.has_image = bool(data.get('has_image'))
+
+    try:
+        db.session.commit()
+        return {
+            'question': question.to_dict(),
+            'message': '题目更新成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'更新题目失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/questions/<int:question_id>', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def delete_question(question_id):
+    """删除题目API
+
+    Args:
+        question_id: 题目ID
+
+    Returns:
+        删除成功信息
+    """
+    question = Question.get_by_id(question_id)
+    if not question:
+        return error_response('题目不存在', 404)
+
+    try:
+        db.session.delete(question)
+        db.session.commit()
+        return {
+            'message': '题目删除成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'删除题目失败: {str(e)}', 500)
+
+
+# ==================== 提交管理API ====================
+
+@admin_bp.route('/api/submissions', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_submissions():
+    """获取提交列表API
+
+    Query Parameters:
+        page: 页码（可选，默认1）
+        per_page: 每页数量（可选，默认20）
+        exam_id: 按试卷ID过滤（可选）
+        user_id: 按用户ID过滤（可选）
+        status: 按状态过滤（可选）
+        search: 搜索关键词（可选）
+
+    Returns:
+        提交列表
+    """
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    exam_id = request.args.get('exam_id', None)
+    user_id = request.args.get('user_id', None)
+    status = request.args.get('status', None)
+    search = request.args.get('search', '').strip()
+
+    # 构建查询
+    query = Submission.query
+
+    if exam_id:
+        query = query.filter_by(exam_id=exam_id)
+
+    if user_id:
+        query = query.filter_by(user_id=user_id)
+
+    if status:
+        query = query.filter_by(status=status)
+
+    if search:
+        query = query.filter(
+            db.or_(
+                Submission.student_name.ilike(f'%{search}%')
+            )
+        )
+
+    # 分页
+    pagination = query.order_by(desc(Submission.submit_time)).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    submissions = pagination.items
+
+    return {
+        'submissions': [submission.to_dict() for submission in submissions],
+        'pagination': {
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev
+        }
+    }, 200
+
+
+@admin_bp.route('/api/submissions/<int:submission_id>', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_submission(submission_id):
+    """获取单个提交详情API
+
+    Args:
+        submission_id: 提交ID
+
+    Returns:
+        提交详情
+    """
+    submission = Submission.get_by_id(submission_id)
+    if not submission:
+        return error_response('提交不存在', 404)
+
+    return {
+        'submission': submission.to_dict(include_answers=True)
+    }, 200
+
+
+@admin_bp.route('/api/submissions/<int:submission_id>', methods=['PUT'])
+@login_required
+@admin_required
+@api_response
+def update_submission(submission_id):
+    """更新提交API
+
+    Args:
+        submission_id: 提交ID
+
+    Request JSON:
+        status: 状态（可选）
+        obtained_score: 实际得分（可选）
+        score_percentage: 得分百分比（可选）
+        is_passed: 是否及格（可选）
+
+    Returns:
+        更新后的提交信息
+    """
+    submission = Submission.get_by_id(submission_id)
+    if not submission:
+        return error_response('提交不存在', 404)
+
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    # 更新字段
+    if 'status' in data:
+        submission.status = data.get('status')
+
+    if 'obtained_score' in data:
+        submission.obtained_score = data.get('obtained_score')
+
+    if 'score_percentage' in data:
+        submission.score_percentage = data.get('score_percentage')
+
+    if 'is_passed' in data:
+        submission.is_passed = bool(data.get('is_passed'))
+
+    try:
+        db.session.commit()
+        return {
+            'submission': submission.to_dict(),
+            'message': '提交更新成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'更新提交失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/submissions/<int:submission_id>', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def delete_submission(submission_id):
+    """删除提交API
+
+    Args:
+        submission_id: 提交ID
+
+    Returns:
+        删除成功信息
+    """
+    submission = Submission.get_by_id(submission_id)
+    if not submission:
+        return error_response('提交不存在', 404)
+
+    try:
+        db.session.delete(submission)
+        db.session.commit()
+        return {
+            'message': '提交删除成功'
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'删除提交失败: {str(e)}', 500)
+
 
 @admin_bp.route('/api/stats', methods=['GET'])
 @login_required
