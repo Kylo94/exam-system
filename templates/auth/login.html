@@ -132,19 +132,22 @@
                 })
             });
             
-            const data = await response.json();
+            const result = await response.json();
             
             if (response.ok) {
                 // 登录成功
                 showAlert('登录成功，正在跳转...', 'success');
                 
+                // 处理响应格式：支持 data.user 和 data.data.user
+                const userData = result.data ? result.data.user : result.user;
+                
                 // 根据用户角色决定跳转目标
                 let redirectUrl;
-                if (data.user.is_student) {
+                if (userData && userData.is_student) {
                     redirectUrl = "{{ url_for('main.index') }}";
-                } else if (data.user.is_teacher) {
+                } else if (userData && userData.is_teacher) {
                     redirectUrl = "{{ url_for('teacher.dashboard') }}";
-                } else if (data.user.is_admin) {
+                } else if (userData && userData.is_admin) {
                     redirectUrl = "{{ url_for('admin.dashboard') }}";
                 } else {
                     redirectUrl = "{{ url_for('main.dashboard') }}";
@@ -156,7 +159,8 @@
                 }, 1500);
             } else {
                 // 登录失败
-                showAlert(data.message || '登录失败', 'danger');
+                const errorMsg = result.message || result.data?.message || '登录失败';
+                showAlert(errorMsg, 'danger');
                 
                 // 恢复按钮状态
                 loginBtn.disabled = false;
