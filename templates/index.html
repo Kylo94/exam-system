@@ -140,6 +140,9 @@
     {% include "partials/scripts.html" %}
     
     <script>
+        // 当前用户ID
+        const currentUserId = {{ current_user.id if current_user.is_authenticated else 'null' }};
+        
         // 页面加载
         document.addEventListener('DOMContentLoaded', function() {
             loadOngoingExams();
@@ -204,8 +207,7 @@
         
         // 加载最近的考试记录
         function loadRecentSubmissions() {
-            // 假设当前用户ID为1，实际应该从登录信息获取
-            const userId = 1;
+            const userId = currentUserId;
             
             fetch(`/api/submissions?user_id=${userId}&per_page=5`)
                 .then(response => response.json())
@@ -272,7 +274,7 @@
         
         // 加载用户统计
         function loadUserStats() {
-            const userId = 1;
+            const userId = currentUserId;
             
             fetch(`/api/submissions?user_id=${userId}&per_page=100`)
                 .then(response => response.json())

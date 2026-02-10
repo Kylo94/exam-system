@@ -24,7 +24,10 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def login_page():
     """登录页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/login.html')
 
 
@@ -32,7 +35,10 @@ def login_page():
 def register_page():
     """注册页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/register.html')
 
 
@@ -47,7 +53,10 @@ def profile_page():
 def forgot_password_page():
     """忘记密码页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/forgot_password.html')
 
 
@@ -55,7 +64,10 @@ def forgot_password_page():
 def reset_password_page(token):
     """重置密码页面"""
     if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
+        if current_user.is_student():
+            return redirect(url_for('main.index'))
+        else:
+            return redirect(url_for('main.dashboard'))
     return render_template('auth/reset_password.html', token=token)
 
 
