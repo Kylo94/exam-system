@@ -11,7 +11,14 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     """系统主页"""
-    return render_template('index.html')
+    from flask_login import current_user
+    
+    # 已登录用户显示用户主页
+    if current_user.is_authenticated:
+        return render_template('index.html')
+    
+    # 未登录用户显示欢迎页面
+    return render_template('welcome.html')
 
 
 @main_bp.route('/dashboard')
@@ -151,6 +158,20 @@ def submission_detail(submission_id):
         submission.answers = answers
         
         return render_template('submission/detail.html', submission=submission)
+    except Exception as e:
+        return render_template('errors/500.html', message=str(e)), 500
+
+
+@main_bp.route('/my-submissions')
+def my_submissions():
+    """我的考试记录页面"""
+    try:
+        from flask_login import current_user
+        
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login_page'))
+        
+        return render_template('submission/my_submissions.html')
     except Exception as e:
         return render_template('errors/500.html', message=str(e)), 500
 
