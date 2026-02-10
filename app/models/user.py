@@ -73,12 +73,27 @@ class User(BaseModel, UserMixin):
         doc='用户配置文件（JSON格式）'
     )
     
+    teacher_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id'),
+        nullable=True,
+        doc='关联的教师ID（仅学生角色使用）'
+    )
+    
     # 关系
     submissions = db.relationship(
         'Submission',
         backref='user',
         lazy='dynamic',
         cascade='all, delete-orphan'
+    )
+    
+    # 学生-教师关系
+    teacher = db.relationship(
+        'User',
+        remote_side='User.id',
+        backref='students',
+        doc='关联的教师'
     )
     
     def __init__(
@@ -88,7 +103,8 @@ class User(BaseModel, UserMixin):
         password: str,
         role: str = 'student',
         is_active: bool = True,
-        profile: Optional[Dict[str, Any]] = None
+        profile: Optional[Dict[str, Any]] = None,
+        teacher_id: Optional[int] = None
     ):
         """
         初始化用户
@@ -100,6 +116,7 @@ class User(BaseModel, UserMixin):
             role: 用户角色
             is_active: 是否激活
             profile: 用户配置文件
+            teacher_id: 关联的教师ID
         """
         super().__init__()
         self.username = username
@@ -108,6 +125,7 @@ class User(BaseModel, UserMixin):
         self.role = role
         self.is_active = is_active
         self.profile = profile or {}
+        self.teacher_id = teacher_id
     
     def set_password(self, password: str) -> None:
         """
@@ -171,6 +189,39 @@ class User(BaseModel, UserMixin):
         """判断是否为学生"""
         return self.role == 'student'
     
+    def get_teacher(self) -> Optional['User']:
+        """获取学生的教师"""
+        if self.is_student():
+            return self.teacher
+        return None
+    
+    def get_students(self):
+        """获取教师的学生列表"""
+        if self.is_teacher():
+            return self.students
+        return []
+    
+    def bind_teacher(self, teacher_id: int) -> bool:
+        """
+        绑定教师
+        
+        Args:
+            teacher_id: 教师ID
+            
+        Returns:
+            是否绑定成功
+        """
+        if not self.is_student():
+            return False
+        
+        teacher = User.get_by_id(teacher_id)
+        if not teacher or not teacher.is_teacher():
+            return False
+        
+        self.teacher_id = teacher_id
+        db.session.commit()
+        return True
+    
     def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:
         """
         转换为字典
@@ -192,6 +243,14 @@ class User(BaseModel, UserMixin):
         data['is_admin'] = self.is_admin()
         data['is_teacher'] = self.is_teacher()
         data['is_student'] = self.is_student()
+        data['teacher_id'] = self.teacher_id
+        
+        # 添加教师信息（如果是学生）
+        if self.is_student() and self.teacher:
+            data['teacher'] = {
+                'id': self.teacher.id,
+                'username': self.teacher.username
+            }
         
         return data
     

@@ -104,12 +104,28 @@
                         
                         <div class="mb-3">
                             <label for="role" class="form-label">用户角色</label>
-                            <select class="form-select" id="role" name="role">
+                            <select class="form-select" id="role" name="role" onchange="toggleTeacherId()">
                                 <option value="student" selected>学生</option>
                                 <option value="teacher">教师</option>
-                                <option value="admin">管理员</option>
                             </select>
-                            <div class="form-text">选择您的用户角色，管理员角色需要审核</div>
+                            <div class="form-text">选择您的用户角色</div>
+                        </div>
+                        
+                        <!-- 教师ID输入（仅学生显示） -->
+                        <div class="mb-3" id="teacherIdSection">
+                            <label for="teacherId" class="form-label">教师ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                                <input type="number" class="form-control" id="teacherId" name="teacher_id" 
+                                       placeholder="请输入您的教师ID（可选）">
+                                <button class="btn btn-outline-secondary" type="button" id="verifyTeacherBtn">
+                                    验证
+                                </button>
+                            </div>
+                            <div class="form-text" id="teacherIdFeedback">
+                                学生可填写教师ID进行绑定，注册后也可在个人资料中绑定
+                            </div>
+                            <div class="invalid-feedback" id="teacherIdError"></div>
                         </div>
                         
                         <div class="mb-3 form-check">
@@ -171,6 +187,9 @@
     // 初始化密码显示切换
     setupPasswordToggle('password', 'togglePassword');
     setupPasswordToggle('confirmPassword', 'toggleConfirmPassword');
+    
+    // 初始化教师ID输入框状态
+    toggleTeacherId();
     
     // 检查用户名是否可用
     document.getElementById('checkUsernameBtn').addEventListener('click', async function() {
@@ -279,13 +298,76 @@
     // 清除字段状态
     function clearFieldStatus(fieldName) {
         const input = document.getElementById(fieldName);
+        if (!input) return;
+        
         const feedback = document.getElementById(`${fieldName}Feedback`);
         const error = document.getElementById(`${fieldName}Error`);
         
         input.classList.remove('is-invalid', 'is-valid');
-        feedback.style.display = 'block';
-        error.style.display = 'none';
+        if (feedback) feedback.style.display = 'block';
+        if (error) error.style.display = 'none';
     }
+    
+    // 教师ID输入监听
+    document.getElementById('teacherId').addEventListener('input', function() {
+        clearFieldStatus('teacherId');
+    });
+    
+    // 切换教师ID输入框显示
+    function toggleTeacherId() {
+        const role = document.getElementById('role').value;
+        const teacherIdSection = document.getElementById('teacherIdSection');
+        const teacherIdInput = document.getElementById('teacherId');
+        
+        if (role === 'student') {
+            teacherIdSection.style.display = 'block';
+            teacherIdInput.disabled = false;
+        } else {
+            teacherIdSection.style.display = 'none';
+            teacherIdInput.disabled = true;
+            teacherIdInput.value = '';
+            clearFieldStatus('teacherId');
+        }
+    }
+    
+    // 验证教师ID
+    document.getElementById('verifyTeacherBtn').addEventListener('click', async function() {
+        const teacherId = document.getElementById('teacherId').value.trim();
+        
+        if (!teacherId) {
+            showFieldError('teacherId', '请输入教师ID');
+            return;
+        }
+        
+        const id = parseInt(teacherId);
+        if (isNaN(id) || id <= 0) {
+            showFieldError('teacherId', '请输入有效的教师ID');
+            return;
+        }
+        
+        // 显示检查中状态
+        const originalText = this.textContent;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+        
+        try {
+            const response = await fetch(`/auth/api/verify-teacher/${id}`);
+            const data = await response.json();
+            
+            if (response.ok && data.valid) {
+                showFieldSuccess('teacherId', `教师验证成功：${data.teacher_name}`);
+            } else {
+                showFieldError('teacherId', data.message || '教师ID无效');
+            }
+        } catch (error) {
+            console.error('验证教师失败:', error);
+            showFieldError('teacherId', '网络错误，请重试');
+        } finally {
+            // 恢复按钮状态
+            this.disabled = false;
+            this.textContent = originalText;
+        }
+    });
     
     // 实时验证
     document.getElementById('username').addEventListener('input', function() {
@@ -351,7 +433,8 @@
             email: document.getElementById('email').value.trim().toLowerCase(),
             password: document.getElementById('password').value.trim(),
             confirm_password: document.getElementById('confirmPassword').value.trim(),
-            role: document.getElementById('role').value
+            role: document.getElementById('role').value,
+            teacher_id: document.getElementById('teacherId').value ? parseInt(document.getElementById('teacherId').value) : null
         };
         
         // 显示加载状态

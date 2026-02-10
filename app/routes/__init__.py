@@ -10,6 +10,7 @@ from .answers import answers_bp
 from .upload import upload_bp
 from .auth import auth_bp
 from .admin import admin_bp
+from .teacher import teacher_bp
 
 __all__ = [
     'main_bp',
@@ -22,4 +23,5 @@ __all__ = [
     'upload_bp',
     'auth_bp',
     'admin_bp',
+    'teacher_bp',
 ]

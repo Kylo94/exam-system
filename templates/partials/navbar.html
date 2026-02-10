@@ -27,6 +27,16 @@
                     </a>
                 </li>
                 
+                <!-- 教师导航 -->
+                {% if current_user.is_teacher() %}
+                <li class="nav-item">
+                    <a class="nav-link" href="/teacher/my-students">
+                        <i class="bi bi-people me-1"></i>
+                        我的学生
+                    </a>
+                </li>
+                {% endif %}
+                
                 <!-- 管理员导航 -->
                 {% if current_user.is_admin() %}
                 <li class="nav-item dropdown">

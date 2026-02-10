@@ -58,10 +58,42 @@
                             <span class="badge bg-danger">已停用</span>
                         {% endif %}
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <span>用户ID:</span>
                         <span class="text-muted">#{{ user.id }}</span>
                     </div>
+                    
+                    {% if user.is_student() %}
+                    <hr>
+                    <div class="mb-2">
+                        <span>我的教师:</span>
+                        <div id="teacherInfo">
+                            {% if user.teacher %}
+                            <span class="badge bg-info">
+                                <i class="bi bi-person-badge me-1"></i>{{ user.teacher.username }}
+                            </span>
+                            <small class="text-muted d-block">ID: {{ user.teacher.id }}</small>
+                            {% else %}
+                            <span class="badge bg-secondary">未绑定</span>
+                            <small class="text-muted d-block">可在下方绑定教师</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if user.is_teacher() %}
+                    <hr>
+                    <div class="mb-2">
+                        <span>教师ID:</span>
+                        <div class="input-group input-group-sm mt-1">
+                            <input type="text" class="form-control" value="{{ user.id }}" readonly id="teacherIdDisplay">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyTeacherId()">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">学生填写此ID即可与您绑定</small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -142,12 +174,37 @@
                                 <div class="mb-3">
                                     <label for="editRole" class="form-label">用户角色</label>
                                     <select class="form-select" id="editRole" disabled>
-                                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员</option>
                                         <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>教师</option>
                                         <option value="student" {% if user.role == 'student' %}selected{% endif %}>学生</option>
                                     </select>
                                     <div class="form-text">用户角色无法自行修改，请联系管理员</div>
                                 </div>
+                                
+                                {% if user.is_student() %}
+                                <div class="mb-3" id="teacherBindSection">
+                                    <label for="bindTeacherId" class="form-label">绑定教师</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                                        <input type="number" class="form-control" id="bindTeacherId" 
+                                               placeholder="输入教师ID" 
+                                               value="{{ user.teacher_id if user.teacher_id else '' }}">
+                                        <button class="btn btn-outline-primary" type="button" id="verifyTeacherBtn">
+                                            验证
+                                        </button>
+                                        <button class="btn btn-primary" type="button" id="bindTeacherBtn" disabled>
+                                            绑定
+                                        </button>
+                                    </div>
+                                    <div class="form-text" id="teacherBindFeedback">
+                                        {% if user.teacher %}
+                                        已绑定教师：{{ user.teacher.username }}（ID: {{ user.teacher.id }}）
+                                        {% else %}
+                                        输入教师ID进行绑定，绑定后可让教师查看您的成绩
+                                        {% endif %}
+                                    </div>
+                                    <div class="invalid-feedback" id="teacherBindError"></div>
+                                </div>
+                                {% endif %}
                                 
                                 <div class="d-flex justify-content-end">
                                     <button type="submit" class="btn btn-primary" id="saveBasicInfoBtn">
@@ -685,6 +742,140 @@
         showAlert('账户停用功能需要管理员权限，请联系系统管理员', 'warning');
         $('#deactivateModal').modal('hide');
     });
+    
+    {% if user.is_student() %}
+    // 验证教师ID
+    let verifiedTeacherId = null;
+    let verifiedTeacherName = null;
+    
+    document.getElementById('verifyTeacherBtn').addEventListener('click', async function() {
+        const teacherId = document.getElementById('bindTeacherId').value.trim();
+        const feedback = document.getElementById('teacherBindFeedback');
+        const error = document.getElementById('teacherBindError');
+        const bindBtn = document.getElementById('bindTeacherBtn');
+        
+        if (!teacherId) {
+            feedback.style.display = 'none';
+            error.textContent = '请输入教师ID';
+            error.style.display = 'block';
+            bindBtn.disabled = true;
+            return;
+        }
+        
+        const id = parseInt(teacherId);
+        if (isNaN(id) || id <= 0) {
+            feedback.style.display = 'none';
+            error.textContent = '请输入有效的教师ID';
+            error.style.display = 'block';
+            bindBtn.disabled = true;
+            return;
+        }
+        
+        // 显示检查中状态
+        const originalText = this.textContent;
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+        
+        try {
+            const response = await fetch(`/auth/api/verify-teacher/${id}`);
+            const data = await response.json();
+            
+            if (response.ok && data.valid) {
+                feedback.textContent = `验证成功：${data.teacher_name}`;
+                feedback.style.display = 'block';
+                feedback.classList.add('text-success');
+                error.style.display = 'none';
+                
+                verifiedTeacherId = id;
+                verifiedTeacherName = data.teacher_name;
+                bindBtn.disabled = false;
+            } else {
+                feedback.style.display = 'none';
+                error.textContent = data.message || '教师ID无效';
+                error.style.display = 'block';
+                bindBtn.disabled = true;
+                verifiedTeacherId = null;
+                verifiedTeacherName = null;
+            }
+        } catch (error) {
+            console.error('验证教师失败:', error);
+            feedback.style.display = 'none';
+            error.textContent = '网络错误，请重试';
+            error.style.display = 'block';
+            bindBtn.disabled = true;
+        } finally {
+            // 恢复按钮状态
+            this.disabled = false;
+            this.textContent = originalText;
+        }
+    });
+    
+    // 绑定教师
+    document.getElementById('bindTeacherBtn').addEventListener('click', async function() {
+        if (!verifiedTeacherId) return;
+        
+        const bindBtn = document.getElementById('bindTeacherBtn');
+        const originalText = bindBtn.textContent;
+        
+        bindBtn.disabled = true;
+        bindBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+        
+        try {
+            const response = await fetch("/auth/api/bind-teacher", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    teacher_id: verifiedTeacherId
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showAlert(`教师绑定成功：${verifiedTeacherName}`, 'success');
+                
+                // 更新显示
+                document.getElementById('teacherInfo').innerHTML = `
+                    <span class="badge bg-info">
+                        <i class="bi bi-person-badge me-1"></i>${verifiedTeacherName}
+                    </span>
+                    <small class="text-muted d-block">ID: ${verifiedTeacherId}</small>
+                `;
+                
+                // 重置输入
+                document.getElementById('bindTeacherId').value = verifiedTeacherId;
+                document.getElementById('teacherBindFeedback').textContent = 
+                    `已绑定教师：${verifiedTeacherName}（ID: ${verifiedTeacherId}）`;
+                document.getElementById('teacherBindFeedback').classList.remove('text-success');
+                bindBtn.disabled = true;
+            } else {
+                showAlert(data.message || '绑定失败', 'danger');
+                bindBtn.disabled = false;
+                bindBtn.textContent = originalText;
+            }
+        } catch (error) {
+            console.error('绑定教师失败:', error);
+            showAlert('网络错误，请重试', 'danger');
+            bindBtn.disabled = false;
+            bindBtn.textContent = originalText;
+        }
+    });
+    {% endif %}
+    
+    {% if user.is_teacher() %}
+    // 复制教师ID
+    function copyTeacherId() {
+        const teacherId = document.getElementById('teacherIdDisplay').value;
+        navigator.clipboard.writeText(teacherId).then(() => {
+            showAlert('教师ID已复制到剪贴板', 'success');
+        }).catch(err => {
+            console.error('复制失败:', err);
+            showAlert('复制失败，请手动复制', 'warning');
+        });
+    }
+    {% endif %}
     
     // 显示提示信息
     function showAlert(message, type) {

@@ -61,7 +61,8 @@ def register_blueprints(app: Flask):
         answers_bp,
         upload_bp,
         auth_bp,
-        admin_bp
+        admin_bp,
+        teacher_bp
     )
     
     # 注册主蓝图（无前缀）
@@ -81,6 +82,9 @@ def register_blueprints(app: Flask):
     app.register_blueprint(submissions_bp, url_prefix='/api')
     app.register_blueprint(answers_bp, url_prefix='/api')
     app.register_blueprint(upload_bp, url_prefix='/api')
+    
+    # 注册教师蓝图
+    app.register_blueprint(teacher_bp)
 
 
 def register_error_handlers(app: Flask):
