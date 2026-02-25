@@ -320,8 +320,87 @@ def get_question_types():
         {'value': 'fill_blank', 'label': '填空题', 'description': '填写空白处的问题'},
         {'value': 'short_answer', 'label': '简答题', 'description': '需要简短回答的问题'}
     ]
-    
+
     return jsonify({
         'success': True,
         'data': types
     })
+
+
+@questions_bp.route('/questions/practice', methods=['GET'])
+def get_practice_questions():
+    """获取专项刷题题目"""
+    try:
+        from app.extensions import db
+        from app.models import Question, Exam
+
+        # 获取筛选条件
+        subject_id = request.args.get('subject_id', type=int)
+        level_id = request.args.get('level_id', type=int)
+        knowledge_point_id = request.args.get('knowledge_point_id', type=int)
+
+        if not subject_id or not level_id or not knowledge_point_id:
+            return jsonify({
+                'success': False,
+                'message': '请提供科目、难度和考点参数'
+            }), 400
+
+        # 查询符合条件考试的题目
+        exams = Exam.query.filter_by(
+            subject_id=subject_id,
+            level_id=level_id,
+            is_active=True
+        ).all()
+
+        if not exams:
+            return jsonify({
+                'success': False,
+                'message': '没有找到符合条件的考试'
+            }), 404
+
+        exam_ids = [exam.id for exam in exams]
+
+        # 查询题目
+        questions = Question.query.filter(
+            Question.exam_id.in_(exam_ids),
+            Question.knowledge_point_id == knowledge_point_id
+        ).order_by(Question.order_index).all()
+
+        # 序列化题目
+        items = []
+        for q in questions:
+            item = {
+                'id': q.id,
+                'exam_id': q.exam_id,
+                'content': q.content,
+                'type': q.type,
+                'points': q.points,
+                'order_index': q.order_index,
+                'knowledge_point_id': q.knowledge_point_id,
+                'knowledge_point_name': q.knowledge_point.name if q.knowledge_point else None
+            }
+
+            # 添加选项（如果有）
+            if q.options:
+                item['options'] = q.options
+
+            # 添加考试标题
+            exam = Exam.query.get(q.exam_id)
+            if exam:
+                item['exam_title'] = exam.title
+
+            items.append(item)
+
+        return jsonify({
+            'success': True,
+            'data': {
+                'questions': items,
+                'total': len(items)
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 400

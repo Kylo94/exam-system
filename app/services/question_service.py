@@ -44,9 +44,10 @@ class QuestionService(BaseService[Question]):
     def create_question(self, exam_id: int, content: str, question_type: str,
                        score: float = 1.0, options: Optional[Dict[str, Any]] = None,
                        correct_answer: Optional[Union[str, List[str]]] = None,
-                       explanation: str = "", order_index: int = 0) -> Question:
+                       explanation: str = "", order_index: int = 0,
+                       knowledge_point_id: Optional[int] = None) -> Question:
         """创建新问题
-        
+
         Args:
             exam_id: 考试ID
             content: 问题内容
@@ -56,10 +57,11 @@ class QuestionService(BaseService[Question]):
             correct_answer: 正确答案
             explanation: 答案解析
             order_index: 排序索引
-            
+            knowledge_point_id: 考点ID（可选）
+
         Returns:
             创建的问题
-            
+
         Raises:
             ValueError: 考试不存在或数据验证失败
         """
@@ -67,29 +69,29 @@ class QuestionService(BaseService[Question]):
         exam = Exam.query.get(exam_id)
         if not exam:
             raise ValueError(f"考试ID {exam_id} 不存在")
-        
+
         # 验证问题类型
         valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer']
         if question_type not in valid_types:
             raise ValueError(f"问题类型必须是: {', '.join(valid_types)}")
-        
+
         # 验证分值
         if score <= 0:
             raise ValueError("分值必须大于0")
-        
+
         # 处理选项
         options_data = options or {}
         if question_type in ['single_choice', 'multiple_choice']:
             if not options_data.get('choices'):
                 raise ValueError(f"{question_type} 类型的问题必须提供选项")
-            
+
             # 验证正确答案格式
             if correct_answer is not None:
                 if question_type == 'single_choice' and not isinstance(correct_answer, str):
                     raise ValueError("单选题的正确答案必须是字符串")
                 elif question_type == 'multiple_choice' and not isinstance(correct_answer, list):
                     raise ValueError("多选题的正确答案必须是列表")
-        
+
         # 处理正确答案
         answer_data = None
         if correct_answer is not None:
@@ -97,7 +99,7 @@ class QuestionService(BaseService[Question]):
                 answer_data = json.dumps(correct_answer, ensure_ascii=False)
             else:
                 answer_data = str(correct_answer)
-        
+
         return self.create({
             'exam_id': exam_id,
             'content': content,
@@ -106,7 +108,8 @@ class QuestionService(BaseService[Question]):
             'options': options_data,
             'correct_answer': answer_data,
             'explanation': explanation,
-            'order_index': order_index
+            'order_index': order_index,
+            'knowledge_point_id': knowledge_point_id
         })
     
     def create_single_choice(self, exam_id: int, content: str, 

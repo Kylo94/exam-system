@@ -87,6 +87,14 @@ def levels_page():
     return render_template('admin/levels.html', levels=levels)
 
 
+@admin_bp.route('/knowledge-points')
+@login_required
+@admin_required
+def knowledge_points_page():
+    """考点管理页面"""
+    return render_template('admin/knowledge_points.html')
+
+
 @admin_bp.route('/exams')
 @login_required
 @admin_required

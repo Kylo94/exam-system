@@ -349,6 +349,12 @@ def ai_configs_page():
     return render_template('ai_configs.html')
 
 
+@main_bp.route('/practice')
+def practice_page():
+    """专项刷题页面"""
+    return render_template('practice/index.html')
+
+
 @main_bp.route('/api/health')
 def health_check():
     """健康检查接口"""
