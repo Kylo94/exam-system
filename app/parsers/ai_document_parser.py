@@ -130,11 +130,11 @@ class AIDocumentParser:
 
         # 题型检测
         section_patterns = {
-            'single_choice': [r'一、单选题|单选\(共'],
-            'multiple_choice': [r'二、多选题|多选\(共'],
-            'judgment': [r'三、判断题|判断\(共'],
-            'fill_blank': [r'四、填空题|填空\(共'],
-            'subjective': [r'五、简答题|简答\(共|编程题']
+            'single_choice': [r'一、单选题'],
+            'multiple_choice': [r'二、多选题'],
+            'judgment': [r'[一二三]、判断题'],
+            'fill_blank': [r'四、填空题'],
+            'subjective': [r'五、简答题|编程题']
         }
 
         # 问题开始模式
@@ -180,8 +180,9 @@ class AIDocumentParser:
             if question_match:
                 # 保存上一个问题
                 if current_question:
-                    # 添加之前收集的选项
-                    current_question['options'] = current_options
+                    # 添加之前收集的选项（仅单选/多选题）
+                    if current_question['type'] in ['single_choice', 'multiple_choice']:
+                        current_question['options'] = current_options
                     questions.append(current_question)
                     current_options = []
 
@@ -201,7 +202,7 @@ class AIDocumentParser:
                 question_number += 1
 
             elif current_question:
-                # 检查是否是选项
+                # 检查是否是选项（仅单选/多选题）
                 option_match = re.match(option_pattern, line)
                 if option_match and current_question['type'] in ['single_choice', 'multiple_choice']:
                     option_id = option_match.group(1)
@@ -220,10 +221,17 @@ class AIDocumentParser:
                         explanation_text = re.sub(explanation_pattern, '', line).strip()
                         if explanation_text:
                             current_question['explanation'] = explanation_text
+                    # 判断题特殊处理：答案格式为"正确答案：正确"或"正确答案：错误"
+                    elif current_question['type'] == 'judgment' and '正确答案' in line:
+                        answer_text = re.search(r'正确答案[：:]\s*(正确|错误)', line)
+                        if answer_text:
+                            current_question['correct_answer'] = answer_text.group(1)
 
         # 保存最后一个问题
         if current_question:
-            current_question['options'] = current_options
+            # 添加之前收集的选项（仅单选/多选题）
+            if current_question['type'] in ['single_choice', 'multiple_choice']:
+                current_question['options'] = current_options
             questions.append(current_question)
 
         return self._normalize_questions(questions)
@@ -312,14 +320,16 @@ class AIDocumentParser:
             type_map = {
                 '单选题': 'single_choice',
                 '多选题': 'multiple_choice',
-                '判断题': 'judgment',
+                '判断题': 'true_false',
                 '填空题': 'fill_blank',
-                '简答题': 'subjective',
+                '简答题': 'short_answer',
                 'single_choice': 'single_choice',
                 'multiple_choice': 'multiple_choice',
-                'true_false': 'judgment',
+                'judgment': 'true_false',
+                'subjective': 'short_answer',
+                'true_false': 'true_false',
                 'fill_blank': 'fill_blank',
-                'short_answer': 'subjective'
+                'short_answer': 'short_answer'
             }
             q_type = q.get('type', 'single_choice')
             q_type = type_map.get(q_type, 'single_choice')
@@ -342,18 +352,24 @@ class AIDocumentParser:
 
             # 标准化答案
             correct_answer = q.get('correct_answer', '')
-            if q_type == 'judgment':
-                # 判断题答案标准化
-                if correct_answer in ['正确', 'true', 'True', '是']:
-                    correct_answer = 'A'
-                elif correct_answer in ['错误', 'false', 'False', '否']:
-                    correct_answer = 'B'
+            if q_type == 'true_false':
+                # 判断题答案标准化为 true/false
+                if correct_answer in ['正确', 'true', 'True', '是', 'A']:
+                    correct_answer = 'true'
+                elif correct_answer in ['错误', 'false', 'False', '否', 'B']:
+                    correct_answer = 'false'
+
+            # 安全处理分值
+            try:
+                points = int(q.get('points', 2))
+            except (ValueError, TypeError):
+                points = 2
 
             normalized_q = {
                 'type': q_type,
                 'content': q['content'],
                 'correct_answer': str(correct_answer),
-                'points': int(q.get('points', 2)),
+                'points': points,
                 'options': options,
                 'explanation': q.get('explanation', ''),
                 'order_index': idx + 1

@@ -188,9 +188,9 @@ def create_exam_from_document():
                 start_time=data.get('start_time'),
                 end_time=data.get('end_time'),
                 is_active=data.get('is_active', 'true').lower() == 'true',
-                max_attempts=int(data.get('max_attempts', 1)),
-                pass_score=float(data.get('pass_score', 60.0)),
-                total_points=int(data.get('total_points', 100))
+                max_attempts=int(data.get('max_attempts', 1) or 1),
+                pass_score=float(data.get('pass_score', 60.0) or 60.0),
+                total_points=exam_data.get('total_points', 100)
             )
 
             # 创建问题
@@ -200,12 +200,18 @@ def create_exam_from_document():
 
             for i, q_data in enumerate(exam_data['questions']):
                 try:
+                    # 将选项列表转换为选项字典格式
+                    options_list = q_data.get('options', [])
+                    options_dict = {}
+                    if options_list:
+                        options_dict = {'choices': [opt.get('text', '') for opt in options_list]}
+
                     question = question_service.create_question(
                         exam_id=exam.id,
                         content=q_data.get('content', f'问题 {i+1}'),
                         question_type=q_data.get('type', 'single_choice'),
-                        points=q_data.get('points', 10),
-                        options=q_data.get('options', []),
+                        score=float(q_data.get('points', 10)),
+                        options=options_dict,
                         correct_answer=q_data.get('correct_answer', ''),
                         explanation=q_data.get('explanation', ''),
                         order_index=q_data.get('order_index', i + 1)
