@@ -285,18 +285,39 @@
                     credentials: 'include',
                     body: JSON.stringify(formData)
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('用户创建成功');
-                        location.reload();
-                    } else {
-                        alert('创建失败: ' + data.message);
+                .then(async response => {
+                    console.log('响应状态:', response.status);
+                    if (response.status === 302 || response.redirected) {
+                        // 需要登录
+                        window.location.href = '/auth/login';
+                        throw new Error('需要登录');
                     }
+                    const data = await response.json();
+                    console.log('响应数据:', data);
+                    if (!response.ok) {
+                        let errorMsg = data.message || '创建失败';
+                        // 如果有验证错误详情
+                        if (data.details && data.details.errors) {
+                            const errorList = [];
+                            for (const [field, errors] of Object.entries(data.details.errors)) {
+                                errorList.push(`${field}: ${errors.join(', ')}`);
+                            }
+                            errorMsg += '\n' + errorList.join('\n');
+                        }
+                        throw new Error(errorMsg);
+                    }
+                    return data;
+                })
+                .then(data => {
+                    console.log('服务器响应:', data);
+                    alert('用户创建成功');
+                    location.reload();
                 })
                 .catch(error => {
                     console.error('创建失败:', error);
-                    alert('创建失败');
+                    alert('创建失败: ' + error.message);
+                    // 恢复按钮状态
+                    $('#createUserModal button[type="submit"]').prop('disabled', false);
                 });
             });
             

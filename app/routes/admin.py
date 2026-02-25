@@ -242,13 +242,13 @@ def create_user():
     validators = {
         'username': (validate_string, {'field_name': '用户名', 'min_length': 3, 'max_length': 20, 'allow_empty': False}),
         'email': (validate_email, {'field_name': '邮箱地址', 'allow_none': False}),
-        'password': (validate_password, {'field_name': '密码', 'min_length': 6, 'max_length': 50, 'allow_empty': False}),
-        'role': (validate_choice, {'field_name': '用户角色', 'choices': ['admin', 'teacher', 'student'], 'allow_none': False})
+        'password': (validate_password, {'field_name': '密码', 'allow_none': False}),
+        'role': (validate_choice, {'choices': ['admin', 'teacher', 'student'], 'field_name': '用户角色', 'allow_none': False})
     }
     
-    validation_result = batch_validate(data, validators)
-    if not validation_result['is_valid']:
-        return validation_error_response(validation_result['errors'])
+    validation_errors = batch_validate(validators, data)
+    if validation_errors:
+        return validation_error_response(validation_errors)
     
     # 检查用户名和邮箱是否已存在
     if User.get_by_username(username):
@@ -269,12 +269,17 @@ def create_user():
         db.session.add(user)
         db.session.commit()
         
+        user_dict = user.to_dict(include_sensitive=True)
+        print(f"DEBUG: user_dict = {user_dict}")
+        
         return {
-            'user': user.to_dict(include_sensitive=True),
+            'user': user_dict,
             'message': '用户创建成功'
         }, 201
     except Exception as e:
         db.session.rollback()
+        import traceback
+        traceback.print_exc()
         return error_response(f'创建用户失败: {str(e)}', 500)
 
 

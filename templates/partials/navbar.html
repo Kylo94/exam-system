@@ -49,40 +49,7 @@
                 </li>
                 {% endif %}
                 
-                <!-- 管理员导航 -->
-                {% if current_user.is_admin() %}
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-gear me-1"></i>
-                        管理中心
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('main.upload_page') }}">
-                            <i class="bi bi-upload me-1"></i>文档上传
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.subjects_page') }}">
-                            <i class="bi bi-journal me-1"></i>科目管理
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.levels_page') }}">
-                            <i class="bi bi-bar-chart me-1"></i>难度级别
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.knowledge_points_page') }}">
-                            <i class="bi bi-bookmark me-1"></i>考点管理
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.questions_page') }}">
-                            <i class="bi bi-question-circle me-1"></i>题目管理
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.submissions_page') }}">
-                            <i class="bi bi-clipboard-data me-1"></i>提交记录
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
-                            <i class="bi bi-sliders me-1"></i>系统管理
-                        </a></li>
-                    </ul>
-                </li>
-                {% endif %}
+
             </ul>
             
             <!-- 用户信息 -->
