@@ -10,12 +10,14 @@ psycopg2-binary
 
 # 文件处理
 python-docx
+PyPDF2
 Pillow
 
 # AI集成
 langchain
 langchain-openai
 openai
+requests
 
 # 环境配置
 python-dotenv

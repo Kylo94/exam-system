@@ -96,15 +96,6 @@ def exams_page():
     return render_template('admin/exams.html', exams=exams)
 
 
-@admin_bp.route('/questions')
-@login_required
-@admin_required
-def questions_page():
-    """题目管理页面"""
-    questions = Question.query.order_by(desc(Question.created_at)).all()
-    return render_template('admin/questions.html', questions=questions)
-
-
 @admin_bp.route('/submissions')
 @login_required
 @admin_required
@@ -112,6 +103,14 @@ def submissions_page():
     """提交管理页面"""
     submissions = Submission.query.order_by(desc(Submission.created_at)).all()
     return render_template('admin/submissions.html', submissions=submissions)
+
+
+@admin_bp.route('/ai-configs')
+@login_required
+@admin_required
+def ai_configs_page():
+    """AI配置管理页面"""
+    return render_template('ai_configs.html')
 
 
 # ==================== API路由 ====================

@@ -52,15 +52,15 @@
                                 <td>{{ exam.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('main.exams_page') }}?edit={{ exam.id }}" class="btn btn-outline-primary">
+                                        <a href="{{ url_for('main.exam_edit', exam_id=exam.id) }}" class="btn btn-outline-primary" title="编辑">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <a href="{{ url_for('main.exams_page') }}?delete={{ exam.id }}" class="btn btn-outline-danger" onclick="return confirm('确定删除吗？')">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                        <a href="{{ url_for('exam.take_exam_page', exam_id=exam.id) }}" class="btn btn-outline-success">
+                                        <a href="{{ url_for('main.exam_detail', exam_id=exam.id) }}" class="btn btn-outline-info" title="查看详情">
                                             <i class="bi bi-eye"></i>
                                         </a>
+                                        <button class="btn btn-outline-danger" onclick="deleteExam({{ exam.id }})" title="删除">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -77,5 +77,30 @@
     
     {% include "partials/footer.html" %}
     {% include "partials/scripts.html" %}
+    <script>
+        function deleteExam(examId) {
+            if (confirm('确定要删除这个考试吗？删除后将无法恢复！')) {
+                fetch(`/admin/api/exams/${examId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('删除成功');
+                        window.location.reload();
+                    } else {
+                        alert('删除失败：' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('删除失败:', error);
+                    alert('删除失败，请重试');
+                });
+            }
+        }
+    </script>
 </body>
 </html>

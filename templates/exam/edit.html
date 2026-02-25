@@ -62,21 +62,21 @@
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">时长（分钟）</label>
-                                    <input type="number" class="form-control" id="examDuration" value="{{ exam.duration_minutes }}" min="1">
+                                    <label class="form-label">时长（分钟）<small class="text-muted">（留空表示不限时）</small></label>
+                                    <input type="number" class="form-control" id="examDuration" value="{{ exam.duration_minutes }}" min="1" placeholder="留空表示不限时">
                                 </div>
                             </div>
-                            
+
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
-                                    <label class="form-label">开始时间</label>
-                                    <input type="datetime-local" class="form-control" id="examStartTime" 
-                                           value="{{ exam.start_time.strftime('%Y-%m-%dT%H:%M') if exam.start_time else '' }}">
+                                    <label class="form-label">开始时间<small class="text-muted">（留空表示立即开始）</small></label>
+                                    <input type="datetime-local" class="form-control" id="examStartTime"
+                                           value="{{ exam.start_time.strftime('%Y-%m-%dT%H:%M') if exam.start_time else '' }}" placeholder="留空表示立即开始">
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">结束时间</label>
-                                    <input type="datetime-local" class="form-control" id="examEndTime" 
-                                           value="{{ exam.end_time.strftime('%Y-%m-%dT%H:%M') if exam.end_time else '' }}">
+                                    <label class="form-label">结束时间<small class="text-muted">（留空表示不限时）</small></label>
+                                    <input type="datetime-local" class="form-control" id="examEndTime"
+                                           value="{{ exam.end_time.strftime('%Y-%m-%dT%H:%M') if exam.end_time else '' }}" placeholder="留空表示不限时">
                                 </div>
                             </div>
                             
@@ -87,7 +87,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">最大尝试次数</label>
-                                    <input type="number" class="form-control" id="examMaxAttempts" value="{{ exam.max_attempts or '' }}" min="1">
+                                    <input type="number" class="form-control" id="examMaxAttempts" value="{{ exam.max_attempts if exam.max_attempts > 0 else '' }}" min="1" placeholder="留空表示不限次数">
                                 </div>
                             </div>
                         </form>
@@ -261,28 +261,42 @@
             fetch('/api/subjects')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        const select = document.getElementById('examSubject');
-                        const subjects = data.data.items || [];
-                        
-                        select.innerHTML = '<option value="">请选择科目</option>' + 
-                            subjects.map(s => `<option value="${s.id}" {{ 'selected' if s.id == exam.subject_id else '' }}>${s.name}</option>`).join('');
+                    const select = document.getElementById('examSubject');
+                    const currentSubjectId = {{ exam.subject_id or 'null' }};
+
+                    // 处理不同的数据结构
+                    let subjects = [];
+                    if (data.success && data.data) {
+                        subjects = data.data.items || data.data.subjects || data.data || [];
                     }
+
+                    select.innerHTML = '<option value="">请选择科目</option>' +
+                        subjects.map(s => `<option value="${s.id}" ${s.id === currentSubjectId ? 'selected' : ''}>${s.name}</option>`).join('');
+                })
+                .catch(error => {
+                    console.error('加载科目失败:', error);
                 });
         }
-        
+
         // 加载难度
         function loadLevels() {
             fetch('/api/levels')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        const select = document.getElementById('examLevel');
-                        const levels = data.data.items || [];
-                        
-                        select.innerHTML = '<option value="">请选择难度</option>' + 
-                            levels.map(l => `<option value="${l.id}" {{ 'selected' if l.id == exam.level_id else '' }}>${l.name}</option>`).join('');
+                    const select = document.getElementById('examLevel');
+                    const currentLevelId = {{ exam.level_id or 'null' }};
+
+                    // 处理不同的数据结构
+                    let levels = [];
+                    if (data.success && data.data) {
+                        levels = data.data.items || data.data.levels || data.data || [];
                     }
+
+                    select.innerHTML = '<option value="">请选择难度</option>' +
+                        levels.map(l => `<option value="${l.id}" ${l.id === currentLevelId ? 'selected' : ''}>${l.name}</option>`).join('');
+                })
+                .catch(error => {
+                    console.error('加载难度失败:', error);
                 });
         }
         
@@ -335,13 +349,13 @@
                             <div class="d-flex align-items-center flex-grow-1">
                                 <span class="badge bg-light text-dark me-2">${index + 1}</span>
                                 <span class="badge bg-${typeColors[q.type] || 'secondary'} me-2">${typeLabels[q.type] || q.type}</span>
-                                <span class="text-muted small me-2">${q.score}分</span>
+                                <span class="text-muted small me-2">${q.points}分</span>
                                 <span class="flex-grow-1">${q.content.substring(0, 60)}${q.content.length > 60 ? '...' : ''}</span>
                             </div>
                             <div class="d-flex align-items-center">
-                                <input type="number" class="form-control form-control-sm me-2" 
-                                       style="width: 70px;" 
-                                       value="${q.order_index}" 
+                                <input type="number" class="form-control form-control-sm me-2"
+                                       style="width: 70px;"
+                                       value="${q.order_index}"
                                        onchange="updateQuestionOrder(${q.id}, this.value)">
                                 <div class="btn-group btn-group-sm">
                                     <button class="btn btn-outline-secondary" onclick="moveQuestion(${q.id}, -1)">
@@ -366,8 +380,8 @@
         // 更新题目统计
         function updateQuestionStats(questions) {
             const count = questions.length;
-            const totalScore = questions.reduce((sum, q) => sum + q.score, 0);
-            
+            const totalScore = questions.reduce((sum, q) => sum + q.points, 0);
+
             document.getElementById('questionStats').textContent = `共 ${count} 题，总分 ${totalScore} 分`;
             document.getElementById('statQuestionCount').textContent = count;
             document.getElementById('statTotalScore').textContent = totalScore;
@@ -422,23 +436,36 @@
         
         // 保存考试
         function saveExam() {
+            const maxAttemptsValue = document.getElementById('examMaxAttempts').value;
+            const maxAttempts = maxAttemptsValue ? parseInt(maxAttemptsValue) : null;
+
+            const title = document.getElementById('examTitle').value.trim();
+            const subjectId = parseInt(document.getElementById('examSubject').value);
+            const levelId = parseInt(document.getElementById('examLevel').value);
+
+            // 验证必填字段
+            const errors = [];
+            if (!title) errors.push('请输入考试标题');
+            if (!subjectId || isNaN(subjectId)) errors.push('请选择科目');
+            if (!levelId || isNaN(levelId)) errors.push('请选择难度');
+
+            if (errors.length > 0) {
+                alert('请填写以下必填字段：\n' + errors.map(e => '• ' + e).join('\n'));
+                return;
+            }
+
             const data = {
-                title: document.getElementById('examTitle').value,
+                title: title,
                 description: document.getElementById('examDescription').value,
-                subject_id: parseInt(document.getElementById('examSubject').value),
-                level_id: parseInt(document.getElementById('examLevel').value),
+                subject_id: subjectId,
+                level_id: levelId,
                 duration_minutes: parseInt(document.getElementById('examDuration').value) || null,
                 start_time: document.getElementById('examStartTime').value || null,
                 end_time: document.getElementById('examEndTime').value || null,
                 pass_score: parseFloat(document.getElementById('examPassScore').value) || null,
-                max_attempts: parseInt(document.getElementById('examMaxAttempts').value) || null,
+                max_attempts: maxAttempts,
                 is_active: document.getElementById('examStatus').value === '1'
             };
-            
-            if (!data.title || !data.subject_id || !data.level_id) {
-                alert('请填写必填字段！');
-                return;
-            }
             
             fetch(`/api/exams/${examId}`, {
                 method: 'PUT',

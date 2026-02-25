@@ -181,7 +181,7 @@ class AnswerResource(BaseResource):
                 'id': question.id,
                 'content': question.content,
                 'type': question.type,
-                'score': question.score
+                'points': question.points
             }
             
             if include_question_details:
@@ -217,25 +217,26 @@ answers_bp.add_url_rule(
 def grade_answer(answer_id):
     """评分答案"""
     try:
+        from app.extensions import db
         data = request.get_json()
         if not data:
             return jsonify({
                 'success': False,
                 'message': '缺少评分数据'
             }), 400
-        
+
         is_correct = data.get('is_correct', False)
         score = data.get('score', 0.0)
-        
-        service = AnswerService(answers_bp.app.extensions['sqlalchemy'])
+
+        service = AnswerService(db)
         answer = service.grade_answer(answer_id, is_correct, score)
-        
+
         if not answer:
             return jsonify({
                 'success': False,
                 'message': f"答案ID {answer_id} 不存在"
             }), 404
-        
+
         return jsonify({
             'success': True,
             'data': {
@@ -245,7 +246,7 @@ def grade_answer(answer_id):
             },
             'message': '答案评分成功'
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -256,14 +257,15 @@ def grade_answer(answer_id):
 def get_question_answer_statistics(question_id):
     """获取问题答案统计"""
     try:
-        service = AnswerService(answers_bp.app.extensions['sqlalchemy'])
+        from app.extensions import db
+        service = AnswerService(db)
         stats = service.get_answer_statistics(question_id)
-        
+
         return jsonify({
             'success': True,
             'data': stats
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,

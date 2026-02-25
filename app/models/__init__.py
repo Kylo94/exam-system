@@ -8,6 +8,7 @@ from .question import Question
 from .submission import Submission
 from .answer import Answer
 from .user import User
+from .ai_config import AIConfig
 
 __all__ = [
     'BaseModel',
@@ -18,4 +19,5 @@ __all__ = [
     'Submission',
     'Answer',
     'User',
+    'AIConfig',
 ]

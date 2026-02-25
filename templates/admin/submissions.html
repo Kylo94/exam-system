@@ -62,12 +62,12 @@
                                 <td>{{ submission.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('submission.result_page', submission_id=submission.id) }}" class="btn btn-outline-primary">
+                                        <a href="{{ url_for('main.submission_result', submission_id=submission.id) }}" class="btn btn-outline-primary">
                                             <i class="bi bi-eye"></i>查看详情
                                         </a>
-                                        <a href="{{ url_for('main.submissions_page') }}?delete={{ submission.id }}" class="btn btn-outline-danger" onclick="return confirm('确定删除吗？')">
+                                        <button class="btn btn-outline-danger" onclick="deleteSubmission({{ submission.id }})">
                                             <i class="bi bi-trash"></i>
-                                        </a>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -84,5 +84,34 @@
     
     {% include "partials/footer.html" %}
     {% include "partials/scripts.html" %}
+
+    <script>
+    async function deleteSubmission(submissionId) {
+        if (!confirm('确定要删除这条提交记录吗？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/admin/api/submissions/${submissionId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                alert('删除成功');
+                window.location.reload();
+            } else {
+                alert('删除失败: ' + (data.error?.message || '未知错误'));
+            }
+        } catch (error) {
+            console.error('删除失败:', error);
+            alert('网络错误，请稍后重试');
+        }
+    }
+    </script>
 </body>
 </html>

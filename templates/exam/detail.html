@@ -40,9 +40,14 @@
                             <strong>及格分数:</strong> 
                             <span class="badge bg-success">{{ exam.pass_score }}分</span>
                         </p>
-                        {% if exam.max_attempts and exam.max_attempts > 1 %}
+                        {% if exam.max_attempts is none or exam.max_attempts <= 0 %}
                         <p class="mb-2">
-                            <strong>考试次数:</strong> 
+                            <strong>考试次数:</strong>
+                            不限次数
+                        </p>
+                        {% elif exam.max_attempts > 1 %}
+                        <p class="mb-2">
+                            <strong>考试次数:</strong>
                             最多 {{ exam.max_attempts }} 次
                         </p>
                         {% endif %}
@@ -201,10 +206,7 @@
                         const exam = data.data;
                         document.getElementById('questionCount').textContent = exam.question_count || 0;
                         document.getElementById('totalScore').textContent = exam.total_score || 0;
-                        document.getElementById('avgScore').textContent = 
-                            exam.question_count > 0 
-                            ? (exam.total_score / exam.question_count).toFixed(1) 
-                            : 0;
+                        // 平均分将从统计API中加载，这里先显示--
                     }
                 })
                 .catch(error => {
@@ -213,20 +215,27 @@
         }
         
         function loadExamStatistics() {
-            fetch(`/api/submissions/exams/${examId}/statistics`)
+            fetch(`/api/exams/${examId}/statistics`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         const stats = data.data;
-                        document.getElementById('passRate').textContent = 
-                            stats.total_submissions > 0 
-                            ? (stats.passed_count / stats.total_submissions * 100).toFixed(1) + '%' 
+                        // 显示及格率（基于已完成的提交）
+                        document.getElementById('passRate').textContent =
+                            stats.completed_submissions > 0
+                            ? (stats.passed_count / stats.completed_submissions * 100).toFixed(1) + '%'
                             : '0%';
+                        // 显示平均分（基于已完成的提交）
+                        document.getElementById('avgScore').textContent =
+                            stats.average_score > 0
+                            ? stats.average_score.toFixed(1)
+                            : '--';
                     }
                 })
                 .catch(error => {
                     console.error('加载考试统计失败:', error);
                     document.getElementById('passRate').textContent = '0%';
+                    document.getElementById('avgScore').textContent = '--';
                 });
         }
         
@@ -243,7 +252,7 @@
                                 typeStats[q.type] = { count: 0, totalScore: 0 };
                             }
                             typeStats[q.type].count++;
-                            typeStats[q.type].totalScore += q.score;
+                            typeStats[q.type].totalScore += q.points || 0;
                         });
                         
                         let html = '<div class="row">';

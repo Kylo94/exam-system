@@ -87,9 +87,9 @@ class ExamService(BaseService[Exam]):
                     start_time: Optional[datetime] = None,
                     end_time: Optional[datetime] = None,
                     is_active: bool = True, max_attempts: int = 1,
-                    pass_score: float = 60.0) -> Exam:
+                    pass_score: float = 60.0, total_points: int = 100) -> Exam:
         """创建新考试
-        
+
         Args:
             title: 考试标题
             subject_id: 科目ID
@@ -101,10 +101,11 @@ class ExamService(BaseService[Exam]):
             is_active: 是否活跃
             max_attempts: 最大尝试次数
             pass_score: 及格分数
-            
+            total_points: 总分
+
         Returns:
             创建的考试
-            
+
         Raises:
             ValueError: 科目或难度级别不存在，或数据验证失败
         """
@@ -130,21 +131,25 @@ class ExamService(BaseService[Exam]):
         # 验证时间逻辑
         if end_time <= start_time:
             raise ValueError("结束时间必须晚于开始时间")
-        
-        if duration_minutes <= 0:
+
+        if duration_minutes is not None and duration_minutes <= 0:
             raise ValueError("考试时长必须大于0")
         
         if max_attempts < 1:
             raise ValueError("最大尝试次数必须大于0")
-        
+
         if pass_score < 0 or pass_score > 100:
             raise ValueError("及格分数必须在0-100之间")
-        
+
+        if total_points < 1:
+            raise ValueError("总分必须大于0")
+
         return self.create({
             'title': title,
             'description': description,
             'subject_id': subject_id,
             'level_id': level_id,
+            'total_points': total_points,
             'duration_minutes': duration_minutes,
             'start_time': start_time,
             'end_time': end_time,
@@ -185,15 +190,17 @@ class ExamService(BaseService[Exam]):
         # 验证时间逻辑
         start_time = kwargs.get('start_time', instance.start_time)
         end_time = kwargs.get('end_time', instance.end_time)
-        
-        if end_time <= start_time:
-            raise ValueError("结束时间必须晚于开始时间")
-        
+
+        # 只有两个时间都有值时才进行比较
+        if start_time is not None and end_time is not None:
+            if end_time <= start_time:
+                raise ValueError("结束时间必须晚于开始时间")
+
         # 验证数值范围
-        if 'duration_minutes' in kwargs and kwargs['duration_minutes'] <= 0:
+        if 'duration_minutes' in kwargs and kwargs['duration_minutes'] is not None and kwargs['duration_minutes'] <= 0:
             raise ValueError("考试时长必须大于0")
-        
-        if 'max_attempts' in kwargs and kwargs['max_attempts'] < 1:
+
+        if 'max_attempts' in kwargs and kwargs['max_attempts'] is not None and kwargs['max_attempts'] < 1:
             raise ValueError("最大尝试次数必须大于0")
         
         if 'pass_score' in kwargs:
@@ -296,17 +303,17 @@ class ExamService(BaseService[Exam]):
         if now > exam.end_time:
             return {'can_start': False, 'reason': '考试已结束'}
         
-        # 检查用户尝试次数
-        if user_id and exam.max_attempts:
+        # 检查用户尝试次数（只有在max_attempts大于0时才检查）
+        if user_id and exam.max_attempts and exam.max_attempts > 0:
             from app.models import Submission
             attempt_count = Submission.query.filter_by(
-                exam_id=exam_id, 
+                exam_id=exam_id,
                 user_id=user_id
             ).filter(Submission.status.in_(['submitted', 'graded'])).count()
-            
+
             if attempt_count >= exam.max_attempts:
                 return {
-                    'can_start': False, 
+                    'can_start': False,
                     'reason': f'已达到最大尝试次数（{exam.max_attempts}次）'
                 }
         
@@ -328,14 +335,14 @@ class ExamService(BaseService[Exam]):
         # 获取提交记录统计
         from app.models import Submission
         submissions = Submission.query.filter_by(exam_id=exam_id).all()
-        
+
         total_submissions = len(submissions)
-        completed_submissions = [s for s in submissions if s.status in ['submitted', 'graded']]
+        completed_submissions = [s for s in submissions if s.status in ['submitted', 'graded', 'archived']]
         passed_submissions = [s for s in completed_submissions if s.is_passed]
-        
-        # 计算平均分
-        scored_submissions = [s for s in completed_submissions 
-                             if s.obtained_score is not None and s.total_score is not None]
+
+        # 计算平均分 - 包含所有有分数的已完成提交
+        scored_submissions = [s for s in completed_submissions
+                             if s.obtained_score is not None]
         
         if scored_submissions:
             average_score = sum(s.obtained_score for s in scored_submissions) / len(scored_submissions)
@@ -352,10 +359,11 @@ class ExamService(BaseService[Exam]):
             pass_rate = 0
         
         # 获取题目统计
-        questions = exam.questions if hasattr(exam, 'questions') else []
+        from app.models import Question
+        questions = Question.query.filter_by(exam_id=exam_id).all()
         question_count = len(questions)
-        total_score = sum(q.score for q in questions)
-        
+        total_score = sum(q.points for q in questions)
+
         return {
             'exam_id': exam.id,
             'exam_title': exam.title,
@@ -363,6 +371,7 @@ class ExamService(BaseService[Exam]):
             'total_score': total_score,
             'total_submissions': total_submissions,
             'completed_submissions': len(completed_submissions),
+            'passed_count': len(passed_submissions),
             'passed_submissions': len(passed_submissions),
             'average_score': round(average_score, 2),
             'average_percentage': round(average_percentage, 2),

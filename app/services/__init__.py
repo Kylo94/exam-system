@@ -7,6 +7,7 @@ from .exam_service import ExamService
 from .question_service import QuestionService
 from .submission_service import SubmissionService
 from .answer_service import AnswerService
+from .ai_config_service import AIConfigService
 
 __all__ = [
     'BaseService',
@@ -16,4 +17,5 @@ __all__ = [
     'QuestionService',
     'SubmissionService',
     'AnswerService',
+    'AIConfigService',
 ]

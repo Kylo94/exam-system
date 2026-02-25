@@ -50,6 +50,10 @@
             border-left-color: #ffc107;
             background-color: #fffdf6;
         }
+        .question-result.unanswered {
+            border-left-color: #6c757d;
+            background-color: #f8f9fa;
+        }
         .answer-comparison {
             background-color: #f8f9fa;
             border-radius: 0.5rem;
@@ -99,7 +103,7 @@
         <div class="result-header">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h1 class="h2 mb-3">{{ submission.exam.title }}</h1>
+                    <h1 class="h2 mb-3">{{ exam.title }}</h1>
                     <p class="mb-1">
                         <i class="bi bi-person-circle me-1"></i>考生: {{ submission.student_name or '匿名用户' }}
                     </p>
@@ -107,7 +111,7 @@
                         <i class="bi bi-calendar-check me-1"></i>提交时间: {{ submission.submit_time.strftime('%Y-%m-%d %H:%M:%S') }}
                     </p>
                     <p class="mb-0">
-                        <i class="bi bi-clock-history me-1"></i>用时: {{ submission.duration_minutes }}分钟
+                        <i class="bi bi-clock-history me-1"></i>用时: {{ (submission.duration_seconds // 60) }}分钟
                     </p>
                 </div>
                 <div class="col-md-4 text-center">
@@ -134,7 +138,7 @@
                         <div class="stats-icon text-primary">
                             <i class="bi bi-check-circle-fill"></i>
                         </div>
-                        <h3 class="h4">{{ submission.correct_count }}</h3>
+                        <h3 class="h4">{{ correct_count }}</h3>
                         <p class="text-muted mb-0">答对题数</p>
                     </div>
                 </div>
@@ -145,7 +149,7 @@
                         <div class="stats-icon text-danger">
                             <i class="bi bi-x-circle-fill"></i>
                         </div>
-                        <h3 class="h4">{{ submission.incorrect_count }}</h3>
+                        <h3 class="h4">{{ incorrect_count }}</h3>
                         <p class="text-muted mb-0">答错题数</p>
                     </div>
                 </div>
@@ -156,7 +160,7 @@
                         <div class="stats-icon text-warning">
                             <i class="bi bi-dash-circle-fill"></i>
                         </div>
-                        <h3 class="h4">{{ submission.unanswered_count }}</h3>
+                        <h3 class="h4">{{ unanswered_count }}</h3>
                         <p class="text-muted mb-0">未答题数</p>
                     </div>
                 </div>
@@ -167,7 +171,7 @@
                         <div class="stats-icon text-info">
                             <i class="bi bi-bar-chart-fill"></i>
                         </div>
-                        <h3 class="h4">{{ "%.1f"|format(submission.average_score) if submission.average_score else '--' }}</h3>
+                        <h3 class="h4">{{ "%.1f"|format(average_score) if average_score else '--' }}</h3>
                         <p class="text-muted mb-0">平均每题得分</p>
                     </div>
                 </div>
@@ -179,24 +183,23 @@
             <div class="card-header">
                 <h2 class="h5 mb-0">
                     <i class="bi bi-list-check me-1"></i>答题详情
-                    <span class="badge bg-secondary ms-2">{{ submission.exam.question_count }}题</span>
+                    <span class="badge bg-secondary ms-2">{{ all_answers|length }}题</span>
                 </h2>
             </div>
             <div class="card-body">
-                {% for answer in submission.answers %}
-                <div class="question-result {% if answer.is_correct %}correct{% else %}incorrect{% endif %}" 
+                {% for answer in all_answers %}
+                <div class="question-result {% if answer.user_answer %}{% if answer.is_correct %}correct{% else %}incorrect{% endif %}{% else %}unanswered{% endif %}"
                      id="question-{{ answer.question.id }}">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
                             <span class="fw-bold">第{{ loop.index }}题</span>
-                            <span class="badge difficulty-badge {% if answer.question.difficulty == 'easy' %}bg-success{% elif answer.question.difficulty == 'medium' %}bg-warning{% else %}bg-danger{% endif %} ms-2">
-                                {% if answer.question.difficulty == 'easy' %}简单
-                                {% elif answer.question.difficulty == 'medium' %}中等
-                                {% else %}困难{% endif %}
-                            </span>
-                            <span class="badge bg-light text-dark ms-1">分值: {{ answer.question.score }}</span>
+                            <span class="badge bg-light text-dark ms-1">分值: {{ answer.question.points }}</span>
+                            {% if not answer.user_answer %}
+                            <span class="badge bg-warning text-dark ms-1">未作答</span>
+                            {% endif %}
                         </div>
                         <div>
+                            {% if answer.user_answer %}
                             <span class="badge {% if answer.is_correct %}bg-success{% else %}bg-danger{% endif %}">
                                 {% if answer.is_correct %}
                                     <i class="bi bi-check-circle me-1"></i>正确
@@ -205,6 +208,12 @@
                                 {% endif %}
                                 ({{ "%.1f"|format(answer.score) }}分)
                             </span>
+                            {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-dash-circle me-1"></i>未作答
+                                (0分)
+                            </span>
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -220,6 +229,51 @@
                         </div>
                         {% endif %}
                     </div>
+                    
+                    <!-- 选项列表（始终显示） -->
+                    {% if answer.question.options and answer.question.options.choices %}
+                    <div class="answer-comparison mb-3">
+                        <h6 class="mb-3"><i class="bi bi-list-ul me-1"></i>题目选项</h6>
+                        <div class="list-group">
+                            {% for option in answer.question.options.choices %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <span class="fw-bold">{{ option.id }}.</span> {{ option.text }}
+                                </div>
+                                <div class="ms-3">
+                                    {% if answer.question.type in ['single_choice', 'multiple_choice', 'true_false'] %}
+                                        {# 处理正确答案 #}
+                                        {% if answer.question.type == 'multiple_choice' %}
+                                            {# 多选题的correct_answer可能是JSON数组或逗号分隔 #}
+                                            {% if answer.question.correct_answer.startswith('[') %}
+                                                {% set correct_answers = answer.question.correct_answer.replace('[', '').replace(']', '').replace('"', '').replace("'", '').split(',') %}
+                                            {% else %}
+                                                {% set correct_answers = answer.question.correct_answer.split(',') %}
+                                            {% endif %}
+                                            {% set is_correct = option.id in correct_answers %}
+                                        {% else %}
+                                            {% set is_correct = option.id == answer.question.correct_answer %}
+                                        {% endif %}
+
+                                        {# 处理用户答案 #}
+                                        {% set user_answers = answer.user_answer.split(',') if answer.user_answer else [] %}
+                                        {% set is_selected = option.id in user_answers %}
+
+                                        {% if is_correct %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>正确答案</span>
+                                        {% endif %}
+                                        {% if is_selected and not is_correct %}
+                                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>你的选择</span>
+                                        {% elif is_selected and is_correct %}
+                                        <span class="badge bg-primary"><i class="bi bi-check-circle me-1"></i>正确选择</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                     
                     <!-- 答案对比 -->
                     <div class="answer-comparison">
@@ -243,7 +297,12 @@
                                 <div class="correct-answer">
                                     {% if answer.question.correct_answer %}
                                         {% if answer.question.type == 'multiple_choice' %}
-                                            {{ answer.question.correct_answer.split(',')|join(', ') }}
+                                            {# 处理多选题的JSON数组格式 #}
+                                            {% if answer.question.correct_answer.startswith('[') %}
+                                                {{ answer.question.correct_answer.replace('[', '').replace(']', '').replace('"', '').replace("'", '') }}
+                                            {% else %}
+                                                {{ answer.question.correct_answer.split(',')|join(', ') }}
+                                            {% endif %}
                                         {% else %}
                                             {{ answer.question.correct_answer }}
                                         {% endif %}
@@ -259,7 +318,7 @@
                             <p class="mb-0 text-muted">{{ answer.question.explanation }}</p>
                         </div>
                         {% endif %}
-                        
+
                         <!-- AI反馈 -->
                         {% if answer.ai_feedback %}
                         <div class="mt-3 pt-3 border-top">
@@ -270,26 +329,10 @@
                     </div>
                     
                     <!-- 题目导航 -->
-                    <div class="mt-3 pt-3 border-top d-flex justify-content-between">
+                    <div class="mt-3 pt-3 border-top d-flex justify-content-end">
                         <div>
-                            {% if not loop.first %}
-                            <a href="#question-{{ submission.answers[loop.index-2].question.id }}" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-arrow-up me-1"></i>上一题
-                            </a>
-                            {% endif %}
-                        </div>
-                        <div>
-                            {% if answer.question.type == 'single_choice' or answer.question.type == 'multiple_choice' %}
-                                {% if answer.question.options %}
-                                <button type="button" class="btn btn-outline-info btn-sm" 
-                                        onclick="showOptions({{ loop.index }})">
-                                    <i class="bi bi-list-ul me-1"></i>查看选项
-                                </button>
-                                {% endif %}
-                            {% endif %}
-                            
                             {% if not loop.last %}
-                            <a href="#question-{{ submission.answers[loop.index].question.id }}" class="btn btn-outline-primary btn-sm">
+                            <a href="#question-{{ all_answers[loop.index].question.id }}" class="btn btn-outline-primary btn-sm">
                                 下一题 <i class="bi bi-arrow-down ms-1"></i>
                             </a>
                             {% endif %}
@@ -309,7 +352,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <h5 class="h6 mb-2">各题型得分率</h5>
-                    {% for type_stat in submission.type_stats %}
+                    {% for type_stat in type_stats %}
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
                             <span>
@@ -360,10 +403,10 @@
                             </p>
                             {% endif %}
                             
-                            {% if submission.weak_types %}
+                            {% if weak_types %}
                             <p class="mb-1"><strong>需要加强的题型:</strong></p>
                             <ul class="mb-2">
-                                {% for weak_type in submission.weak_types %}
+                                {% for weak_type in weak_types %}
                                 <li>
                                     {% if weak_type == 'single_choice' %}单选题
                                     {% elif weak_type == 'multiple_choice' %}多选题
@@ -389,15 +432,15 @@
                         <ul class="list-unstyled">
                             <li class="mb-1">
                                 <i class="bi bi-check-circle text-success me-1"></i>
-                                及格分数: {{ submission.exam.pass_score }}分
+                                及格分数: {{ exam.pass_score }}分
                             </li>
                             <li class="mb-1">
                                 <i class="bi bi-clock text-primary me-1"></i>
-                                考试时长: {{ submission.exam.duration_minutes }}分钟
+                                考试时长: {{ exam.duration_minutes }}分钟
                             </li>
                             <li class="mb-1">
                                 <i class="bi bi-question-circle text-info me-1"></i>
-                                题目总数: {{ submission.exam.question_count }}题
+                                题目总数: {{ all_answers|length }}题
                             </li>
                             <li>
                                 <i class="bi bi-award text-warning me-1"></i>
@@ -429,79 +472,7 @@
     {% include "partials/footer.html" %}
     {% include "partials/scripts.html" %}
     
-    <!-- 选项模态框 -->
-    <div class="modal fade" id="optionsModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">题目选项</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="optionsModalBody">
-                    <!-- 选项内容动态加载 -->
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <script>
-        // 显示选项
-        function showOptions(questionIndex) {
-            const answer = {{ submission.answers|tojson }};
-            const question = answer[questionIndex - 1];
-            
-            if (question && question.question.options) {
-                let optionsHtml = '<div class="list-group">';
-                
-                question.question.options.forEach(option => {
-                    let isCorrect = false;
-                    let isSelected = false;
-                    
-                    // 检查是否是正确答案
-                    if (question.question.correct_answer) {
-                        const correctAnswers = question.question.correct_answer.split(',');
-                        isCorrect = correctAnswers.includes(option.id);
-                    }
-                    
-                    // 检查是否被用户选择
-                    if (question.user_answer) {
-                        const userAnswers = question.user_answer.toString().split(',');
-                        isSelected = userAnswers.includes(option.id);
-                    }
-                    
-                    let itemClass = 'list-group-item';
-                    if (isCorrect) {
-                        itemClass += ' list-group-item-success';
-                    } else if (isSelected && !isCorrect) {
-                        itemClass += ' list-group-item-danger';
-                    }
-                    
-                    optionsHtml += `
-                        <div class="${itemClass}">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>${option.id}.</strong> ${option.text}
-                                </div>
-                                <div>
-                                    ${isCorrect ? '<span class="badge bg-success">正确答案</span>' : ''}
-                                    ${isSelected ? '<span class="badge bg-primary">你的选择</span>' : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                optionsHtml += '</div>';
-                document.getElementById('optionsModalBody').innerHTML = optionsHtml;
-                
-                const modal = new bootstrap.Modal(document.getElementById('optionsModal'));
-                modal.show();
-            }
-        }
-        
         // 分享结果
         function shareResult() {
             const resultText = `我在《${document.title}》中得分: ${ {{ submission.obtained_score }} }/${ {{ submission.total_score }} }分，得分率: ${ {{ submission.score_percentage }} }%`;
@@ -530,9 +501,13 @@
         // 页面加载后滚动到第一个错题
         document.addEventListener('DOMContentLoaded', function() {
             const firstIncorrect = document.querySelector('.question-result.incorrect');
-            if (firstIncorrect) {
+            const firstUnanswered = document.querySelector('.question-result.unanswered');
+            
+            // 优先滚动到第一个错题，如果没有则滚动到第一个未答题
+            const target = firstIncorrect || firstUnanswered;
+            if (target) {
                 setTimeout(() => {
-                    firstIncorrect.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 1000);
             }
             

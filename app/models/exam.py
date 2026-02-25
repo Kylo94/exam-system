@@ -85,8 +85,8 @@ class Exam(BaseModel):
     max_attempts = db.Column(
         db.Integer,
         default=1,
-        nullable=False,
-        doc='最大尝试次数'
+        nullable=True,
+        doc='最大尝试次数（null或0表示不限次数）'
     )
     pass_score = db.Column(
         db.Float,

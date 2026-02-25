@@ -62,7 +62,11 @@
                                     <strong>结束时间:</strong> {{ exam.end_time.strftime('%Y-%m-%d %H:%M') }}
                                 </li>
                                 {% endif %}
-                                {% if exam.max_attempts and exam.max_attempts > 1 %}
+                                {% if exam.max_attempts is none or exam.max_attempts <= 0 %}
+                                <li class="list-group-item">
+                                    <strong>最大考试次数:</strong> 不限次数
+                                </li>
+                                {% elif exam.max_attempts > 1 %}
                                 <li class="list-group-item">
                                     <strong>最大考试次数:</strong> {{ exam.max_attempts }}次
                                 </li>
