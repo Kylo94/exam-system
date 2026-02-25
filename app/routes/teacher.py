@@ -11,7 +11,10 @@ from app.models.user import User
 from app.models.submission import Submission
 from app.models.exam import Exam
 
-teacher_bp = Blueprint('teacher', __name__, url_prefix='/teacher')
+teacher_bp = Blueprint('teacher', __name__)
+
+# 教师API蓝图
+teacher_api_bp = Blueprint('teacher_api', __name__, url_prefix='/api/teacher')
 
 
 @teacher_bp.route('/dashboard')
@@ -48,7 +51,7 @@ def my_students_page():
     return render_template('teacher/my_students.html')
 
 
-@teacher_bp.route('/api/teacher/students', methods=['GET'])
+@teacher_api_bp.route('/students', methods=['GET'])
 @login_required
 def get_my_students():
     """获取教师的学生列表
@@ -98,7 +101,7 @@ def get_my_students():
         }), 500
 
 
-@teacher_bp.route('/api/teacher/students/<int:student_id>/submissions', methods=['GET'])
+@teacher_api_bp.route('/students/<int:student_id>/submissions', methods=['GET'])
 @login_required
 def get_student_submissions(student_id):
     """获取指定学生的考试记录

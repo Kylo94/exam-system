@@ -216,11 +216,18 @@
     
     {% include "partials/scripts.html" %}
     
+    <!-- jQuery (required by DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     
     <script>
         $(document).ready(function() {
+            console.log('用户管理页面脚本加载，jQuery版本:', $.fn.jquery);
+            // 全局点击调试
+            document.addEventListener('click', function(e) {
+                console.log('全局点击:', e.target.tagName, e.target.className, e.target.dataset.userId);
+            });
             // 初始化DataTable
             const table = $('#users-table').DataTable({
                 language: {
@@ -275,6 +282,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(formData)
                 })
                 .then(response => response.json())
@@ -292,12 +300,16 @@
                 });
             });
             
-            // 编辑用户
-            $('.edit-user').on('click', function() {
+            // 编辑用户 - 使用事件委托
+            $('.table-responsive').on('click', '.edit-user', function() {
                 const userId = $(this).data('user-id');
+                console.log('编辑按钮点击，用户ID:', userId);
                 const row = $(`[data-user-id="${userId}"]`);
                 
-                fetch(`/admin/api/users/${userId}`)
+                fetch(`/admin/api/users/${userId}`, {
+                    credentials: 'include',
+                    method: 'GET'
+                })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -341,6 +353,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify(formData)
                 })
                 .then(response => response.json())
@@ -358,16 +371,18 @@
                 });
             });
             
-            // 删除用户
-            $('.delete-user').on('click', function() {
+            // 删除用户 - 使用事件委托
+            $('.table-responsive').on('click', '.delete-user', function() {
                 const userId = $(this).data('user-id');
+                console.log('删除按钮点击，用户ID:', userId);
                 
                 if (!confirm('确定要删除这个用户吗？此操作不可撤销。')) {
                     return;
                 }
                 
                 fetch(`/admin/api/users/${userId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    credentials: 'include'
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -384,12 +399,13 @@
                 });
             });
             
-            // 切换激活状态
-            $('.toggle-active').on('click', function() {
+            // 切换激活状态 - 使用事件委托
+            $('.table-responsive').on('click', '.toggle-active', function() {
                 const userId = $(this).data('user-id');
                 
                 fetch(`/admin/api/users/${userId}/toggle-active`, {
-                    method: 'POST'
+                    method: 'POST',
+                    credentials: 'include'
                 })
                 .then(response => response.json())
                 .then(data => {

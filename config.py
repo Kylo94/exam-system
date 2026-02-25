@@ -58,6 +58,9 @@ class DevelopmentConfig(Config):
         log_dir = 'logs'
         os.makedirs(log_dir, exist_ok=True)
         
+        # 清除所有现有的处理器（防止重复）
+        app.logger.handlers.clear()
+        
         # 文件处理器
         file_handler = RotatingFileHandler(
             os.path.join(log_dir, 'exam_system.log'),
@@ -80,6 +83,15 @@ class DevelopmentConfig(Config):
         
         app.logger.setLevel(logging.DEBUG)
         app.logger.info('在线答题系统启动（开发模式）')
+        
+        # 配置werkzeug的日志（防止创建flask.log文件）
+        import werkzeug
+        werkzeug_logger = logging.getLogger('werkzeug')
+        # 清除werkzeug的所有处理器
+        werkzeug_logger.handlers.clear()
+        # 添加相同的处理器到werkzeug日志
+        werkzeug_logger.addHandler(console_handler)
+        # 不要添加文件处理器到werkzeug，避免重复日志
 
 
 class TestingConfig(Config):

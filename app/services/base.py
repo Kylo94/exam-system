@@ -176,7 +176,20 @@ class BaseService(Generic[ModelType]):
         # 子类可以重写此方法实现具体验证逻辑
         required_fields = []
         for column in self.model.__table__.columns:
-            if not column.nullable and column.primary_key is False:
+            # 跳过主键字段
+            if column.primary_key:
+                continue
+            # 跳过有默认值的字段（如created_at, updated_at）
+            if column.default is not None or column.server_default is not None:
+                continue
+            # 跳过自动递增字段
+            if column.autoincrement:
+                continue
+            # 显式跳过自动生成的时间戳字段
+            if column.name in ['created_at', 'updated_at']:
+                continue
+            # 只检查不可为空的字段
+            if not column.nullable:
                 required_fields.append(column.name)
         
         for field in required_fields:

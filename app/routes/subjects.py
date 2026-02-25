@@ -74,8 +74,8 @@ class SubjectResource(BaseResource):
             subject = self.get_service().create_subject(
                 name=data['name'],
                 description=data.get('description', ''),
-                is_active=data.get('is_active', True),
-                order_index=data.get('order_index', 0)
+                is_active=bool(data.get('is_active', True)),
+                order_index=int(data.get('order_index', 0))
             )
             
             return self.success_response(
