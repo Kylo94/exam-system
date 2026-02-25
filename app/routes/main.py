@@ -136,7 +136,8 @@ def take_exam(submission_id):
         # 扩展exam对象，添加问题列表
         exam.questions = questions
         exam.question_count = len(questions)
-        exam.total_score = sum(q.points for q in questions)
+        # 安全计算总分，跳过非数值类型的points
+        exam.total_score = sum(q.points if isinstance(q.points, (int, float)) else 0 for q in questions)
         
         return render_template('exam/take_exam.html', exam=exam, submission=submission)
     except Exception as e:

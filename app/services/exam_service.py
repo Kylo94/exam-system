@@ -362,7 +362,8 @@ class ExamService(BaseService[Exam]):
         from app.models import Question
         questions = Question.query.filter_by(exam_id=exam_id).all()
         question_count = len(questions)
-        total_score = sum(q.points for q in questions)
+        # 安全计算总分，跳过非数值类型的points
+        total_score = sum(q.points if isinstance(q.points, (int, float)) else 0 for q in questions)
 
         return {
             'exam_id': exam.id,

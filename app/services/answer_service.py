@@ -186,10 +186,11 @@ class AnswerService(BaseService[Answer]):
         correct_count = len([a for a in answers if a.is_correct])
         incorrect_count = total_answers - correct_count
         correct_rate = (correct_count / total_answers) * 100 if total_answers > 0 else 0
-        
-        # 平均得分
-        total_score = sum(a.score for a in answers)
-        average_score = total_score / total_answers if total_answers > 0 else 0
+
+        # 平均得分（安全计算，跳过非数值类型的score）
+        valid_scores = [a.score for a in answers if isinstance(a.score, (int, float))]
+        total_score = sum(valid_scores)
+        average_score = total_score / len(valid_scores) if len(valid_scores) > 0 else 0
         
         # 答案分布（对于选择题）
         answer_distribution = {}
