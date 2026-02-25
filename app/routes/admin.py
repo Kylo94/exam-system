@@ -114,6 +114,14 @@ def submissions_page():
     return render_template('admin/submissions.html', submissions=submissions)
 
 
+@admin_bp.route('/ai-configs')
+@login_required
+@admin_required
+def ai_configs_page():
+    """AI配置管理页面"""
+    return render_template('ai_configs.html')
+
+
 # ==================== API路由 ====================
 
 @admin_bp.route('/api/users', methods=['GET'])

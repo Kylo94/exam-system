@@ -40,6 +40,13 @@ class Subject(BaseModel):
     )
     
     # 关系定义
+    levels = db.relationship(
+        'Level',
+        back_populates='subject',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+        doc='关联的等级'
+    )
     exams = db.relationship(
         'Exam',
         back_populates='subject',
@@ -102,23 +109,28 @@ class Subject(BaseModel):
         """
         return self.exams.count()
     
-    def to_dict(self, include_exams: bool = False) -> dict:
+    def to_dict(self, include_exams: bool = False, include_levels: bool = False) -> dict:
         """
-        转换为字典，可包含关联的试卷
-        
+        转换为字典，可包含关联的试卷和等级
+
         Args:
             include_exams: 是否包含试卷信息
-            
+            include_levels: 是否包含等级信息
+
         Returns:
             包含科目信息的字典
         """
         data = super().to_dict()
-        
+
         if include_exams:
             data['exam_count'] = self.get_exam_count()
             # 避免循环导入，只包含基本信息
             data['exams'] = [exam.to_dict() for exam in self.exams.limit(10).all()]
-        
+
+        if include_levels:
+            data['levels'] = [level.to_dict(include_subject=False) for level in self.levels.order_by(Level.order_index).all()]
+            data['level_count'] = self.levels.count()
+
         return data
     
     def __repr__(self) -> str:

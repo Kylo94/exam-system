@@ -185,21 +185,22 @@ levels_bp.add_url_rule(
 def get_active_levels():
     """获取所有活跃难度级别"""
     try:
-        service = LevelService(levels_bp.app.extensions['sqlalchemy'])
+        from app.extensions import db
+        service = LevelService(db)
         levels = service.get_all_active()
-        
+
         items = [{
             'id': level.id,
             'name': level.name,
             'difficulty': level.difficulty,
             'description': level.description
         } for level in levels]
-        
+
         return jsonify({
             'success': True,
             'data': items
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,

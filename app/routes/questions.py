@@ -261,21 +261,22 @@ questions_bp.add_url_rule(
 def validate_answer(question_id):
     """验证问题答案"""
     try:
+        from app.extensions import db
         data = request.get_json()
         if not data or 'answer' not in data:
             return jsonify({
                 'success': False,
                 'message': '缺少答案数据'
             }), 400
-        
-        service = QuestionService(questions_bp.app.extensions['sqlalchemy'])
+
+        service = QuestionService(db)
         result = service.validate_answer(question_id, data['answer'])
-        
+
         return jsonify({
             'success': True,
             'data': result
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -286,9 +287,10 @@ def validate_answer(question_id):
 def get_questions_by_exam(exam_id):
     """获取指定考试的所有问题"""
     try:
-        service = QuestionService(questions_bp.app.extensions['sqlalchemy'])
+        from app.extensions import db
+        service = QuestionService(db)
         questions = service.get_by_exam_id(exam_id)
-        
+
         items = [{
             'id': q.id,
             'content': q.content,
@@ -296,7 +298,7 @@ def get_questions_by_exam(exam_id):
             'score': q.score,
             'order_index': q.order_index
         } for q in questions]
-        
+
         return jsonify({
             'success': True,
             'data': items

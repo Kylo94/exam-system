@@ -222,9 +222,21 @@ def subjects_page():
     return render_template('subjects.html')
 
 
+@main_bp.route('/subjects/<int:subject_id>/levels')
+def subject_levels_page(subject_id):
+    """科目等级管理页面"""
+    from app.models import Subject
+    subject = Subject.query.get(subject_id)
+    if not subject:
+        return render_template('errors/404.html'), 404
+
+    subject_name = request.args.get('subject_name', subject.name)
+    return render_template('subjects/levels.html', subject_id=subject_id, subject_name=subject_name)
+
+
 @main_bp.route('/levels')
 def levels_page():
-    """难度级别管理页面"""
+    """难度级别管理页面（已废弃，请使用科目等级管理）"""
     return render_template('levels.html')
 
 
@@ -268,6 +280,12 @@ def upload_page():
 def submissions_page():
     """提交记录页面"""
     return render_template('submissions.html')
+
+
+@main_bp.route('/ai-configs')
+def ai_configs_page():
+    """AI配置管理页面"""
+    return render_template('ai_configs.html')
 
 
 @main_bp.route('/api/health')

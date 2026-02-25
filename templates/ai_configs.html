@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - AI配置管理</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+
+    <main class="container py-5">
+        <!-- 面包屑导航 -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理后台</a></li>
+                <li class="breadcrumb-item active">AI配置管理</li>
+            </ol>
+        </nav>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>AI配置管理</h1>
+            <button class="btn btn-primary" onclick="showCreateModal()">
+                <i class="bi bi-plus-circle me-1"></i>添加AI配置
+            </button>
+        </div>
+
+        <!-- 配置列表 -->
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="aiConfigsTable">
+                        <thead>
+                            <tr>
+                                <th>提供商</th>
+                                <th>模型</th>
+                                <th>API地址</th>
+                                <th>状态</th>
+                                <th>默认</th>
+                                <th>最后使用</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="7" class="text-center">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 创建/编辑模态框 -->
+    <div class="modal fade" id="configModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="configModalTitle">添加AI配置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="configForm">
+                        <input type="hidden" id="configId">
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="providerSelect" class="form-label">提供商 *</label>
+                                    <select class="form-select" id="providerSelect" required onchange="fillProviderDefaults()">
+                                        <option value="">请选择提供商</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="modelSelect" class="form-label">模型名称 *</label>
+                                    <select class="form-select" id="modelSelect" required>
+                                        <option value="">请先选择提供商</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="apiKeyInput" class="form-label">API密钥 *</label>
+                            <input type="password" class="form-control" id="apiKeyInput" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="apiUrlInput" class="form-label">API地址 *</label>
+                            <input type="url" class="form-control" id="apiUrlInput" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="maxTokensInput" class="form-label">最大Token数</label>
+                                    <input type="number" class="form-control" id="maxTokensInput" value="2000" min="1">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="temperatureInput" class="form-label">温度 (0-2)</label>
+                                    <input type="number" class="form-control" id="temperatureInput" value="0.7" min="0" max="2" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="descriptionInput" class="form-label">描述</label>
+                            <textarea class="form-control" id="descriptionInput" rows="2"></textarea>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="isActiveInput" checked>
+                            <label class="form-check-label" for="isActiveInput">
+                                启用此配置
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="isDefaultInput">
+                            <label class="form-check-label" for="isDefaultInput">
+                                设为默认配置
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveConfig()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 测试配置模态框 -->
+    <div class="modal fade" id="testModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">测试AI配置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="testResult">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">正在测试...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+
+    <script>
+        let configModal;
+        let testModal;
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAIConfigs();
+            loadProviders();
+
+            configModal = new bootstrap.Modal(document.getElementById('configModal'));
+            testModal = new bootstrap.Modal(document.getElementById('testModal'));
+        });
+
+        // 加载AI配置列表
+        function loadAIConfigs() {
+            fetch('/api/ai-configs')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderConfigs(data.data.items || []);
+                    } else {
+                        showError('加载AI配置失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    showError('加载AI配置失败: ' + error);
+                });
+        }
+
+        // 渲染配置列表
+        function renderConfigs(configs) {
+            const tbody = document.querySelector('#aiConfigsTable tbody');
+            tbody.innerHTML = '';
+
+            if (configs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无AI配置</td></tr>';
+                return;
+            }
+
+            configs.forEach(config => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <span class="badge bg-primary">${config.provider}</span>
+                    </td>
+                    <td>${config.model}</td>
+                    <td><code>${config.api_url.substring(0, 40)}${config.api_url.length > 40 ? '...' : ''}</code></td>
+                    <td>
+                        ${config.is_active ?
+                            '<span class="badge bg-success">已启用</span>' :
+                            '<span class="badge bg-secondary">已禁用</span>'}
+                    </td>
+                    <td>
+                        ${config.is_default ?
+                            '<span class="badge bg-warning text-dark">默认</span>' :
+                            ''}
+                    </td>
+                    <td>${config.last_used_at ? formatDate(config.last_used_at) : '未使用'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="testConfig(${config.id})" title="测试">
+                            <i class="bi bi-play-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="editConfig(${config.id})" title="编辑">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteConfig(${config.id})" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 加载支持的提供商
+        function loadProviders() {
+            fetch('/api/ai-configs/providers')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('providerSelect');
+                        data.data.forEach(provider => {
+                            const option = document.createElement('option');
+                            option.value = provider.id;
+                            option.dataset.models = JSON.stringify(provider.models || [provider.default_model]);
+                            option.dataset.apiUrl = provider.default_api_url;
+                            option.textContent = provider.name;
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('加载提供商失败:', error);
+                });
+        }
+
+        // 填充提供商默认值
+        function fillProviderDefaults() {
+            const select = document.getElementById('providerSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            const modelSelect = document.getElementById('modelSelect');
+
+            // 清空模型选择
+            modelSelect.innerHTML = '<option value="">请选择模型</option>';
+
+            if (selectedOption.value) {
+                try {
+                    const models = JSON.parse(selectedOption.dataset.models || '[]');
+                    models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.textContent = model;
+                        modelSelect.appendChild(option);
+                    });
+
+                    // 默认选择第一个模型
+                    if (models.length > 0) {
+                        modelSelect.value = models[0];
+                    }
+                } catch (e) {
+                    console.error('解析模型列表失败:', e);
+                }
+
+                // 填充 API URL
+                if (selectedOption.dataset.apiUrl) {
+                    document.getElementById('apiUrlInput').value = selectedOption.dataset.apiUrl;
+                }
+            }
+        }
+
+        // 显示创建模态框
+        function showCreateModal() {
+            document.getElementById('configForm').reset();
+            document.getElementById('configId').value = '';
+            document.getElementById('configModalTitle').textContent = '添加AI配置';
+            document.getElementById('isActiveInput').checked = true;
+            document.getElementById('isDefaultInput').checked = false;
+            configModal.show();
+        }
+
+        // 编辑配置
+        function editConfig(configId) {
+            fetch(`/api/ai-configs/${configId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const config = data.data;
+                        document.getElementById('configId').value = config.id;
+                        document.getElementById('providerSelect').value = config.provider;
+                        // 填充模型列表
+                        fillProviderDefaults();
+                        // 选择当前模型
+                        document.getElementById('modelSelect').value = config.model;
+                        document.getElementById('apiKeyInput').value = config.api_key;
+                        document.getElementById('apiUrlInput').value = config.api_url;
+                        document.getElementById('maxTokensInput').value = config.max_tokens;
+                        document.getElementById('temperatureInput').value = config.temperature;
+                        document.getElementById('descriptionInput').value = config.description || '';
+                        document.getElementById('isActiveInput').checked = config.is_active;
+                        document.getElementById('isDefaultInput').checked = config.is_default;
+
+                        document.getElementById('configModalTitle').textContent = '编辑AI配置';
+                        configModal.show();
+                    } else {
+                        showError('加载配置失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    showError('加载配置失败: ' + error);
+                });
+        }
+
+        // 保存配置
+        function saveConfig() {
+            const configId = document.getElementById('configId').value;
+            const isUpdate = configId !== '';
+
+            const data = {
+                provider: document.getElementById('providerSelect').value,
+                model: document.getElementById('modelSelect').value,
+                api_key: document.getElementById('apiKeyInput').value,
+                api_url: document.getElementById('apiUrlInput').value,
+                max_tokens: parseInt(document.getElementById('maxTokensInput').value),
+                temperature: parseFloat(document.getElementById('temperatureInput').value),
+                description: document.getElementById('descriptionInput').value,
+                is_active: document.getElementById('isActiveInput').checked,
+                is_default: document.getElementById('isDefaultInput').checked
+            };
+
+            const url = isUpdate ? `/api/ai-configs/${configId}` : '/api/ai-configs';
+            const method = isUpdate ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    configModal.hide();
+                    showSuccess(isUpdate ? '配置更新成功' : '配置创建成功');
+                    loadAIConfigs();
+                } else {
+                    showError('保存失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                showError('保存失败: ' + error);
+            });
+        }
+
+        // 删除配置
+        function deleteConfig(configId) {
+            if (!confirm('确定要删除这个AI配置吗？')) {
+                return;
+            }
+
+            fetch(`/api/ai-configs/${configId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess('配置删除成功');
+                    loadAIConfigs();
+                } else {
+                    showError('删除失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                showError('删除失败: ' + error);
+            });
+        }
+
+        // 测试配置
+        function testConfig(configId) {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">正在测试...</p>
+                </div>
+            `;
+            testModal.show();
+
+            fetch(`/api/ai-configs/${configId}/test`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const usageText = data.data.usage ? JSON.stringify(data.data.usage, null, 2) : 'N/A';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle me-2"></i>测试成功</h6>
+                            <hr>
+                            <p><strong>AI响应:</strong></p>
+                            <pre class="mb-0">${data.data.response}</pre>
+                            <hr>
+                            <small><strong>Token使用:</strong> <pre>${usageText}</pre></small>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h6><i class="bi bi-x-circle me-2"></i>测试失败</h6>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h6><i class="bi bi-x-circle me-2"></i>测试失败</h6>
+                        <p>${error}</p>
+                    </div>
+                `;
+            });
+        }
+
+        // 格式化日期
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN');
+        }
+    </script>
+</body>
+</html>

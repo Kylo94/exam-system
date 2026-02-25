@@ -26,6 +26,7 @@
                                 <th>ID</th>
                                 <th>名称</th>
                                 <th>描述</th>
+                                <th>等级</th>
                                 <th>状态</th>
                                 <th>排序</th>
                                 <th>操作</th>
@@ -88,7 +89,7 @@
     <script>
         // 加载科目数据
         function loadSubjects(page = 1) {
-            fetch(`/api/subjects?page=${page}&per_page=10`)
+            fetch(`/api/subjects?page=${page}&per_page=10&include_levels=true`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -98,6 +99,10 @@
                         
                         subjects.forEach(subject => {
                             const row = document.createElement('tr');
+                            const levelsHtml = subject.levels && subject.levels.length > 0
+                                ? subject.levels.map(l => `<span class="badge bg-secondary me-1">${l.name}</span>`).join('')
+                                : '<span class="text-muted">暂无等级</span>';
+
                             row.innerHTML = `
                                 <td>${subject.id}</td>
                                 <td>
@@ -106,17 +111,25 @@
                                 </td>
                                 <td>${subject.description || '-'}</td>
                                 <td>
+                                    <div class="d-flex align-items-center">
+                                        ${levelsHtml}
+                                    </div>
+                                </td>
+                                <td>
                                     <span class="badge ${subject.is_active ? 'bg-success' : 'bg-secondary'}">
                                         ${subject.is_active ? '启用' : '禁用'}
                                     </span>
                                 </td>
                                 <td>${subject.order_index}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-warning" onclick="editSubject(${subject.id})">
-                                        <i class="bi bi-pencil"></i> 编辑
+                                    <button class="btn btn-sm btn-outline-info me-1" onclick="manageLevels(${subject.id}, '${subject.name}')">
+                                        <i class="bi bi-layers"></i> 管理等级
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning me-1" onclick="editSubject(${subject.id})">
+                                        <i class="bi bi-pencil"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteSubject(${subject.id})">
-                                        <i class="bi bi-trash"></i> 删除
+                                        <i class="bi bi-trash"></i>
                                     </button>
                                 </td>
                             `;
@@ -236,7 +249,13 @@
                 alert('删除失败，请检查网络连接');
             });
         }
-        
+
+        // 管理等级
+        function manageLevels(subjectId, subjectName) {
+            // 跳转到等级管理页面，传递科目ID
+            window.location.href = `/subjects/${subjectId}/levels?subject_name=${encodeURIComponent(subjectName)}`;
+        }
+
         // 页面加载
         document.addEventListener('DOMContentLoaded', function() {
             loadSubjects();

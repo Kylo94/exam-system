@@ -6,17 +6,21 @@
 
 <!-- 退出登录函数（全局可用） -->
 <script>
+// 先定义URL常量，避免在字符串中混用Jinja2语法
+const LOGOUT_URL = "{{ url_for('auth.logout') }}";
+const HOME_URL = "{{ url_for('main.index') }}";
+
 async function logout(event) {
     if (event) event.preventDefault();
     try {
-        const response = await fetch("{{ url_for('auth.logout') }}", {
+        const response = await fetch(LOGOUT_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             }
         });
         if (response.ok) {
-            window.location.href = "{{ url_for('main.index') }}";
+            window.location.href = HOME_URL;
         } else {
             alert('退出登录失败');
         }

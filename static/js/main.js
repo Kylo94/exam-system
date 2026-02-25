@@ -99,25 +99,16 @@ function initQuestionInteraction() {
 function initCSRFToken() {
     // 从meta标签获取CSRF令牌
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    
-    if (csrfToken) {
-        // 为所有AJAX请求添加CSRF令牌
-        $.ajaxSetup({
-            headers: {
-                'X-CSRF-Token': csrfToken
-            }
-        });
-        
-        // 或者使用fetch API
-        if (window.fetch) {
-            const originalFetch = window.fetch;
-            window.fetch = function(resource, options) {
-                options = options || {};
-                options.headers = options.headers || {};
-                options.headers['X-CSRF-Token'] = csrfToken;
-                return originalFetch(resource, options);
-            };
-        }
+
+    if (csrfToken && window.fetch) {
+        // 为所有fetch请求添加CSRF令牌
+        const originalFetch = window.fetch;
+        window.fetch = function(resource, options) {
+            options = options || {};
+            options.headers = options.headers || {};
+            options.headers['X-CSRF-Token'] = csrfToken;
+            return originalFetch(resource, options);
+        };
     }
 }
 

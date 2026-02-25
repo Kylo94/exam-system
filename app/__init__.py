@@ -68,21 +68,23 @@ def register_blueprints(app: Flask):
         auth_bp,
         admin_bp,
         teacher_bp,
-        teacher_api_bp
+        teacher_api_bp,
+        ai_configs_bp,
+        document_parser_bp
     )
-    
+
     # 注册主蓝图（无前缀）
     app.register_blueprint(main_bp)
-    
+
     # 注册认证蓝图
     app.register_blueprint(auth_bp, url_prefix='/auth')
-    
+
     # 注册管理蓝图
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    
+
     # 注册教师蓝图
     app.register_blueprint(teacher_bp, url_prefix='/teacher')
-    
+
     # 注册API蓝图
     app.register_blueprint(subjects_bp, url_prefix='/api')
     app.register_blueprint(levels_bp, url_prefix='/api')
@@ -91,6 +93,8 @@ def register_blueprints(app: Flask):
     app.register_blueprint(submissions_bp, url_prefix='/api')
     app.register_blueprint(answers_bp, url_prefix='/api')
     app.register_blueprint(upload_bp, url_prefix='/api')
+    app.register_blueprint(ai_configs_bp, url_prefix='/api')
+    app.register_blueprint(document_parser_bp, url_prefix='/api')
     app.register_blueprint(teacher_api_bp)
 
 

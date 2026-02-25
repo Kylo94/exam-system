@@ -203,16 +203,17 @@ submissions_bp.add_url_rule(
 def submit_exam(submission_id):
     """提交考试答案"""
     try:
+        from app.extensions import db
         data = request.get_json()
         if not data or 'answers' not in data:
             return jsonify({
                 'success': False,
                 'message': '缺少答案数据'
             }), 400
-        
-        service = SubmissionService(submissions_bp.app.extensions['sqlalchemy'])
+
+        service = SubmissionService(db)
         result = service.submit_exam(submission_id, data['answers'])
-        
+
         if result['success']:
             return jsonify({
                 'success': True,
@@ -224,7 +225,7 @@ def submit_exam(submission_id):
                 'success': False,
                 'message': result['error']
             }), 400
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -235,9 +236,10 @@ def submit_exam(submission_id):
 def get_submission_answers(submission_id):
     """获取提交的答案"""
     try:
-        service = SubmissionService(submissions_bp.app.extensions['sqlalchemy'])
+        from app.extensions import db
+        service = SubmissionService(db)
         answers = service.get_by_submission_id(submission_id)
-        
+
         items = [{
             'id': a.id,
             'question_id': a.question_id,
@@ -246,12 +248,12 @@ def get_submission_answers(submission_id):
             'score': a.score,
             'created_at': a.created_at.isoformat() if a.created_at else None
         } for a in answers]
-        
+
         return jsonify({
             'success': True,
             'data': items
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -262,14 +264,15 @@ def get_submission_answers(submission_id):
 def get_exam_submission_statistics(exam_id):
     """获取考试提交统计"""
     try:
-        service = SubmissionService(submissions_bp.app.extensions['sqlalchemy'])
+        from app.extensions import db
+        service = SubmissionService(db)
         stats = service.calculate_statistics(exam_id)
-        
+
         return jsonify({
             'success': True,
             'data': stats
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -280,16 +283,17 @@ def get_exam_submission_statistics(exam_id):
 def can_start_exam(exam_id):
     """检查是否可以开始考试"""
     try:
+        from app.extensions import db
         user_id = request.args.get('user_id', type=int)
-        
-        service = ExamService(submissions_bp.app.extensions['sqlalchemy'])
+
+        service = ExamService(db)
         result = service.can_start_exam(exam_id, user_id)
-        
+
         return jsonify({
             'success': True,
             'data': result
         })
-        
+
     except Exception as e:
         return jsonify({
             'success': False,
