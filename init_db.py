@@ -40,14 +40,15 @@ def create_sample_data():
     python_subject = Subject(name="Python", description="Python编程语言")
     java_subject = Subject(name="Java", description="Java编程语言")
     cpp_subject = Subject(name="C++", description="C++编程语言")
-    
+
     db.session.add_all([python_subject, java_subject, cpp_subject])
-    
+    db.session.commit()
+
     # 创建等级
-    level_1 = Level(name="一级", description="初级水平")
-    level_2 = Level(name="二级", description="中级水平")
-    level_3 = Level(name="三级", description="高级水平")
-    
+    level_1 = Level(name="一级", subject_id=python_subject.id, description="初级水平")
+    level_2 = Level(name="二级", subject_id=python_subject.id, description="中级水平")
+    level_3 = Level(name="三级", subject_id=python_subject.id, description="高级水平")
+
     db.session.add_all([level_1, level_2, level_3])
     
     # 创建试卷
