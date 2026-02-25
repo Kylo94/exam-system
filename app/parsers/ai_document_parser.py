@@ -141,13 +141,13 @@ class AIDocumentParser:
         }
 
     def _extract_text_and_images_from_docx(self, file_path: str) -> tuple:
-        """从Word文档提取文本和图片信息"""
+        """从Word文档提取文本和图片信息（保留原始格式）"""
         try:
             from docx import Document
-            from docx.shared import Inches
+            from docx.shared import Inches, Pt
             doc = Document(file_path)
 
-            paragraphs = []
+            text_parts = []
             image_info = []
             current_question_number = None
             line_number = 0
@@ -160,13 +160,23 @@ class AIDocumentParser:
             # 提取段落内容和图片
             for para_idx, para in enumerate(doc.paragraphs):
                 line_number += 1
-                if para.text.strip():
-                    paragraphs.append(para.text.strip())
 
-                    # 检测题号
-                    match = re.match(r'^(\d+)[\.、]\s*', para.text.strip())
-                    if match:
-                        current_question_number = int(match.group(1))
+                # 获取段落文本
+                para_text = para.text
+                stripped_text = para_text.strip()
+
+                # 只添加非空段落或空行
+                if para_text or (para_idx > 0 and para.text == '' and len(all_paragraphs_text) > 0):
+                    if stripped_text:
+                        # 检测题号
+                        match = re.match(r'^(\d+)[\.、]\s*', stripped_text)
+                        if match:
+                            current_question_number = int(match.group(1))
+
+                        text_parts.append(para_text)
+                    else:
+                        # 保留空行（用于代码块的分隔）
+                        text_parts.append('')
 
                 # 提取段落中的图片
                 for run in para.runs:
@@ -192,8 +202,9 @@ class AIDocumentParser:
             for table_idx, table in enumerate(doc.tables):
                 for row_idx, row in enumerate(table.rows):
                     for cell_idx, cell in enumerate(row.cells):
-                        if cell.text.strip():
-                            paragraphs.append(cell.text.strip())
+                        cell_text = cell.text.strip()
+                        if cell_text:
+                            text_parts.append(cell_text)
                             table_line_number += 1
 
                         # 检查单元格中的图片
@@ -211,7 +222,7 @@ class AIDocumentParser:
                                             'text_context': context_text
                                         })
 
-            return '\n'.join(paragraphs), image_info
+            return '\n'.join(text_parts), image_info
 
         except ImportError:
             raise Exception("需要安装 python-docx: pip install python-docx")
@@ -500,6 +511,14 @@ class AIDocumentParser:
    - 根据题目内容自动归纳考查的知识点
    - 例如："二叉树的遍历"、"动态规划"、"数组的查找"等
 
+8. **代码格式智能恢复（非常重要）：**
+   - 由于从Word文档提取的文本可能丢失了原始代码格式，需要智能识别并恢复
+   - 如果遇到空格开头的行（如"    def test():"），这表示代码缩进，必须保留
+   - 如果遇到连续的空行，保留它们用于代码块分隔
+   - 如果段落包含"def "、"class "、"if "等关键字，可能是代码，保留其格式
+   - 对于缩进的代码行，不要删除前导空格
+   - 示例：如果文档中有"    print('Hello')"，保留4个空格前缀
+
 8. **代码题目特别处理（非常重要）：**
    - 题目或选项中如果包含代码（Python、Java、C++等），必须完整保留原始格式
    - 保持所有缩进（indentation）不变，特别是Python代码的缩进
@@ -718,20 +737,28 @@ class AIDocumentParser:
 4. 对于多选题：正确答案为多个字母组合，如"ABC"
 5. 对于填空题和简答题：正确答案为文本内容
 
-6. **代码题目特别处理（非常重要）：**
+6. **代码格式智能恢复（非常重要）：**
+   - 由于从Word文档提取的文本可能丢失了原始代码格式，需要智能识别并恢复
+   - 如果遇到空格开头的行（如"    def test():"），这表示代码缩进，必须保留
+   - 如果遇到连续的空行，保留它们用于代码块分隔
+   - 如果段落包含"def "、"class "、"if "等关键字，可能是代码，保留其格式
+   - 对于缩进的代码行，不要删除前导空格
+   - 示例：如果文档中有"    print('Hello')"，保留4个空格前缀
+
+7. **代码题目特别处理（非常重要）：**
    - 题目或选项中如果包含代码（Python、Java、C++等），必须完整保留原始格式
    - 保持所有缩进（indentation）不变，特别是Python代码的缩进
    - 保持代码中的换行符和空格，使用\n表示换行
    - 不要对代码进行格式化或自动修正
    - 如果代码使用制表符或空格缩进，保持原样
 
-7. **简答题/编程题多要求处理（非常重要）：**
+8. **简答题/编程题多要求处理（非常重要）：**
    - 如果题目包含多个要求（如"要求1：... 要求2：..."），在JSON中使用\n换行符分隔
    - 每个要求另起一行，使用\n明确标记换行
    - 示例：如果原文是"要求1：写一个函数。要求2：处理边界情况。"
      JSON中应保存为："要求1：写一个函数。\n要求2：处理边界情况。"
 
-8. **JSON字符串中的特殊字符处理（非常重要）：**
+9. **JSON字符串中的特殊字符处理（非常重要）：**
     - JSON字符串必须保留原始的换行符和空格
     - 使用反斜杠n (\n) 表示换行
     - 使用反斜杠t (\t) 表示制表符
