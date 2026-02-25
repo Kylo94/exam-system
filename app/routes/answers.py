@@ -181,7 +181,7 @@ class AnswerResource(BaseResource):
                 'id': question.id,
                 'content': question.content,
                 'type': question.type,
-                'score': question.score
+                'points': question.points
             }
             
             if include_question_details:

@@ -22,43 +22,29 @@ class LevelResource(BaseResource):
             if level_id is None:
                 # 获取所有难度级别
                 params = self.parse_query_params()
-                
+
                 # 构建过滤条件
                 filters = {}
                 if 'search' in params:
                     filters['name'] = params['search']
-                
+
                 if 'is_active' in params:
                     filters['is_active'] = params['is_active'].lower() == 'true'
-                
-                if 'difficulty_min' in params:
-                    try:
-                        filters['difficulty_min'] = int(params['difficulty_min'])
-                    except ValueError:
-                        pass
-                
-                if 'difficulty_max' in params:
-                    try:
-                        filters['difficulty_max'] = int(params['difficulty_max'])
-                    except ValueError:
-                        pass
-                
+
                 # 获取数据
                 levels = self.get_service().search_levels(
                     name=filters.get('name'),
-                    difficulty_min=filters.get('difficulty_min'),
-                    difficulty_max=filters.get('difficulty_max'),
                     is_active=filters.get('is_active'),
                     skip=params['skip'],
                     limit=params['limit']
                 )
-                
+
                 # 统计总数
                 total = self.get_service().count(filters)
-                
+
                 # 转换数据
                 items = [self._serialize_level(level) for level in levels]
-                
+
                 return self.paginated_response(
                     items=items,
                     total=total,
@@ -79,25 +65,29 @@ class LevelResource(BaseResource):
     
     def post(self):
         """创建难度级别
-        
+
         POST /api/levels - 创建新难度级别
         """
         try:
-            data = self.parse_request_json(['name', 'difficulty'])
-            
-            level = self.get_service().create_level(
-                name=data['name'],
-                difficulty=data['difficulty'],
-                description=data.get('description', ''),
-                is_active=data.get('is_active', True)
-            )
-            
+            data = self.parse_request_json(['name', 'subject_id'])
+
+            # 获取下一个排序索引
+            order_index = data.get('order_index', self.get_service().get_next_order_index())
+
+            level = self.get_service().create({
+                'name': data['name'],
+                'subject_id': data['subject_id'],
+                'description': data.get('description', ''),
+                'is_active': data.get('is_active', True),
+                'order_index': order_index
+            })
+
             return self.success_response(
                 self._serialize_level(level),
                 "难度级别创建成功",
                 201
             )
-            
+
         except Exception as e:
             return self.handle_exception(e)
     
@@ -143,17 +133,17 @@ class LevelResource(BaseResource):
     
     def _serialize_level(self, level):
         """序列化难度级别对象
-        
+
         Args:
             level: 难度级别对象
-            
+
         Returns:
             序列化后的字典
         """
         return {
             'id': level.id,
             'name': level.name,
-            'difficulty': level.difficulty,
+            'order_index': level.order_index,
             'description': level.description,
             'is_active': level.is_active,
             'created_at': level.created_at.isoformat() if level.created_at else None,
@@ -192,7 +182,7 @@ def get_active_levels():
         items = [{
             'id': level.id,
             'name': level.name,
-            'difficulty': level.difficulty,
+            'order_index': level.order_index,
             'description': level.description
         } for level in levels]
 

@@ -528,6 +528,85 @@
                 });
         }
 
+        // 文件选择处理
+        document.getElementById('examFile').addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 显示进度条
+            const progressDiv = document.getElementById('uploadProgress');
+            const progressBar = progressDiv.querySelector('.progress-bar');
+            progressDiv.style.display = 'block';
+            progressBar.style.width = '10%';
+
+            // 创建FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', document.getElementById('examTitle').value);
+            formData.append('subject_id', document.getElementById('subjectSelect').value);
+            formData.append('level_id', document.getElementById('levelSelect').value);
+            formData.append('total_points', document.getElementById('totalPoints').value);
+            formData.append('duration', document.getElementById('duration').value || 60);
+            formData.append('max_attempts', document.getElementById('maxAttempts').value);
+            formData.append('pass_score', document.getElementById('passScore').value);
+            formData.append('description', document.getElementById('examDescription').value);
+            formData.append('is_active', document.getElementById('isActive').checked);
+
+            progressBar.style.width = '30%';
+
+            // 发送到服务器
+            fetch('/api/upload/create_exam', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    progressBar.style.width = '100%';
+                    alert('试卷创建成功！共导入 ' + data.data.questions.created + ' 道题目');
+                    setTimeout(() => {
+                        window.location.href = '/exams';
+                    }, 1000);
+                } else {
+                    progressBar.style.width = '0%';
+                    progressDiv.style.display = 'none';
+                    alert('上传失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                progressBar.style.width = '0%';
+                progressDiv.style.display = 'none';
+                console.error('上传失败:', error);
+                alert('上传失败，请检查网络连接');
+            });
+        }
+
+        // 拖拽上传
+        const dropZone = document.getElementById('dropZone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('examFile').files = files;
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+
         // 加载等级
         function loadLevels() {
             const subjectId = document.getElementById('subjectSelect').value;
@@ -815,6 +894,13 @@
                 return;
             }
 
+            // 如果是文件上传方式，在文件选择时已经上传了
+            if (uploadMethod === 'file') {
+                alert('文件已经上传并创建试卷成功！');
+                return;
+            }
+
+            // 手动创建方式
             const examData = {
                 title: document.getElementById('examTitle').value,
                 subject_id: parseInt(document.getElementById('subjectSelect').value),

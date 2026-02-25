@@ -185,10 +185,10 @@ class QuestionResource(BaseResource):
     
     def _serialize_question(self, question):
         """序列化问题对象
-        
+
         Args:
             question: 问题对象
-            
+
         Returns:
             序列化后的字典
         """
@@ -197,7 +197,7 @@ class QuestionResource(BaseResource):
             'exam_id': question.exam_id,
             'content': question.content,
             'type': question.type,
-            'score': question.score,
+            'points': question.points,
             'options': question.options,
             'correct_answer': question.correct_answer,
             'explanation': question.explanation,
@@ -295,7 +295,7 @@ def get_questions_by_exam(exam_id):
             'id': q.id,
             'content': q.content,
             'type': q.type,
-            'score': q.score,
+            'points': q.points,
             'order_index': q.order_index
         } for q in questions]
 

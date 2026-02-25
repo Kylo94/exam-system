@@ -112,6 +112,23 @@ class ExamResource(BaseResource):
         try:
             data = self.parse_request_json(['title', 'subject_id', 'level_id'])
 
+            # 转换日期时间字符串为 datetime 对象
+            from datetime import datetime
+            start_time = data.get('start_time')
+            end_time = data.get('end_time')
+
+            if start_time:
+                try:
+                    start_time = datetime.fromisoformat(start_time)
+                except (ValueError, TypeError):
+                    start_time = None
+
+            if end_time:
+                try:
+                    end_time = datetime.fromisoformat(end_time)
+                except (ValueError, TypeError):
+                    end_time = None
+
             # 创建考试
             exam = self.get_service().create_exam(
                 title=data['title'],
@@ -120,8 +137,8 @@ class ExamResource(BaseResource):
                 description=data.get('description', ''),
                 total_points=data.get('total_points', 100),
                 duration_minutes=data.get('duration_minutes'),
-                start_time=data.get('start_time'),
-                end_time=data.get('end_time'),
+                start_time=start_time,
+                end_time=end_time,
                 is_active=data.get('is_active', True),
                 max_attempts=data.get('max_attempts', 1),
                 pass_score=data.get('pass_score', 60.0)
@@ -206,22 +223,41 @@ class ExamResource(BaseResource):
     
     def put(self, exam_id):
         """更新考试
-        
+
         PUT /api/exams/<id> - 更新考试
         """
         try:
             data = self.parse_request_json()
-            
+
+            # 将空字符串转换为 None
+            for key in ['start_time', 'end_time', 'duration_minutes', 'pass_score', 'max_attempts']:
+                if key in data and data[key] == '':
+                    data[key] = None
+
+            # 转换日期时间字符串为 datetime 对象
+            from datetime import datetime
+            if 'start_time' in data and data['start_time']:
+                try:
+                    data['start_time'] = datetime.fromisoformat(data['start_time'])
+                except (ValueError, TypeError):
+                    pass
+
+            if 'end_time' in data and data['end_time']:
+                try:
+                    data['end_time'] = datetime.fromisoformat(data['end_time'])
+                except (ValueError, TypeError):
+                    pass
+
             exam = self.get_service().update_exam(exam_id, **data)
             if not exam:
                 from app.utils.error_handlers import NotFoundError
                 raise NotFoundError(f"考试ID {exam_id} 不存在")
-            
+
             return self.success_response(
                 self._serialize_exam_with_associations(exam),
                 "考试更新成功"
             )
-            
+
         except Exception as e:
             return self.handle_exception(e)
     
@@ -298,7 +334,7 @@ class ExamResource(BaseResource):
             result['level'] = {
                 'id': level.id,
                 'name': level.name,
-                'difficulty': level.difficulty,
+                'order_index': level.order_index,
                 'description': level.description
             }
         
@@ -307,7 +343,7 @@ class ExamResource(BaseResource):
         question_service = QuestionService(self.get_service().db)
         questions = question_service.get_by_exam_id(exam.id)
         result['question_count'] = len(questions)
-        result['total_score'] = sum(q.score for q in questions)
+        result['total_score'] = sum(q.points for q in questions)
         
         # 包含问题列表
         if include_questions:
@@ -330,10 +366,10 @@ class ExamResource(BaseResource):
     
     def _serialize_question(self, question):
         """序列化问题对象
-        
+
         Args:
             question: 问题对象
-            
+
         Returns:
             序列化后的字典
         """
@@ -341,7 +377,7 @@ class ExamResource(BaseResource):
             'id': question.id,
             'content': question.content,
             'type': question.type,
-            'score': question.score,
+            'points': question.points,
             'options': question.options,
             'explanation': question.explanation,
             'order_index': question.order_index

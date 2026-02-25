@@ -74,7 +74,8 @@ class SubmissionService(BaseService[Submission]):
         if not exam:
             raise ValueError(f"考试ID {exam_id} 不存在")
         
-        now = datetime.now(timezone.utc)
+        # 使用不带时区的时间，与数据库保持一致
+        now = datetime.utcnow()
         if started_at is None:
             started_at = now
         
@@ -82,17 +83,23 @@ class SubmissionService(BaseService[Submission]):
         status = 'in_progress'
         if submitted_at is not None:
             status = 'submitted'
-        
+
+        # 获取学生姓名
+        from app.models import User
+        user = User.query.get(user_id)
+        student_name = user.username if user else f'用户{user_id}'
+
         submission = self.create({
             'exam_id': exam_id,
             'user_id': user_id,
+            'student_name': student_name,
             'started_at': started_at,
             'submitted_at': submitted_at,
             'status': status,
             'total_score': 0.0,
             'obtained_score': 0.0
         })
-        
+
         return submission
     
     def submit_exam(self, submission_id: int, answers: Dict[int, Any]) -> Dict[str, Any]:
@@ -117,8 +124,21 @@ class SubmissionService(BaseService[Submission]):
         if not exam:
             return {'success': False, 'error': '考试不存在'}
         
-        now = datetime.now(timezone.utc)
-        if now > exam.end_time:
+        now = datetime.utcnow()
+        # 处理时区问题：如果 exam.end_time 是 naive datetime，转换为 UTC aware datetime 进行比较
+        if exam.end_time and exam.end_time.tzinfo is None:
+            # exam.end_time 是 naive，转换为 UTC aware
+            exam_end_time = exam.end_time.replace(tzinfo=timezone.utc)
+            now_with_tz = now.replace(tzinfo=timezone.utc)
+        elif exam.end_time:
+            # exam.end_time 是 aware
+            exam_end_time = exam.end_time
+            now_with_tz = now.replace(tzinfo=timezone.utc)
+        else:
+            exam_end_time = None
+            now_with_tz = now
+
+        if exam_end_time and now_with_tz > exam_end_time:
             return {'success': False, 'error': '考试已结束，不能提交'}
         
         # 更新提交时间
@@ -211,7 +231,7 @@ class SubmissionService(BaseService[Submission]):
             # 如果状态改为submitted，设置提交时间
             if new_status == 'submitted' and instance.status != 'submitted':
                 if 'submitted_at' not in kwargs:
-                    kwargs['submitted_at'] = datetime.now(timezone.utc)
+                    kwargs['submitted_at'] = datetime.utcnow()
         
         return self.update(id, kwargs)
     

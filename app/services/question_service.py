@@ -102,7 +102,7 @@ class QuestionService(BaseService[Question]):
             'exam_id': exam_id,
             'content': content,
             'type': question_type,
-            'score': score,
+            'points': score,
             'options': options_data,
             'correct_answer': answer_data,
             'explanation': explanation,
@@ -396,31 +396,31 @@ class QuestionService(BaseService[Question]):
             if question.type == 'single_choice':
                 correct_answer = question.correct_answer
                 is_correct = str(user_answer) == correct_answer
-                score = question.score if is_correct else 0
-            
+                score = question.points if is_correct else 0
+
             elif question.type == 'multiple_choice':
                 correct_answers = json.loads(question.correct_answer)
                 if not isinstance(user_answer, list):
                     user_answer = [user_answer] if user_answer else []
-                
+
                 # 检查答案是否完全匹配（顺序不重要）
                 user_set = set(str(a) for a in user_answer)
                 correct_set = set(str(a) for a in correct_answers)
                 is_correct = user_set == correct_set
-                score = question.score if is_correct else 0
-            
+                score = question.points if is_correct else 0
+
             elif question.type == 'true_false':
                 correct_answer = question.correct_answer.lower() == 'true'
                 user_bool = str(user_answer).lower() == 'true'
                 is_correct = user_bool == correct_answer
-                score = question.score if is_correct else 0
-            
+                score = question.points if is_correct else 0
+
             elif question.type in ['fill_blank', 'short_answer']:
                 # 对于填空题和简答题，需要更复杂的评分逻辑
                 # 这里暂时简单比较字符串
                 correct_answer = question.correct_answer
                 is_correct = str(user_answer).strip().lower() == correct_answer.strip().lower()
-                score = question.score if is_correct else 0
+                score = question.points if is_correct else 0
             
             else:
                 return {'is_correct': False, 'score': 0, 'reason': '不支持的问题类型'}
@@ -428,7 +428,7 @@ class QuestionService(BaseService[Question]):
             return {
                 'is_correct': is_correct,
                 'score': score,
-                'question_score': question.score,
+                'question_score': question.points,
                 'question_type': question.type
             }
             

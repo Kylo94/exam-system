@@ -38,11 +38,11 @@ class LevelService(BaseService[Level]):
     
     def get_all_active(self) -> List[Level]:
         """获取所有活跃难度级别
-        
+
         Returns:
             活跃难度级别列表
         """
-        return Level.query.filter_by(is_active=True).order_by(Level.difficulty).all()
+        return Level.query.filter_by(is_active=True).order_by(Level.order_index).all()
     
     def create_level(self, name: str, difficulty: int, 
                      description: str = "", is_active: bool = True) -> Level:
@@ -106,47 +106,37 @@ class LevelService(BaseService[Level]):
         
         return self.update(id, kwargs)
     
-    def search_levels(self, name: Optional[str] = None, 
-                     difficulty_min: Optional[int] = None,
-                     difficulty_max: Optional[int] = None,
+    def search_levels(self, name: Optional[str] = None,
                      is_active: Optional[bool] = None,
                      skip: int = 0, limit: int = 100) -> List[Level]:
         """搜索难度级别
-        
+
         Args:
             name: 难度级别名称（模糊搜索）
-            difficulty_min: 最小难度值
-            difficulty_max: 最大难度值
             is_active: 是否活跃
             skip: 跳过的记录数
             limit: 返回的最大记录数
-            
+
         Returns:
             难度级别列表
         """
         query = Level.query
-        
+
         if name:
             query = query.filter(Level.name.ilike(f"%{name}%"))
-        
-        if difficulty_min is not None:
-            query = query.filter(Level.difficulty >= difficulty_min)
-        
-        if difficulty_max is not None:
-            query = query.filter(Level.difficulty <= difficulty_max)
-        
+
         if is_active is not None:
             query = query.filter_by(is_active=is_active)
-        
-        query = query.order_by(Level.difficulty)
-        
+
+        query = query.order_by(Level.order_index)
+
         return query.offset(skip).limit(limit).all()
     
-    def get_next_difficulty(self) -> int:
-        """获取下一个可用的难度值
-        
+    def get_next_order_index(self) -> int:
+        """获取下一个可用的排序索引
+
         Returns:
-            下一个难度值
+            下一个排序索引
         """
-        max_difficulty = self.db.session.query(self.db.func.max(Level.difficulty)).scalar()
-        return (max_difficulty or 0) + 1
+        max_order_index = self.db.session.query(self.db.func.max(Level.order_index)).scalar()
+        return (max_order_index or 0) + 1

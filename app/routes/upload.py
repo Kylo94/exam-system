@@ -186,12 +186,13 @@ def create_exam_from_document():
                 subject_id=exam_data['subject_id'],
                 level_id=exam_data['level_id'],
                 description=exam_data.get('description', ''),
-                duration_minutes=exam_data.get('duration_minutes', 60),
+                duration_minutes=exam_data.get('duration_minutes', 60) if exam_data.get('duration_minutes') else 60,
                 start_time=data.get('start_time'),
                 end_time=data.get('end_time'),
                 is_active=data.get('is_active', 'true').lower() == 'true',
                 max_attempts=int(data.get('max_attempts', 1)),
-                pass_score=float(data.get('pass_score', 60.0))
+                pass_score=float(data.get('pass_score', 60.0)),
+                total_points=int(data.get('total_points', 100))
             )
             
             # 创建问题

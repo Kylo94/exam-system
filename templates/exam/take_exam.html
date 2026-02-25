@@ -55,12 +55,60 @@
         #submitBtn:disabled {
             cursor: not-allowed;
         }
+        /* 答题卡样式 */
+        .answer-sheet {
+            position: fixed;
+            left: 20px;
+            top: 100px;
+            width: 280px;
+            max-height: calc(100vh - 120px);
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        .answer-sheet .card-body {
+            padding: 15px;
+        }
+        .question-nav-item {
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .question-nav-item:hover {
+            border-color: #0d6efd;
+        }
+        .question-nav-item.answered {
+            background-color: #198754;
+            color: white;
+            border-color: #198754;
+        }
+        .question-nav-item.current {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+        .question-nav-item.marked {
+            border-color: #ffc107;
+            border-width: 2px;
+        }
+        .question-nav-item.answered.current {
+            background-color: #0d6efd;
+        }
     </style>
 </head>
 <body>
     {% include "partials/navbar.html" %}
     
-    <main class="container py-4">
+    <main class="container py-4" style="padding-left: 320px;">
         <!-- 考试信息栏 -->
         <div class="card mb-4">
             <div class="card-body">
@@ -70,12 +118,12 @@
                         <div class="text-muted mb-2">
                             <i class="bi bi-book me-1"></i>科目: {{ exam.subject.name if exam.subject else '未指定' }}
                             <i class="bi bi-bar-chart ms-3 me-1"></i>难度: {{ exam.level.name if exam.level else '未指定' }}
-                            <i class="bi bi-clock ms-3 me-1"></i>时长: {{ exam.duration_minutes }}分钟
+                            <i class="bi bi-clock ms-3 me-1"></i>时长: {{ exam.duration_minutes + '分钟' if exam.duration_minutes else '不限' }}
                         </div>
                         <div class="d-flex align-items-center">
                             <div class="me-3">
-                                <span class="badge bg-primary">{{ exam.question_count }}题</span>
-                                <span class="badge bg-success ms-1">总分: {{ exam.total_score }}</span>
+                                <span class="badge bg-primary">{{ exam.question_count or 0 }}题</span>
+                                <span class="badge bg-success ms-1">总分: {{ exam.total_score or 0 }}</span>
                             </div>
                             <div class="timer" id="timer">
                                 <i class="bi bi-clock me-1"></i>
@@ -88,12 +136,9 @@
                             <div class="progress">
                                 <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
                             </div>
-                            <small class="text-muted" id="progressText">已答 0/{{ exam.question_count }} 题</small>
+                            <small class="text-muted" id="progressText">已答 0/{{ exam.question_count or 0 }} 题</small>
                         </div>
-                        <button id="submitBtn" class="btn btn-danger" disabled>
-                            <i class="bi bi-send-check me-1"></i>提交答卷
-                        </button>
-                        <button id="saveBtn" class="btn btn-outline-secondary ms-2">
+                        <button id="saveBtn" class="btn btn-outline-secondary">
                             <i class="bi bi-save me-1"></i>保存进度
                         </button>
                     </div>
@@ -102,10 +147,10 @@
         </div>
         
         <!-- 答题表单 -->
-        <form id="examForm" action="{{ url_for('main.submit_exam', submission_id=submission.id) }}" method="POST">
+        <form id="examForm" action="{{ url_for('submissions.submit_exam', submission_id=submission.id) }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
             
-            {% for question in exam.questions %}
+            {% for question in (exam.questions or []) %}
             <div class="question-card card" id="question-{{ question.id }}">
                 <div class="card-body">
                     <!-- 题目头部 -->
@@ -121,7 +166,7 @@
                                 {% elif question.type == 'programming' %}编程题
                                 {% else %}{{ question.type }}{% endif %}
                             </span>
-                            <span class="badge bg-light text-dark ms-1">分值: {{ question.score }}</span>
+                            <span class="badge bg-light text-dark ms-1">分值: {{ question.points }}</span>
                         </div>
                         <div>
                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="markQuestion({{ question.id }})">
@@ -145,8 +190,8 @@
                     <div class="answer-area">
                         {% if question.type == 'single_choice' %}
                             <!-- 单选题 -->
-                            {% if question.options %}
-                                {% for option in question.options %}
+                            {% if question.options and question.options.choices %}
+                                {% for option in question.options.choices %}
                                 <div class="option-item" onclick="selectSingleChoice({{ question.id }}, '{{ option.id }}')">
                                     <input type="radio" 
                                            id="q{{ question.id }}_{{ option.id }}" 
@@ -164,8 +209,8 @@
                             
                         {% elif question.type == 'multiple_choice' %}
                             <!-- 多选题 -->
-                            {% if question.options %}
-                                {% for option in question.options %}
+                            {% if question.options and question.options.choices %}
+                                {% for option in question.options.choices %}
                                 <div class="option-item">
                                     <input type="checkbox" 
                                            id="q{{ question.id }}_{{ option.id }}" 
@@ -253,28 +298,75 @@
             <!-- 提交按钮区域 -->
             <div class="fixed-bottom bg-white border-top py-3 px-4 shadow-sm">
                 <div class="container">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="confirmSubmit">
-                                <label class="form-check-label" for="confirmSubmit">
-                                    我已检查所有答案，确认提交
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6 text-md-end">
-                            <button type="button" id="finalSubmitBtn" class="btn btn-lg btn-danger" disabled>
-                                <i class="bi bi-send-check me-1"></i>确认提交答卷
-                            </button>
-                            <button type="button" class="btn btn-lg btn-outline-secondary ms-2" onclick="window.history.back()">
-                                <i class="bi bi-arrow-left me-1"></i>返回
-                            </button>
-                        </div>
+                    <div class="text-md-end">
+                        <button type="button" id="finalSubmitBtn" class="btn btn-lg btn-danger">
+                            <i class="bi bi-send-check me-1"></i>提交答卷
+                        </button>
+                        <button type="button" class="btn btn-lg btn-outline-secondary ms-2" onclick="window.history.back()">
+                            <i class="bi bi-arrow-left me-1"></i>返回
+                        </button>
                     </div>
                 </div>
             </div>
         </form>
     </main>
+
+    <!-- 答题卡侧边栏 -->
+    <div id="answerSheet" class="answer-sheet">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">答题卡</h6>
+            </div>
+
+            <!-- 图例 -->
+            <div class="mb-3">
+                <small class="text-muted">
+                    <span class="d-inline-block me-2">
+                        <span class="question-nav-item answered" style="display: inline-flex; width: 18px; height: 18px; font-size: 0.7rem;">1</span> 已答
+                    </span>
+                    <span class="d-inline-block me-2">
+                        <span class="question-nav-item" style="display: inline-flex; width: 18px; height: 18px; font-size: 0.7rem;">2</span> 未答
+                    </span>
+                    <span class="d-inline-block me-2">
+                        <span class="question-nav-item marked" style="display: inline-flex; width: 18px; height: 18px; font-size: 0.7rem;">3</span> 标记
+                    </span>
+                    <span class="d-inline-block">
+                        <span class="question-nav-item current" style="display: inline-flex; width: 18px; height: 18px; font-size: 0.7rem;">4</span> 当前
+                    </span>
+                </small>
+            </div>
+
+            <!-- 题目导航 -->
+            <div id="questionNav" class="d-flex flex-wrap gap-1">
+                {% for question in (exam.questions or []) %}
+                <div class="question-nav-item" id="nav-{{ question.id }}"
+                     data-question-id="{{ question.id }}"
+                     onclick="scrollToQuestion({{ question.id }})"
+                     style="width: 32px; height: 32px; font-size: 0.8rem;">
+                    {{ loop.index }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- 统计信息 -->
+            <div class="mt-3 pt-3 border-top">
+                <div class="row text-center g-2">
+                    <div class="col-4">
+                        <div class="h6 mb-0 text-success" id="answeredStat">0</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">已答</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h6 mb-0 text-secondary" id="unansweredStat">{{ exam.question_count or 0 }}</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">未答</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h6 mb-0 text-warning" id="markedStat">0</div>
+                        <small class="text-muted" style="font-size: 0.75rem;">标记</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     {% include "partials/footer.html" %}
     {% include "partials/scripts.html" %}
@@ -284,17 +376,23 @@
         const examData = {
             id: {{ exam.id }},
             title: "{{ exam.title }}",
-            durationMinutes: {{ exam.duration_minutes }},
-            totalQuestions: {{ exam.question_count }},
-            endTime: new Date("{{ exam.end_time.isoformat() if exam.end_time else '' }}"),
+            durationMinutes: {{ exam.duration_minutes or 0 }},
+            totalQuestions: {{ exam.question_count or 0 }},
+            {% if exam.end_time %}
+            endTime: new Date("{{ exam.end_time.isoformat() }}"),
+            {% else %}
+            endTime: null,
+            {% endif %}
             submissionId: {{ submission.id }}
         };
-        
+
         // 用户答案存储
         let userAnswers = {};
+        let markedQuestions = new Set(); // 标记的题目ID集合
         let answeredCount = 0;
         let timerInterval = null;
-        let timeRemaining = examData.durationMinutes * 60; // 秒
+        // 如果设置了考试时长，则使用设置的时长；否则不限制时间
+        let timeRemaining = examData.durationMinutes > 0 ? examData.durationMinutes * 60 : null; // 秒
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
@@ -306,10 +404,17 @@
         
         // 初始化计时器
         function initTimer() {
+            // 如果没有设置考试时长，不启动倒计时，但启动自动保存
+            if (timeRemaining === null) {
+                document.getElementById('timer').style.display = 'none';
+                // 每30秒自动保存
+                timerInterval = setInterval(autoSave, 30000);
+                return;
+            }
             updateTimerDisplay();
             timerInterval = setInterval(updateTimer, 1000);
         }
-        
+
         // 更新计时器
         function updateTimer() {
             if (timeRemaining <= 0) {
@@ -317,33 +422,36 @@
                 timeUp();
                 return;
             }
-            
+
             timeRemaining--;
             updateTimerDisplay();
-            
+
             // 每30秒自动保存
             if (timeRemaining % 30 === 0) {
                 autoSave();
             }
-            
+
             // 最后5分钟警告
             if (timeRemaining === 5 * 60) {
                 showWarning('距离考试结束还有5分钟！');
             }
-            
+
             // 最后1分钟警告
             if (timeRemaining === 60) {
                 showWarning('距离考试结束还有1分钟！');
             }
         }
-        
+
         // 更新计时器显示
         function updateTimerDisplay() {
+            if (timeRemaining === null) {
+                return;
+            }
             const minutes = Math.floor(timeRemaining / 60);
             const seconds = timeRemaining % 60;
-            document.getElementById('timeDisplay').textContent = 
+            document.getElementById('timeDisplay').textContent =
                 `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
+
             // 颜色变化
             const timerEl = document.getElementById('timer');
             if (timeRemaining < 300) { // 5分钟
@@ -422,6 +530,7 @@
             }
             userAnswers[questionId] = answer;
             updateProgress();
+            updateAnswerSheet();
             saveToLocalStorage();
         }
         
@@ -429,17 +538,10 @@
         function updateProgress() {
             const progress = (answeredCount / examData.totalQuestions) * 100;
             document.getElementById('progressBar').style.width = `${progress}%`;
-            document.getElementById('progressText').textContent = 
+            document.getElementById('progressText').textContent =
                 `已答 ${answeredCount}/${examData.totalQuestions} 题`;
-            
-            // 启用提交按钮
-            const submitBtn = document.getElementById('submitBtn');
-            const finalSubmitBtn = document.getElementById('finalSubmitBtn');
-            if (answeredCount > 0) {
-                submitBtn.disabled = false;
-            } else {
-                submitBtn.disabled = true;
-            }
+
+            // 提交按钮始终可用，通过确认提示来防止误操作
         }
         
         // 标记题目
@@ -449,10 +551,14 @@
                 if (card.classList.contains('border-warning')) {
                     card.classList.remove('border-warning');
                     card.style.borderLeftColor = '#0d6efd';
+                    markedQuestions.delete(questionId);
                 } else {
                     card.classList.add('border-warning');
                     card.style.borderLeftColor = '#ffc107';
+                    markedQuestions.add(questionId);
                 }
+                updateAnswerSheet();
+                saveToLocalStorage();
             }
         }
         
@@ -460,7 +566,9 @@
         function saveToLocalStorage() {
             const saveData = {
                 answers: userAnswers,
+                markedQuestions: Array.from(markedQuestions),
                 timestamp: new Date().toISOString(),
+                // 只有在有时间限制时才保存剩余时间
                 timeRemaining: timeRemaining
             };
             localStorage.setItem(`exam_${examData.id}_${examData.submissionId}`, JSON.stringify(saveData));
@@ -474,18 +582,29 @@
                     const data = JSON.parse(saved);
                     userAnswers = data.answers || {};
                     answeredCount = Object.keys(userAnswers).length;
-                    
-                    // 恢复时间（如果还在考试中）
+                    markedQuestions = new Set(data.markedQuestions || []);
+
+                    // 恢复时间（如果还在考试中且有时间限制）
                     const savedTime = data.timeRemaining;
-                    if (savedTime && savedTime > 0) {
+                    if (timeRemaining !== null && savedTime && savedTime > 0) {
                         timeRemaining = savedTime;
                     }
-                    
+
                     // 恢复UI状态
                     for (const [questionId, answer] of Object.entries(userAnswers)) {
                         restoreAnswerUI(parseInt(questionId), answer);
                     }
-                    
+
+                    // 恢复标记状态
+                    markedQuestions.forEach(questionId => {
+                        const card = document.getElementById(`question-${questionId}`);
+                        if (card) {
+                            card.classList.add('border-warning');
+                            card.style.borderLeftColor = '#ffc107';
+                        }
+                    });
+
+                    updateAnswerSheet();
                     showSuccess('已恢复上次保存的进度');
                 } catch (e) {
                     console.error('加载保存数据失败:', e);
@@ -538,29 +657,54 @@
         
         // 设置事件监听器
         function setupEventListeners() {
-            // 确认提交复选框
-            document.getElementById('confirmSubmit').addEventListener('change', function() {
-                document.getElementById('finalSubmitBtn').disabled = !this.checked;
+            // 下方提交按钮
+            document.getElementById('finalSubmitBtn').addEventListener('click', function() {
+                confirmAndSubmit();
             });
-            
-            // 最终提交按钮
-            document.getElementById('finalSubmitBtn').addEventListener('click', submitExam);
-            
-            // 中间提交按钮
-            document.getElementById('submitBtn').addEventListener('click', function() {
-                document.getElementById('confirmSubmit').checked = true;
-                document.getElementById('finalSubmitBtn').disabled = false;
-                document.getElementById('finalSubmitBtn').scrollIntoView({ behavior: 'smooth' });
-            });
-            
+
             // 页面离开警告
             window.addEventListener('beforeunload', function(e) {
-                if (Object.keys(userAnswers).length > 0 && timeRemaining > 0) {
+                if (Object.keys(userAnswers).length > 0 && (timeRemaining === null || timeRemaining > 0)) {
                     e.preventDefault();
                     e.returnValue = '您有未保存的答案，确定要离开吗？';
                     return e.returnValue;
                 }
             });
+
+            // 滚动监听 - 更新当前题目高亮
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const questionId = entry.target.id.replace('question-', '');
+                        updateCurrentQuestion(parseInt(questionId));
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            document.querySelectorAll('.question-card').forEach(card => {
+                observer.observe(card);
+            });
+        }
+
+        // 确认并提交
+        function confirmAndSubmit() {
+            // 检查是否所有题目都已回答
+            const answered = Object.keys(userAnswers).length;
+            const total = examData.totalQuestions;
+            const unanswered = total - answered;
+
+            if (unanswered > 0) {
+                if (!confirm(`您还有 ${unanswered} 道题未作答，确定要提交吗？`)) {
+                    return;
+                }
+            } else {
+                if (!confirm('您已完成所有题目，确定要提交吗？')) {
+                    return;
+                }
+            }
+
+            // 确认后直接提交
+            submitExam();
         }
         
         // 提交考试
@@ -642,6 +786,65 @@
             `;
             document.body.appendChild(alertDiv);
             setTimeout(() => alertDiv.remove(), 5000);
+        }
+
+        // 答题卡相关函数
+        function toggleAnswerSheet() {
+            const sheet = document.getElementById('answerSheet');
+            sheet.classList.toggle('show');
+        }
+
+        function scrollToQuestion(questionId) {
+            const questionCard = document.getElementById(`question-${questionId}`);
+            if (questionCard) {
+                questionCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                updateCurrentQuestion(questionId);
+            }
+        }
+
+        function updateAnswerSheet() {
+            // 更新每道题的状态
+            document.querySelectorAll('.question-nav-item').forEach(item => {
+                const questionId = parseInt(item.dataset.questionId);
+                const hasAnswer = questionId in userAnswers && userAnswers[questionId];
+                const isMarked = markedQuestions.has(questionId);
+
+                // 重置所有状态
+                item.classList.remove('answered', 'marked', 'current');
+
+                // 设置已答状态
+                if (hasAnswer) {
+                    item.classList.add('answered');
+                }
+
+                // 设置标记状态
+                if (isMarked) {
+                    item.classList.add('marked');
+                }
+            });
+
+            // 更新统计信息
+            const answered = Object.keys(userAnswers).length;
+            const total = examData.totalQuestions;
+            const unanswered = total - answered;
+            const marked = markedQuestions.size;
+
+            document.getElementById('answeredStat').textContent = answered;
+            document.getElementById('unansweredStat').textContent = unanswered;
+            document.getElementById('markedStat').textContent = marked;
+        }
+
+        function updateCurrentQuestion(questionId) {
+            // 移除所有current类
+            document.querySelectorAll('.question-nav-item').forEach(item => {
+                item.classList.remove('current');
+            });
+
+            // 为当前题目添加current类
+            const currentItem = document.querySelector(`.question-nav-item[data-question-id="${questionId}"]`);
+            if (currentItem) {
+                currentItem.classList.add('current');
+            }
         }
     </script>
 </body>

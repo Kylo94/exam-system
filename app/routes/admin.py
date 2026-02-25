@@ -96,15 +96,6 @@ def exams_page():
     return render_template('admin/exams.html', exams=exams)
 
 
-@admin_bp.route('/questions')
-@login_required
-@admin_required
-def questions_page():
-    """题目管理页面"""
-    questions = Question.query.order_by(desc(Question.created_at)).all()
-    return render_template('admin/questions.html', questions=questions)
-
-
 @admin_bp.route('/submissions')
 @login_required
 @admin_required
