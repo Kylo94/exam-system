@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 from flask import request, jsonify, current_app
 from flask.views import MethodView
 from werkzeug.exceptions import BadRequest
+from sqlalchemy.exc import IntegrityError
 
 from app.utils.error_handlers import (
     APIError, ValidationError, NotFoundError,
@@ -182,6 +183,11 @@ class BaseResource(MethodView):
         Args:
             error: 异常对象
         """
+        # 记录异常信息
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"处理请求时发生异常: {error}", exc_info=True)
+        
         # 根据异常类型设置状态码
         if isinstance(error, BadRequest):
             status_code = 400
@@ -195,6 +201,16 @@ class BaseResource(MethodView):
             status_code = 404
         elif isinstance(error, APIError):
             status_code = error.status_code
+        elif isinstance(error, IntegrityError):
+            # 数据库完整性错误，通常是唯一约束冲突
+            status_code = 400
+            # 提取更友好的错误信息
+            error_msg = str(error.orig) if hasattr(error, 'orig') and error.orig else "数据冲突，可能已存在相同记录"
+            # 检查是否是唯一约束冲突
+            if "UNIQUE constraint failed" in error_msg or "duplicate key" in error_msg:
+                error_msg = "数据已存在，请勿重复添加"
+            # 创建一个新的错误对象，使用已经导入的ValidationError
+            error = ValidationError(f"数据验证失败: {error_msg}")
         else:
             status_code = 500
             # 生产环境下隐藏内部错误细节

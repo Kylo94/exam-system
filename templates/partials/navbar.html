@@ -88,8 +88,8 @@
                             <i class="bi bi-person me-1"></i>个人资料
                         </a></li>
                         {% if current_user.is_admin() %}
-                        <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}">
-                            <i class="bi bi-speedometer2 me-1"></i>系统控制面板
+                        <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-1"></i>管理控制面板
                         </a></li>
                         {% elif current_user.is_teacher() %}
                         <li><a class="dropdown-item" href="{{ url_for('teacher.dashboard') }}">
