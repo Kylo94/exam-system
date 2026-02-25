@@ -154,28 +154,43 @@ class DeepSeekService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            response.raise_for_status()
+        # 增加超时时间到180秒，并添加重试机制
+        max_retries = 3
+        timeout = 180  # 3分钟超时
 
-            data = response.json()
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout
+                )
+                response.raise_for_status()
 
-            return {
-                'content': data['choices'][0]['message']['content'],
-                'usage': data.get('usage', {}),
-                'model': data.get('model'),
-                'raw': data
-            }
+                data = response.json()
 
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"DeepSeek API请求失败: {str(e)}")
-        except (KeyError, IndexError) as e:
-            raise Exception(f"DeepSeek API响应格式错误: {str(e)}")
+                return {
+                    'content': data['choices'][0]['message']['content'],
+                    'usage': data.get('usage', {}),
+                    'model': data.get('model'),
+                    'raw': data
+                }
+
+            except requests.exceptions.Timeout as e:
+                if attempt < max_retries - 1:
+                    print(f"DeepSeek API请求超时，第{attempt + 1}次重试...")
+                    continue
+                raise Exception(f"DeepSeek API请求超时（已重试{max_retries}次）: {str(e)}")
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    print(f"DeepSeek API请求失败，第{attempt + 1}次重试: {str(e)}")
+                    import time
+                    time.sleep(1)  # 等待1秒后重试
+                    continue
+                raise Exception(f"DeepSeek API请求失败（已重试{max_retries}次）: {str(e)}")
+            except (KeyError, IndexError) as e:
+                raise Exception(f"DeepSeek API响应格式错误: {str(e)}")
 
 
 class OpenAIService(AIServiceBase):
@@ -207,28 +222,43 @@ class OpenAIService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            response.raise_for_status()
+        # 增加超时时间到180秒，并添加重试机制
+        max_retries = 3
+        timeout = 180  # 3分钟超时
 
-            data = response.json()
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout
+                )
+                response.raise_for_status()
 
-            return {
-                'content': data['choices'][0]['message']['content'],
-                'usage': data.get('usage', {}),
-                'model': data.get('model'),
-                'raw': data
-            }
+                data = response.json()
 
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"OpenAI API请求失败: {str(e)}")
-        except (KeyError, IndexError) as e:
-            raise Exception(f"OpenAI API响应格式错误: {str(e)}")
+                return {
+                    'content': data['choices'][0]['message']['content'],
+                    'usage': data.get('usage', {}),
+                    'model': data.get('model'),
+                    'raw': data
+                }
+
+            except requests.exceptions.Timeout as e:
+                if attempt < max_retries - 1:
+                    print(f"OpenAI API请求超时，第{attempt + 1}次重试...")
+                    continue
+                raise Exception(f"OpenAI API请求超时（已重试{max_retries}次）: {str(e)}")
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    print(f"OpenAI API请求失败，第{attempt + 1}次重试: {str(e)}")
+                    import time
+                    time.sleep(1)  # 等待1秒后重试
+                    continue
+                raise Exception(f"OpenAI API请求失败（已重试{max_retries}次）: {str(e)}")
+            except (KeyError, IndexError) as e:
+                raise Exception(f"OpenAI API响应格式错误: {str(e)}")
 
 
 def get_ai_service(config=None) -> AIServiceBase:
