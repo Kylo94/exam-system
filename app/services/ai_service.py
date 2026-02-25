@@ -154,9 +154,13 @@ class DeepSeekService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        # 增加超时时间到180秒，并添加重试机制
+        # 添加stream参数，如果需要流式输出
+        if kwargs.get('stream', False):
+            payload['stream'] = True
+
+        # 增加超时时间到300秒（5分钟），推理模型需要更长的时间
         max_retries = 3
-        timeout = 180  # 3分钟超时
+        timeout = 300  # 5分钟超时
 
         for attempt in range(max_retries):
             try:
@@ -170,18 +174,53 @@ class DeepSeekService(AIServiceBase):
 
                 data = response.json()
 
-                return {
+                # DeepSeek R1模型支持返回思考过程
+                result = {
                     'content': data['choices'][0]['message']['content'],
                     'usage': data.get('usage', {}),
                     'model': data.get('model'),
                     'raw': data
                 }
 
+                # 如果有思考过程，提取出来
+                message = data.get('choices', [{}])[0].get('message', {})
+
+                # 调试：打印message的所有键
+                print(f"DEBUG: message keys = {list(message.keys())}")
+                if 'reasoning_content' in message:
+                    print(f"DEBUG: 找到reasoning_content，长度 = {len(message['reasoning_content'])}")
+
+                # 方式1: 直接在message中有reasoning_content字段
+                if 'reasoning_content' in message:
+                    result['reasoning'] = message['reasoning_content']
+
+                # 方式2: 在delta字段中有reasoning_content
+                if 'delta' in message and 'reasoning_content' in message['delta']:
+                    result['reasoning'] = message['delta']['reasoning_content']
+
+                return result
+
             except requests.exceptions.Timeout as e:
                 if attempt < max_retries - 1:
                     print(f"DeepSeek API请求超时，第{attempt + 1}次重试...")
                     continue
                 raise Exception(f"DeepSeek API请求超时（已重试{max_retries}次）: {str(e)}")
+            except requests.exceptions.HTTPError as e:
+                # 捕获HTTP错误，返回详细错误信息
+                error_msg = f"DeepSeek API返回HTTP错误: {str(e)}"
+                try:
+                    if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                        error_detail = e.response.text[:500]
+                        error_msg += f"\nAPI响应: {error_detail}"
+                except:
+                    pass
+
+                if attempt < max_retries - 1:
+                    print(f"DeepSeek API请求失败，第{attempt + 1}次重试...")
+                    import time
+                    time.sleep(1)
+                    continue
+                raise Exception(error_msg)
             except requests.exceptions.RequestException as e:
                 if attempt < max_retries - 1:
                     print(f"DeepSeek API请求失败，第{attempt + 1}次重试: {str(e)}")
@@ -222,9 +261,9 @@ class OpenAIService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        # 增加超时时间到180秒，并添加重试机制
+        # 增加超时时间到300秒（5分钟），支持推理模型
         max_retries = 3
-        timeout = 180  # 3分钟超时
+        timeout = 300  # 5分钟超时
 
         for attempt in range(max_retries):
             try:

@@ -504,10 +504,13 @@
             
             // 表格视图
             const tableHtml = questions.map(q => {
-                const examTitle = q.exam ? q.exam.title : '未关联';
+                const examTitle = q.exam ? q.exam.title : (q.exam_title || '未关联');
                 const typeLabel = typeLabels[q.type] || q.type;
                 const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
-                
+                // 去除HTML标签的预览
+                const plainContent = q.content ? q.content.replace(/<[^>]*>/g, '') : '';
+                const plainExplanation = q.explanation ? q.explanation.replace(/<[^>]*>/g, '') : '';
+
                 return `
                     <tr>
                         <td>
@@ -515,13 +518,13 @@
                         </td>
                         <td>${q.id}</td>
                         <td>
-                            <div>${q.content.substring(0, 50)}${q.content.length > 50 ? '...' : ''}</div>
-                            ${q.explanation ? `<small class="text-muted">${q.explanation.substring(0, 30)}...</small>` : ''}
+                            <div>${plainContent.substring(0, 50)}${plainContent.length > 50 ? '...' : ''}</div>
+                            ${plainExplanation ? `<small class="text-muted">${plainExplanation.substring(0, 30)}...</small>` : ''}
                         </td>
                         <td>
                             <span class="badge ${badgeColor}">${typeLabel}</span>
                         </td>
-                        <td>${q.score}</td>
+                        <td>${q.points || q.score || 0}</td>
                         <td>
                             <a href="/exams/${q.exam_id}" class="text-decoration-none">${examTitle}</a>
                         </td>
@@ -542,26 +545,28 @@
                     </tr>
                 `;
             }).join('');
-            
+
             tbody.innerHTML = tableHtml;
-            
+
             // 卡片视图
             const cardsHtml = questions.map(q => {
-                const examTitle = q.exam ? q.exam.title : '未关联';
+                const examTitle = q.exam ? q.exam.title : (q.exam_title || '未关联');
                 const typeLabel = typeLabels[q.type] || q.type;
                 const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
-                
+                const plainContent = q.content ? q.content.replace(/<[^>]*>/g, '') : '';
+                const plainExplanation = q.explanation ? q.explanation.replace(/<[^>]*>/g, '') : '';
+
                 return `
                     <div class="col-md-6 col-lg-4 mb-3">
                         <div class="card h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <span class="badge ${badgeColor}">${typeLabel}</span>
-                                    <small class="text-muted">${q.score}分</small>
+                                    <small class="text-muted">${q.points || q.score || 0}分</small>
                                 </div>
-                                <h6 class="card-title">${q.content.substring(0, 60)}${q.content.length > 60 ? '...' : ''}</h6>
+                                <h6 class="card-title">${plainContent.substring(0, 60)}${plainContent.length > 60 ? '...' : ''}</h6>
                                 <p class="card-text small text-muted mb-2">试卷: ${examTitle}</p>
-                                ${q.explanation ? `<p class="card-text small text-muted mb-2">解析: ${q.explanation.substring(0, 40)}...</p>` : ''}
+                                ${plainExplanation ? `<p class="card-text small text-muted mb-2">解析: ${plainExplanation.substring(0, 40)}...</p>` : ''}
                             </div>
                             <div class="card-footer bg-transparent border-top-0">
                                 <div class="btn-group btn-group-sm w-100">
@@ -843,24 +848,44 @@
             fetch(`/api/questions/${id}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        const q = data.data;
+                    console.log('编辑题目API响应:', data);
+                    console.log('success:', data.success);
+                    console.log('data:', data.data);
+                    console.log('question:', data.data?.question);
+                    if (data.success && data.data && data.data.question) {
+                        const q = data.data.question;
                         
                         document.getElementById('editQuestionId').value = q.id;
                         document.getElementById('editExamSelect').value = q.exam_id;
                         document.getElementById('editQuestionType').value = q.type;
                         document.getElementById('editQuestionContent').value = q.content;
-                        document.getElementById('editQuestionScore').value = q.score;
+                        document.getElementById('editQuestionScore').value = q.points || q.score || 1;
                         document.getElementById('editQuestionOrder').value = q.order_index || 0;
                         document.getElementById('editQuestionExplanation').value = q.explanation || '';
                         
                         updateEditFormFields();
-                        
-                        // 处理选项
+
+                        // 处理选项 - 支持多种选项格式
                         if (q.type === 'single_choice' || q.type === 'multiple_choice') {
                             const options = q.options || {};
-                            const choices = options.choices || [];
-                            
+                            // 支持多种选项格式: {'choices': [...]}, {'A': '...'}, [{'id': 'A', 'text': '...'}], [...]
+                            let choices = [];
+                            if (Array.isArray(options)) {
+                                // 格式: [{'id': 'A', 'text': '...'}, ...] 或 ['选项A', '选项B', ...]
+                                if (options.length > 0 && typeof options[0] === 'object' && options[0].text) {
+                                    choices = options.map(opt => opt.text);
+                                } else {
+                                    choices = options;
+                                }
+                            } else if (options.choices && Array.isArray(options.choices)) {
+                                // 格式: {'choices': [...]}
+                                choices = options.choices;
+                            } else if (typeof options === 'object') {
+                                // 格式: {'A': '选项A', 'B': '选项B', ...}
+                                const labels = Object.keys(options).sort();
+                                choices = labels.map(label => options[label]);
+                            }
+
                             const container = document.getElementById('editChoicesContainer');
                             const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                             container.innerHTML = choices.map((choice, i) => `
@@ -897,7 +922,14 @@
                         }
                         
                         bootstrap.Modal.getOrCreateInstance(document.getElementById('editQuestionModal')).show();
+                    } else {
+                        console.error('获取题目详情失败:', data);
+                        alert('获取题目详情失败：' + (data.message || '未知错误'));
                     }
+                })
+                .catch(error => {
+                    console.error('编辑题目请求失败:', error);
+                    alert('编辑题目请求失败，请稍后重试');
                 });
         }
         
@@ -985,15 +1017,32 @@
             fetch(`/api/questions/${id}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        const q = data.data;
+                    console.log('预览题目API响应:', data);
+                    console.log('success:', data.success);
+                    console.log('data:', data.data);
+                    console.log('question:', data.data?.question);
+                    if (data.success && data.data && data.data.question) {
+                        const q = data.data.question;
                         const typeLabel = typeLabels[q.type] || q.type;
                         const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
                         
                         let optionsHtml = '';
                         if (q.type === 'single_choice' || q.type === 'multiple_choice') {
                             const options = q.options || {};
-                            const choices = options.choices || [];
+                            // 支持多种选项格式
+                            let choices = [];
+                            if (Array.isArray(options)) {
+                                if (options.length > 0 && typeof options[0] === 'object' && options[0].text) {
+                                    choices = options.map(opt => opt.text);
+                                } else {
+                                    choices = options;
+                                }
+                            } else if (options.choices && Array.isArray(options.choices)) {
+                                choices = options.choices;
+                            } else if (typeof options === 'object') {
+                                const labels = Object.keys(options).sort();
+                                choices = labels.map(label => options[label]);
+                            }
                             const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                             optionsHtml = choices.map((choice, i) => `
                                 <div class="form-check">
@@ -1011,11 +1060,11 @@
                         } else {
                             answerHtml = `<span class="badge bg-success">${q.correct_answer}</span>`;
                         }
-                        
+
                         const html = `
                             <div class="mb-3">
                                 <span class="badge ${badgeColor}">${typeLabel}</span>
-                                <span class="badge bg-secondary">${q.score}分</span>
+                                <span class="badge bg-secondary">${q.points || q.score || 0}分</span>
                             </div>
                             <h5>${q.content}</h5>
                             ${optionsHtml ? `<div class="mt-3">${optionsHtml}</div>` : ''}
@@ -1028,9 +1077,12 @@
                                 创建时间：${formatDate(q.created_at)}
                             </div>
                         `;
-                        
+
                         document.getElementById('previewContent').innerHTML = html;
                         bootstrap.Modal.getOrCreateInstance(document.getElementById('previewQuestionModal')).show();
+                    } else {
+                        console.error('获取题目详情失败:', data);
+                        alert('获取题目详情失败：' + (data.message || '未知错误'));
                     }
                 });
         }

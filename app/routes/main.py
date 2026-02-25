@@ -5,6 +5,7 @@
 
 from flask import Blueprint, render_template, jsonify, current_app, redirect, url_for, request
 from flask_login import login_required, current_user
+from app.utils.response_utils import api_response
 
 main_bp = Blueprint('main', __name__)
 
@@ -419,10 +420,79 @@ def edit_question_page(question_id):
         return render_template('errors/500.html', message=str(e)), 500
 
 
+@main_bp.route('/api/questions/<int:question_id>', methods=['GET'])
+@login_required
+@api_response
+def get_question_detail(question_id):
+    """获取单个题目详情API（公开，需要登录）"""
+    from app.models.question import Question
+    from app.utils.response_utils import error_response
+
+    question = Question.get_by_id(question_id)
+    if not question:
+        return error_response('题目不存在', 404)
+
+    return {
+        'question': question.to_dict(include_exam=True)
+    }, 200
+
+
+@main_bp.route('/api/questions', methods=['GET'])
+@login_required
+@api_response
+def get_questions_list():
+    """获取题目列表API（公开，需要登录）"""
+    from app.models.question import Question
+    from app.utils.response_utils import error_response
+    from flask import request
+
+    try:
+        # 获取分页参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+
+        # 获取筛选参数
+        exam_id = request.args.get('exam_id', type=int)
+        question_type = request.args.get('type', type=str)
+        content = request.args.get('content', type=str)
+
+        # 构建查询
+        query = Question.query
+
+        if exam_id:
+            query = query.filter_by(exam_id=exam_id)
+        if question_type:
+            query = query.filter_by(type=question_type)
+        if content:
+            query = query.filter(Question.content.like(f'%{content}%'))
+
+        # 分页
+        pagination = query.order_by(Question.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+
+        questions = pagination.items
+
+        return {
+            'items': [q.to_dict(include_exam=True) for q in questions],
+            'pagination': {
+                'total': pagination.total,
+                'pages': pagination.pages,
+                'current_page': pagination.page,
+                'per_page': pagination.per_page,
+                'has_next': pagination.has_next,
+                'has_prev': pagination.has_prev
+            }
+        }, 200
+    except Exception as e:
+        return error_response(f'获取题目列表失败: {str(e)}', 500)
+
+
 @main_bp.route('/upload')
+@login_required
 def upload_page():
-    """文档上传页面（已废弃，请使用试卷管理）"""
-    return redirect(url_for('main.exam_manage_page'))
+    """试卷上传页面"""
+    return render_template('upload.html')
 
 
 @main_bp.route('/exam-manage')
@@ -452,6 +522,25 @@ def ai_configs_page():
 def practice_page():
     """专项刷题页面"""
     return render_template('practice/index.html')
+
+
+@main_bp.route('/exam-edit/<int:exam_id>')
+@login_required
+def exam_edit_page(exam_id):
+    """试卷编辑页面"""
+    try:
+        from app.services import ExamService
+        from app.extensions import db
+
+        service = ExamService(db)
+        exam = service.get_by_id(exam_id)
+
+        if not exam:
+            return render_template('errors/404.html', message='试卷不存在'), 404
+
+        return render_template('exam_edit.html', exam_id=exam_id)
+    except Exception as e:
+        return render_template('errors/500.html', message=str(e)), 500
 
 
 @main_bp.route('/api/health')
@@ -504,14 +593,4 @@ def api_subjects():
     })
 
 
-@main_bp.route('/api/subjects/<int:subject_id>/levels', methods=['GET'])
-def api_subject_levels(subject_id):
-    """获取指定科目的等级列表（公开接口）"""
-    from app.models import Level
-    from app.extensions import db
-
-    levels = Level.query.filter_by(subject_id=subject_id, is_active=True).order_by(Level.order_index, Level.name).all()
-    return jsonify({
-        'success': True,
-        'data': [l.to_dict(include_exams=True) for l in levels]
-    })
+# 以下路由已迁移到 subjects_bp

@@ -33,6 +33,14 @@
             border-color: #0d6efd;
             background-color: #e7f1ff;
         }
+        /* 确保卡片内容不会贴边 */
+        .card-body {
+            padding: 1.5rem;
+        }
+        /* 表单控件间距 */
+        .form-control, .form-select {
+            border-radius: 0.375rem;
+        }
     </style>
 </head>
 <body>
@@ -92,6 +100,7 @@
             <div class="card-body">
                 <h5 class="card-title mb-4">解析文件创建试卷</h5>
                 <form id="formParse">
+                    <div class="row">
                         <div class="col-md-12">
                             <div class="mb-3">
                                 <label class="form-label">选择试卷文件 *</label>
@@ -428,6 +437,8 @@
             progressText.textContent = '准备中...';
 
             let parseId = null;
+            let progressInterval = null;
+            let parseCompleted = false;
 
             // 首先调用解析接口
             fetch('/api/upload/parse', {
@@ -442,13 +453,80 @@
                 if (data.success) {
                     parseId = data.data?.parse_id;
 
-                    // 显示解析日志
-                    if (data.data && data.data.parse_log) {
-                        logContent.innerHTML = data.data.parse_log;
-                    }
+                    // 开始轮询进度
+                    progressInterval = setInterval(() => {
+                        if (parseCompleted) {
+                            clearInterval(progressInterval);
+                            return;
+                        }
 
-                    // 解析成功后，继续创建考试
-                    createExam(formData, data.data, logContent, progressBar, progressText, signal);
+                        fetch(`/api/upload/progress/${parseId}`)
+                            .then(response => response.json())
+                            .then(progressData => {
+                                if (progressData.success) {
+                                    const { percent, message, logs, completed } = progressData.data;
+
+                                    // 更新进度条
+                                    progressBar.style.width = `${percent}%`;
+                                    progressBar.setAttribute('aria-valuenow', percent);
+                                    progressText.textContent = message;
+
+                                    // 更新日志显示
+                                    if (logs && logs.length > 0) {
+                                        logContent.innerHTML = logs.map(log => {
+                                            let iconClass = 'bi-info-circle';
+                                            let textClass = 'text-info';
+                                            if (log.level === 'success') {
+                                                iconClass = 'bi-check-circle';
+                                                textClass = 'text-success';
+                                            } else if (log.level === 'warning') {
+                                                iconClass = 'bi-exclamation-triangle';
+                                                textClass = 'text-warning';
+                                            } else if (log.level === 'error') {
+                                                iconClass = 'bi-x-circle';
+                                                textClass = 'text-danger';
+                                            }
+
+                                            const logMessage = log.message
+                                                .replace(/</g, '&lt;')
+                                                .replace(/>/g, '&gt;')
+                                                .replace(/\n/g, '<br>');
+
+                                            return `<div class="${textClass}" style="margin-bottom: 2px; font-size: 14px;">
+                                                <i class="bi ${iconClass} me-1"></i>
+                                                <span class="text-muted small">[${log.timestamp}]</span>
+                                                ${logMessage}
+                                            </div>`;
+                                        }).join('');
+
+                                        // 自动滚动到底部
+                                        logContent.scrollTop = logContent.scrollHeight;
+                                    }
+
+                                    // 检查是否完成
+                                    if (completed) {
+                                        parseCompleted = true;
+                                        clearInterval(progressInterval);
+
+                                        // 检查题目数量
+                                        const questionCount = data.data?.question_count || 0;
+                                        if (questionCount === 0) {
+                                            const errorMsg = '解析完成，但没有识别到任何题目。请检查文档格式是否正确，或尝试使用规则解析。';
+                                            logContent.innerHTML += `<div class="text-warning mt-2"><i class="bi bi-exclamation-triangle"></i> ${errorMsg}</div>`;
+                                            resetParseUI();
+                                            return;
+                                        }
+
+                                        // 解析成功后，继续创建考试
+                                        createExam(formData, data.data, logContent, progressBar, progressText, signal);
+                                    }
+                                }
+                            })
+                            .catch(err => {
+                                console.error('获取进度失败:', err);
+                            });
+                    }, 500); // 每500毫秒轮询一次
+
                 } else {
                     const errorMsg = '解析失败：' + (data.message || '未知错误');
                     logContent.innerHTML += `<div class="text-danger mt-2"><i class="bi bi-x-circle"></i> ${errorMsg}</div>`;
@@ -458,6 +536,8 @@
             .catch(error => {
                 if (error.name === 'AbortError') {
                     console.log('解析已取消');
+                    if (progressInterval) clearInterval(progressInterval);
+                    resetParseUI('解析已取消');
                     return;
                 }
                 console.error('解析失败:', error);
@@ -469,6 +549,11 @@
             function resetParseUI(message = null) {
                 document.getElementById('btnParse').disabled = false;
                 document.getElementById('btnParse').innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>解析文件并创建试卷';
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                }
+                parseCompleted = true;
                 if (message) {
                     logContent.innerHTML += `<div class="text-warning mt-2"><i class="bi bi-exclamation-triangle"></i> ${message}</div>`;
                 }
@@ -497,6 +582,11 @@
                     if (data.success) {
                         const msg = '试卷创建成功！共导入 ' + (data.data?.questions?.created || 0) + ' 道题目';
                         logContent.innerHTML += `<div class="text-success mt-2"><i class="bi bi-check-circle"></i> ${msg}</div>`;
+
+                        // 立即重置按钮状态，禁用并显示成功
+                        document.getElementById('btnParse').innerHTML = '<i class="bi bi-check-circle me-1"></i>创建成功';
+                        document.getElementById('btnParse').classList.remove('btn-primary');
+                        document.getElementById('btnParse').classList.add('btn-success');
 
                         // 5秒后自动跳转
                         let countdown = 5;

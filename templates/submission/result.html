@@ -93,6 +93,67 @@
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
         }
+        .answer-card {
+            background-color: #f8f9fa;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .answer-card-item {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            margin: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            border: 2px solid transparent;
+        }
+        .answer-card-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .answer-card-item.correct {
+            background-color: #28a745;
+            color: white;
+        }
+        .answer-card-item.incorrect {
+            background-color: #dc3545;
+            color: white;
+        }
+        .answer-card-item.unanswered {
+            background-color: #6c757d;
+            color: white;
+        }
+        .answer-card-item.active {
+            border-color: #007bff;
+            transform: scale(1.1);
+        }
+        .card-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 1rem;
+        }
+        .sticky-sidebar {
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -177,15 +238,51 @@
                 </div>
             </div>
         </div>
-        
-        <!-- 答题详情 -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="h5 mb-0">
-                    <i class="bi bi-list-check me-1"></i>答题详情
-                    <span class="badge bg-secondary ms-2">{{ all_answers|length }}题</span>
-                </h2>
+
+        <!-- 答题卡和答题详情 -->
+        <div class="row">
+            <!-- 左侧答题卡 -->
+            <div class="col-lg-3 mb-4">
+                <div class="answer-card sticky-sidebar">
+                    <h5 class="mb-3">
+                        <i class="bi bi-grid-3x3 me-2"></i>答题卡
+                    </h5>
+                    <div class="card-legend">
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #28a745;"></div>
+                            <span>正确</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #dc3545;"></div>
+                            <span>错误</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: #6c757d;"></div>
+                            <span>未答</span>
+                        </div>
+                    </div>
+                    <div id="answerCardGrid" style="display: flex; flex-wrap: wrap; justify-content: center;">
+                        {% for answer in all_answers %}
+                        <div class="answer-card-item {% if answer.user_answer %}{% if answer.is_correct %}correct{% else %}incorrect{% endif %}{% else %}unanswered{% endif %}"
+                             data-question-id="question-{{ answer.question.id }}"
+                             onclick="scrollToQuestion('{{ answer.question.id }}')"
+                             title="第{{ loop.index }}题">
+                            {{ loop.index }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
+
+            <!-- 右侧答题详情 -->
+            <div class="col-lg-9 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">
+                            <i class="bi bi-list-check me-1"></i>答题详情
+                            <span class="badge bg-secondary ms-2">{{ all_answers|length }}题</span>
+                        </h2>
+                    </div>
             <div class="card-body">
                 {% for answer in all_answers %}
                 <div class="question-result {% if answer.user_answer %}{% if answer.is_correct %}correct{% else %}incorrect{% endif %}{% else %}unanswered{% endif %}"
@@ -231,11 +328,12 @@
                     </div>
                     
                     <!-- 选项列表（始终显示） -->
-                    {% if answer.question.options and answer.question.options.choices %}
+                    {% set options_list = answer.question.get_options_list() %}
+                    {% if options_list %}
                     <div class="answer-comparison mb-3">
                         <h6 class="mb-3"><i class="bi bi-list-ul me-1"></i>题目选项</h6>
                         <div class="list-group">
-                            {% for option in answer.question.options.choices %}
+                            {% for option in options_list %}
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div class="flex-grow-1">
                                     <span class="fw-bold">{{ option.id }}.</span> {{ option.text }}
@@ -341,8 +439,10 @@
                 </div>
                 {% endfor %}
             </div>
+                </div>
+            </div>
         </div>
-        
+
         <!-- 分析报告 -->
         <div class="analysis-section">
             <h3 class="h5 mb-3">
@@ -473,6 +573,30 @@
     {% include "partials/scripts.html" %}
     
     <script>
+        // 滚动到指定题目
+        function scrollToQuestion(questionId) {
+            const element = document.getElementById(`question-${questionId}`);
+            if (element) {
+                // 移除所有答题卡项的 active 状态
+                document.querySelectorAll('.answer-card-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                // 添加当前点击项的 active 状态
+                const clickedItem = document.querySelector(`.answer-card-item[data-question-id="question-${questionId}"]`);
+                if (clickedItem) {
+                    clickedItem.classList.add('active');
+                }
+                // 滚动到题目
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // 高亮题目
+                element.style.transition = 'background-color 0.3s';
+                element.style.backgroundColor = '#fffde7';
+                setTimeout(() => {
+                    element.style.backgroundColor = '';
+                }, 2000);
+            }
+        }
+
         // 分享结果
         function shareResult() {
             const resultText = `我在《${document.title}》中得分: ${ {{ submission.obtained_score }} }/${ {{ submission.total_score }} }分，得分率: ${ {{ submission.score_percentage }} }%`;
@@ -502,26 +626,57 @@
         document.addEventListener('DOMContentLoaded', function() {
             const firstIncorrect = document.querySelector('.question-result.incorrect');
             const firstUnanswered = document.querySelector('.question-result.unanswered');
-            
+
             // 优先滚动到第一个错题，如果没有则滚动到第一个未答题
             const target = firstIncorrect || firstUnanswered;
             if (target) {
+                const questionId = target.id.replace('question-', '');
+                // 高亮对应的答题卡项
+                const cardItem = document.querySelector(`.answer-card-item[data-question-id="${target.id}"]`);
+                if (cardItem) {
+                    cardItem.classList.add('active');
+                }
                 setTimeout(() => {
                     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 1000);
             }
-            
-            // 高亮当前题目
+
+            // 高亮当前题目（如果URL有hash）
             const hash = window.location.hash;
             if (hash) {
                 const element = document.querySelector(hash);
                 if (element) {
+                    const questionId = hash.replace('#question-', '');
+                    // 高亮对应的答题卡项
+                    const cardItem = document.querySelector(`.answer-card-item[data-question-id="${hash.replace('#', '')}"]`);
+                    if (cardItem) {
+                        cardItem.classList.add('active');
+                    }
                     element.style.backgroundColor = '#fffde7';
                     setTimeout(() => {
                         element.style.backgroundColor = '';
                     }, 3000);
                 }
             }
+
+            // 监听滚动事件，高亮可见题目对应的答题卡项
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const questionId = entry.target.id;
+                    const cardItem = document.querySelector(`.answer-card-item[data-question-id="${questionId}"]`);
+                    if (cardItem) {
+                        if (entry.isIntersecting) {
+                            cardItem.classList.add('active');
+                        } else {
+                            cardItem.classList.remove('active');
+                        }
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            document.querySelectorAll('.question-result').forEach(question => {
+                observer.observe(question);
+            });
         });
         
         // 打印优化

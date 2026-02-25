@@ -187,21 +187,43 @@ class Question(BaseModel):
     def get_options_list(self) -> List[Dict[str, Any]]:
         """
         获取选项列表
-        
+
         Returns:
             选项字典列表，如果options为None则返回空列表
         """
         if self.options is None:
             return []
-        
+
         # 确保返回的是列表
         if isinstance(self.options, str):
             try:
-                return json.loads(self.options)
+                options_data = json.loads(self.options)
             except json.JSONDecodeError:
                 return []
-        
-        return self.options or []
+        else:
+            options_data = self.options
+
+        # 处理不同的选项格式
+        if isinstance(options_data, dict):
+            # 格式1: {'choices': ['选项A', '选项B', ...]}
+            if 'choices' in options_data and isinstance(options_data['choices'], list):
+                choices = options_data['choices']
+                return [{'id': chr(65 + i), 'text': str(choices[i])} for i in range(len(choices))]
+            # 格式2: {'A': '选项A', 'B': '选项B', ...}
+            elif all(k.upper() in 'ABCD' for k in options_data.keys()):
+                return [{'id': k.upper(), 'text': str(v)} for k, v in options_data.items()]
+            else:
+                return []
+
+        if isinstance(options_data, list):
+            # 格式3: [{'id': 'A', 'text': '选项A'}, ...]
+            if all(isinstance(opt, dict) for opt in options_data):
+                return options_data
+            # 格式4: ['选项A', '选项B', ...]
+            elif all(isinstance(opt, str) for opt in options_data):
+                return [{'id': chr(65 + i), 'text': opt} for i, opt in enumerate(options_data)]
+
+        return []
     
     def get_option_text(self, option_id: str) -> Optional[str]:
         """

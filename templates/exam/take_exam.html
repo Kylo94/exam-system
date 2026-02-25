@@ -41,6 +41,13 @@
         .option-item input[type="radio"] {
             margin-right: 0.5rem;
         }
+        .option-item .form-check-label {
+            display: inline;
+            cursor: pointer;
+        }
+        .option-item .form-check-label strong {
+            margin-right: 0.25rem;
+        }
         .timer {
             font-size: 1.5rem;
             font-weight: bold;
@@ -190,36 +197,46 @@
                     <div class="answer-area">
                         {% if question.type == 'single_choice' %}
                             <!-- 单选题 -->
-                            {% if question.options and question.options.choices %}
-                                {% for option in question.options.choices %}
-                                <div class="option-item" onclick="selectSingleChoice({{ question.id }}, '{{ option.id }}')">
-                                    <input type="radio" 
-                                           id="q{{ question.id }}_{{ option.id }}" 
-                                           name="answers[{{ question.id }}]" 
-                                           value="{{ option.id }}"
+                            {% set options_list = question.get_options_list() %}
+                            {% set option_labels = ['A', 'B', 'C', 'D', 'E', 'F'] %}
+                            {% if options_list %}
+                                {% for option in options_list %}
+                                {% set option_id = option.get('id', option_labels[loop.index0] if loop.index0 < option_labels|length else loop.index0|string) %}
+                                {% set option_text = option.get('text', option) if option is mapping else option %}
+                                {% set option_label = option_labels[loop.index0] if loop.index0 < option_labels|length else option_id %}
+                                <div class="option-item" onclick="selectSingleChoice({{ question.id }}, '{{ option_id }}')">
+                                    <input type="radio"
+                                           id="q{{ question.id }}_{{ option_id }}"
+                                           name="answers[{{ question.id }}]"
+                                           value="{{ option_id }}"
                                            class="form-check-input">
-                                    <label for="q{{ question.id }}_{{ option.id }}" class="form-check-label w-100">
-                                        <strong>{{ option.id }}.</strong> {{ option.text }}
+                                    <label for="q{{ question.id }}_{{ option_id }}" class="form-check-label">
+                                        <strong>{{ option_label }}.</strong> {{ option_text }}
                                     </label>
                                 </div>
                                 {% endfor %}
                             {% else %}
                                 <div class="alert alert-warning">此题目没有选项</div>
                             {% endif %}
-                            
+
                         {% elif question.type == 'multiple_choice' %}
                             <!-- 多选题 -->
-                            {% if question.options and question.options.choices %}
-                                {% for option in question.options.choices %}
+                            {% set options_list = question.get_options_list() %}
+                            {% set option_labels = ['A', 'B', 'C', 'D', 'E', 'F'] %}
+                            {% if options_list %}
+                                {% for option in options_list %}
+                                {% set option_id = option.get('id', option_labels[loop.index0] if loop.index0 < option_labels|length else loop.index0|string) %}
+                                {% set option_text = option.get('text', option) if option is mapping else option %}
+                                {% set option_label = option_labels[loop.index0] if loop.index0 < option_labels|length else option_id %}
                                 <div class="option-item">
-                                    <input type="checkbox" 
-                                           id="q{{ question.id }}_{{ option.id }}" 
-                                           name="answers[{{ question.id }}][]" 
-                                           value="{{ option.id }}"
+                                    <input type="checkbox"
+                                           id="q{{ question.id }}_{{ option_id }}"
+                                           name="answers[{{ question.id }}][]"
+                                           value="{{ option_id }}"
                                            class="form-check-input"
                                            onchange="updateMultiChoice({{ question.id }})">
-                                    <label for="q{{ question.id }}_{{ option.id }}" class="form-check-label w-100">
-                                        <strong>{{ option.id }}.</strong> {{ option.text }}
+                                    <label for="q{{ question.id }}_{{ option_id }}" class="form-check-label">
+                                        <strong>{{ option_label }}.</strong> {{ option_text }}
                                     </label>
                                 </div>
                                 {% endfor %}

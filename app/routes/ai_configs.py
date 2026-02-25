@@ -214,6 +214,7 @@ def test_ai_config(config_id):
         from app.extensions import db
         from app.models.ai_config import AIConfig
         from app.services.ai_service import get_ai_service
+        import requests
 
         config = AIConfig.query.get(config_id)
         if not config:
@@ -230,16 +231,36 @@ def test_ai_config(config_id):
             {"role": "user", "content": "Hello, please respond with 'OK'."}
         ]
 
-        response = ai_service.chat(messages)
+        try:
+            response = ai_service.chat(messages)
 
-        return jsonify({
-            'success': True,
-            'message': 'AI配置测试成功',
-            'data': {
-                'response': response.get('content', ''),
-                'usage': response.get('usage', {})
-            }
-        })
+            return jsonify({
+                'success': True,
+                'message': 'AI配置测试成功',
+                'data': {
+                    'response': response.get('content', ''),
+                    'usage': response.get('usage', {}),
+                    'model': response.get('model', '')
+                }
+            })
+        except requests.exceptions.HTTPError as e:
+            # 尝试获取API返回的详细错误信息
+            error_detail = str(e)
+            try:
+                if hasattr(e.response, 'text'):
+                    error_detail = f"{str(e)}\nAPI响应: {e.response.text[:500]}"
+            except:
+                pass
+
+            return jsonify({
+                'success': False,
+                'message': f'AI配置测试失败（HTTP错误）: {error_detail}'
+            }), 500
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'message': f'AI配置测试失败: {str(e)}'
+            }), 500
 
     except Exception as e:
         return jsonify({
@@ -258,8 +279,12 @@ def get_supported_providers():
                 'name': 'DeepSeek',
                 'description': 'DeepSeek AI',
                 'default_model': 'deepseek-chat',
-                'default_api_url': 'https://api.deepseek.com/v1/chat/completions',
-                'models': ['deepseek-chat', 'deepseek-coder']
+                'default_api_url': 'https://api.deepseek.com/chat/completions',
+                'models': [
+                    'deepseek-chat',
+                    'deepseek-reasoner',
+                    'deepseek-coder'
+                ]
             },
             {
                 'id': 'openai',

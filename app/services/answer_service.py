@@ -229,8 +229,8 @@ class AnswerService(BaseService[Answer]):
             return None
         
         # 验证分数不超过问题分值
-        if score > question.score:
-            score = question.score
+        if score > question.points:
+            score = question.points
         
         answer.is_correct = is_correct
         answer.score = score
@@ -241,17 +241,21 @@ class AnswerService(BaseService[Answer]):
         if submission:
             # 重新计算总分
             submission_answers = self.get_by_submission_id(submission.id)
-            submission.obtained_score = sum(a.score for a in submission_answers)
-            
+            submission.obtained_score = sum(a.score for a in submission_answers if a.score is not None)
+
             # 计算百分比
-            if submission.total_score > 0:
+            if submission.total_score and submission.total_score > 0:
                 submission.score_percentage = (submission.obtained_score / submission.total_score) * 100
-            
+            else:
+                submission.score_percentage = None
+
             # 判断是否及格
             exam = Exam.query.get(submission.exam_id)
-            if exam:
+            if exam and submission.score_percentage is not None:
                 submission.is_passed = submission.score_percentage >= exam.pass_score
-            
+            else:
+                submission.is_passed = None
+
             self.db.session.commit()
         
         return answer

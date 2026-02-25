@@ -89,7 +89,11 @@ def parse_document():
         try:
             # 创建进度回调函数，将进度信息存储到全局变量供轮询接口使用
             import threading
-            progress_data = {'percent': 0, 'message': '准备解析...'}
+            progress_data = {
+                'percent': 0,
+                'message': '准备解析...',
+                'logs': []  # 存储所有日志
+            }
             parse_id = str(uuid.uuid4())
 
             # 存储进度信息到内存（实际项目中可以使用Redis）
@@ -97,15 +101,71 @@ def parse_document():
                 parse_document.progress_store = {}
             parse_document.progress_store[parse_id] = progress_data
 
-            def progress_callback(percent, message):
-                """进度回调函数"""
-                progress_data['percent'] = percent
-                progress_data['message'] = message
-                print(f"[进度 {percent}%] {message}")
+            def progress_callback(*args, **kwargs):
+                """进度回调函数
+
+                支持两种调用方式：
+                1. progress_callback(progress, message, level) - 带进度
+                2. progress_callback(message, level) - 不带进度
+                """
+                progress_percent = None
+                log_message = ''
+                log_level = 'info'
+
+                print(f"[DEBUG] progress_callback 被调用，args={args}, kwargs={kwargs}")
+
+                if not args:
+                    return
+
+                # 判断调用方式
+                if len(args) >= 3 and isinstance(args[0], (int, float)):
+                    # progress_callback(progress, message, level)
+                    progress_percent = args[0]
+                    log_message = str(args[1]) if len(args) > 1 else ''
+                    log_level = str(args[2]) if len(args) > 2 else 'info'
+                    print(f"[DEBUG] 解析为带进度模式: progress={progress_percent}, message={log_message[:30]}..., level={log_level}")
+                elif len(args) >= 2 and isinstance(args[0], str):
+                    # progress_callback(message, level)
+                    log_message = str(args[0])
+                    log_level = str(args[1]) if len(args) > 1 else 'info'
+                    print(f"[DEBUG] 解析为带级别模式: message={log_message[:30]}..., level={log_level}")
+                elif len(args) == 1 and isinstance(args[0], str):
+                    # progress_callback(message)
+                    log_message = str(args[0])
+                    print(f"[DEBUG] 解析为纯消息模式: message={log_message[:30]}...")
+
+                # 更新进度
+                if progress_percent is not None:
+                    progress_data['percent'] = progress_percent
+                    print(f"[DEBUG] 更新进度: {progress_percent}%")
+                if log_message:
+                    progress_data['message'] = log_message
+                    print(f"[DEBUG] 更新消息: {log_message[:30]}...")
+
+                # 将日志添加到列表
+                if log_message:
+                    log_entry = {
+                        'message': log_message,
+                        'level': log_level,
+                        'timestamp': datetime.now().strftime('%H:%M:%S')
+                    }
+                    progress_data['logs'].append(log_entry)
+                    print(f"[DEBUG] 添加日志条目，当前日志数: {len(progress_data['logs'])}")
+
+                    # 限制日志数量，避免内存占用过大
+                    if len(progress_data['logs']) > 100:
+                        progress_data['logs'] = progress_data['logs'][-100:]
+
+                    print(f"[{log_level.upper()}] {log_message}")
 
             # 使用AI解析器解析文档
             ai_parser = AIDocumentParser(use_ai=True, progress_callback=progress_callback)
             parsed_data = ai_parser.parse_document(file_path)
+
+            # 标记解析完成
+            progress_data['percent'] = 100
+            progress_data['message'] = '解析完成'
+            progress_data['completed'] = True
 
             # 返回解析结果（包含parse_id用于获取日志）
             return jsonify({
@@ -115,7 +175,6 @@ def parse_document():
                     'questions_preview': parsed_data.get('questions', [])[:5],  # 预览前5个问题
                     'uploaded_file': original_filename,
                     'parse_method': parsed_data.get('parse_method', 'ai'),
-                    'parse_log': parsed_data.get('parse_log', ''),
                     'parse_id': parse_id
                 },
                 'message': '文档解析成功'
@@ -159,7 +218,9 @@ def get_parse_progress(parse_id):
             'success': True,
             'data': {
                 'percent': progress_data.get('percent', 0),
-                'message': progress_data.get('message', '')
+                'message': progress_data.get('message', ''),
+                'logs': progress_data.get('logs', []),
+                'completed': progress_data.get('completed', False)
             }
         })
 
