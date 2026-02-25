@@ -12,10 +12,91 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     """系统主页"""
-    # 已登录用户显示用户主页
+    # 已登录用户根据角色显示不同面板
     if current_user.is_authenticated:
-        return render_template('index.html')
-    
+        # 管理员跳转到管理面板
+        if current_user.is_admin():
+            return redirect(url_for('admin.dashboard'))
+
+        # 教师跳转到教师面板
+        if current_user.is_teacher():
+            return redirect(url_for('teacher.dashboard'))
+
+        # 学生显示学生个人面板
+        # 获取用户统计数据
+        from app.models import Submission, Answer, Question
+        from app.extensions import db
+        from sqlalchemy import func
+
+        # 统计总数
+        total_exams = db.session.query(func.count(Submission.id)).filter_by(user_id=current_user.id, status='submitted').scalar() or 0
+        total_answers = db.session.query(func.count(Answer.id)).join(Submission).filter(Submission.user_id==current_user.id).scalar() or 0
+
+        # 统计平均分
+        submitted_exams = Submission.query.filter_by(user_id=current_user.id, status='submitted').all()
+        average_score = sum([e.obtained_score or 0 for e in submitted_exams]) / len(submitted_exams) if submitted_exams else 0
+
+        # 统计正确率
+        total_answers_list = Answer.query.join(Submission).filter(Submission.user_id==current_user.id).all()
+        correct_count = sum([1 for a in total_answers_list if a.is_correct])
+        accuracy = (correct_count / len(total_answers_list) * 100) if total_answers_list else 0
+
+        # 最近考试记录
+        recent_submissions = Submission.query.filter_by(user_id=current_user.id)\
+            .order_by(Submission.submitted_at.desc()).limit(5).all()
+
+        # 为每个submission添加exam_title和accuracy属性
+        for sub in recent_submissions:
+            if sub.exam:
+                sub.exam_title = sub.exam.title
+            else:
+                sub.exam_title = '未命名考试'
+
+            # 计算本次考试的正确率
+            sub_answers = Answer.query.filter_by(submission_id=sub.id).all()
+            if sub_answers:
+                correct = sum([1 for a in sub_answers if a.is_correct])
+                sub.accuracy = (correct / len(sub_answers) * 100)
+            else:
+                sub.accuracy = 0
+
+        # 薄弱知识点统计
+        type_stats = db.session.query(
+            Question.type,
+            func.count(Answer.id).label('total'),
+            func.sum(func.cast(Answer.is_correct, db.Integer)).label('correct')
+        ).join(Answer).join(Submission)\
+            .filter(Submission.user_id==current_user.id)\
+            .group_by(Question.type)\
+            .all()
+
+        weak_types = []
+        type_name_map = {
+            'single_choice': '单选题',
+            'multiple_choice': '多选题',
+            'true_false': '判断题',
+            'fill_blank': '填空题',
+            'short_answer': '简答题'
+        }
+        for type_name, total, correct in type_stats:
+            percentage = (correct / total * 100) if total > 0 else 0
+            if percentage < 70:
+                weak_types.append({
+                    'type_name': type_name_map.get(type_name, type_name),
+                    'correct_percentage': percentage
+                })
+
+        stats = {
+            'total_exams': total_exams,
+            'total_questions': total_answers,
+            'average_score': average_score,
+            'accuracy': accuracy,
+            'weak_types': weak_types,
+            'days_learning': 1  # 暂时固定为1，可根据注册日期计算
+        }
+
+        return render_template('student_dashboard.html', stats=stats, recent_submissions=recent_submissions)
+
     # 未登录用户显示欢迎页面
     return render_template('welcome.html')
 
@@ -34,8 +115,14 @@ def dashboard():
 
 @main_bp.route('/exams')
 def exams_page():
-    """考试页面"""
-    return render_template('exams.html')
+    """考试页面（已废弃，重定向到真题测试）"""
+    return redirect(url_for('main.exam_select_page'))
+
+
+@main_bp.route('/exam-select')
+def exam_select_page():
+    """真题测试页面 - 科目-等级-试卷选择"""
+    return render_template('student_home.html', current_step=1)
 
 
 @main_bp.route('/exams/<int:exam_id>')
@@ -136,7 +223,8 @@ def take_exam(submission_id):
         # 扩展exam对象，添加问题列表
         exam.questions = questions
         exam.question_count = len(questions)
-        exam.total_score = sum(q.points for q in questions)
+        # 安全计算总分，跳过非数值类型的points
+        exam.total_score = sum(q.points if isinstance(q.points, (int, float)) else 0 for q in questions)
         
         return render_template('exam/take_exam.html', exam=exam, submission=submission)
     except Exception as e:
@@ -333,8 +421,19 @@ def edit_question_page(question_id):
 
 @main_bp.route('/upload')
 def upload_page():
-    """文档上传页面"""
-    return render_template('upload.html')
+    """文档上传页面（已废弃，请使用试卷管理）"""
+    return redirect(url_for('main.exam_manage_page'))
+
+
+@main_bp.route('/exam-manage')
+@login_required
+def exam_manage_page():
+    """试卷管理页面"""
+    from flask import flash
+    if not current_user.is_admin():
+        flash('您没有权限访问此页面', 'danger')
+        return redirect(url_for('main.dashboard'))
+    return render_template('admin/exam_manage.html')
 
 
 @main_bp.route('/submissions')
@@ -370,7 +469,7 @@ def system_info():
     """系统信息接口"""
     from app.models import Subject, Level, Exam, Question, Submission, Answer
     from app.extensions import db
-    
+
     with db.session() as session:
         stats = {
             'subjects': session.query(Subject).count(),
@@ -380,7 +479,7 @@ def system_info():
             'submissions': session.query(Submission).count(),
             'answers': session.query(Answer).count()
         }
-    
+
     return jsonify({
         'success': True,
         'data': {
@@ -389,4 +488,30 @@ def system_info():
             'upload_folder': current_app.config['UPLOAD_FOLDER'],
             'stats': stats
         }
+    })
+
+
+@main_bp.route('/api/subjects', methods=['GET'])
+def api_subjects():
+    """获取科目列表（公开接口）"""
+    from app.models import Subject
+    from app.extensions import db
+
+    subjects = Subject.query.filter_by(is_active=True).order_by(Subject.order_index, Subject.name).all()
+    return jsonify({
+        'success': True,
+        'data': [s.to_dict(include_levels=True) for s in subjects]
+    })
+
+
+@main_bp.route('/api/subjects/<int:subject_id>/levels', methods=['GET'])
+def api_subject_levels(subject_id):
+    """获取指定科目的等级列表（公开接口）"""
+    from app.models import Level
+    from app.extensions import db
+
+    levels = Level.query.filter_by(subject_id=subject_id, is_active=True).order_by(Level.order_index, Level.name).all()
+    return jsonify({
+        'success': True,
+        'data': [l.to_dict(include_exams=True) for l in levels]
     })

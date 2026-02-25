@@ -11,9 +11,6 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2">管理控制面板</h1>
             <div>
-                <a href="{{ url_for('main.exams_page') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-arrow-left me-1"></i>返回考试大厅
-                </a>
                 <a href="{{ url_for('admin.get_stats') }}" class="btn btn-primary" id="refresh-stats">
                     <i class="bi bi-arrow-clockwise me-1"></i>刷新统计
                 </a>
@@ -126,6 +123,9 @@
                             </a>
                             <a href="{{ url_for('main.questions_page') }}" class="btn btn-success">
                                 <i class="bi bi-question-circle me-1"></i>题目管理
+                            </a>
+                            <a href="{{ url_for('main.exam_manage_page') }}" class="btn btn-success">
+                                <i class="bi bi-file-earmark-text me-1"></i>试卷管理
                             </a>
                         </div>
                     </div>

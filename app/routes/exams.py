@@ -343,7 +343,8 @@ class ExamResource(BaseResource):
         question_service = QuestionService(self.get_service().db)
         questions = question_service.get_by_exam_id(exam.id)
         result['question_count'] = len(questions)
-        result['total_score'] = sum(q.points for q in questions)
+        # 安全计算总分，跳过非数值类型的points
+        result['total_score'] = sum(q.points if isinstance(q.points, (int, float)) else 0 for q in questions)
         
         # 包含问题列表
         if include_questions:

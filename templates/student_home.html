@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>在线答题系统</title>
+    <style>
+        .subject-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .subject-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .level-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .level-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .exam-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-left: 4px solid #0d6efd;
+        }
+        .exam-card:hover {
+            border-left-color: #198754;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .step {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        .step.active {
+            background: #0d6efd;
+            color: white;
+        }
+        .step.completed {
+            background: #198754;
+            color: white;
+        }
+        .step-line {
+            width: 100px;
+            height: 3px;
+            background: #e9ecef;
+            margin: 0 10px;
+        }
+        .step-line.completed {
+            background: #198754;
+        }
+        .back-btn {
+            transition: all 0.3s ease;
+        }
+        .back-btn:hover {
+            background: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <!-- 步骤指示器 -->
+        <div class="step-indicator">
+            <div class="step {{ 'active' if current_step >= 1 else '' }} {{ 'completed' if current_step > 1 else '' }}" id="step1">1</div>
+            <div class="step-line {{ 'completed' if current_step > 1 else '' }}"></div>
+            <div class="step {{ 'active' if current_step >= 2 else '' }} {{ 'completed' if current_step > 2 else '' }}" id="step2">2</div>
+            <div class="step-line {{ 'completed' if current_step > 2 else '' }}"></div>
+            <div class="step {{ 'active' if current_step >= 3 else '' }}" id="step3">3</div>
+        </div>
+
+        <!-- 步骤标题 -->
+        <div class="text-center mb-4">
+            <h2 id="stepTitle" class="h4">选择科目</h2>
+            <p id="stepSubtitle" class="text-muted">请选择您要考试的科目</p>
+        </div>
+
+        <!-- 步骤 1: 选择科目 -->
+        <div id="step1Content" class="step-content {{ 'd-none' if current_step != 1 else '' }}">
+            <div class="row g-4" id="subjectsContainer">
+                <!-- 动态加载科目 -->
+            </div>
+        </div>
+
+        <!-- 步骤 2: 选择等级 -->
+        <div id="step2Content" class="step-content {{ 'd-none' if current_step != 2 else '' }}">
+            <button class="btn back-btn mb-3" onclick="goToStep(1)">
+                <i class="bi bi-arrow-left me-1"></i>返回科目选择
+            </button>
+            <h4 class="mb-3">已选科目：<span id="selectedSubjectName" class="text-primary"></span></h4>
+            <div class="row g-4" id="levelsContainer">
+                <!-- 动态加载等级 -->
+            </div>
+        </div>
+
+        <!-- 步骤 3: 选择试卷 -->
+        <div id="step3Content" class="step-content {{ 'd-none' if current_step != 3 else '' }}">
+            <button class="btn back-btn mb-3" onclick="goToStep(2)">
+                <i class="bi bi-arrow-left me-1"></i>返回等级选择
+            </button>
+            <h4 class="mb-3">
+                已选：<span id="selectedPath" class="text-primary"></span>
+            </h4>
+            <div class="row g-4" id="examsContainer">
+                <!-- 动态加载试卷 -->
+            </div>
+        </div>
+    </main>
+
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+
+    <script>
+        // 当前步骤
+        let currentStep = 1;
+        let selectedSubject = null;
+        let selectedLevel = null;
+
+        // 加载科目列表
+        function loadSubjects() {
+            fetch('/api/subjects')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('subjectsContainer');
+                        const subjects = data.data || [];
+                        container.innerHTML = subjects.map(subject => {
+                            const levelCount = subject.levels ? subject.levels.length : (subject.level_count || 0);
+                            return `
+                                <div class="col-md-4">
+                                    <div class="card subject-card h-100" onclick="selectSubject(${subject.id}, '${subject.name}')">
+                                        <div class="card-body text-center">
+                                            <div class="display-4 mb-3">
+                                                <i class="bi bi-book"></i>
+                                            </div>
+                                            <h5 class="card-title">${subject.name}</h5>
+                                            <p class="card-text text-muted">${subject.description || '暂无描述'}</p>
+                                            <span class="badge bg-info">${levelCount} 个等级</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                })
+                .catch(error => {
+                    console.error('加载科目失败:', error);
+                    showAlert('加载科目失败', 'danger');
+                });
+        }
+
+        // 加载等级列表
+        function loadLevels(subjectId) {
+            fetch(`/api/subjects/${subjectId}/levels`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('levelsContainer');
+                        const levels = data.data ? (data.data.items || data.data) : [];
+                        container.innerHTML = levels.map(level => {
+                            const examCount = level.exam_count || 0;
+                            return `
+                                <div class="col-md-6">
+                                    <div class="card level-card h-100" onclick="selectLevel(${level.id}, '${level.name}')">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3">
+                                                    <span class="badge bg-primary fs-6">${level.name}</span>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h5 class="card-title mb-1">${level.name}</h5>
+                                                    <p class="card-text text-muted mb-0">${level.description || '暂无描述'}</p>
+                                                </div>
+                                                <span class="badge bg-success">${examCount} 套试卷</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                })
+                .catch(error => {
+                    console.error('加载等级失败:', error);
+                    showAlert('加载等级失败', 'danger');
+                });
+        }
+
+        // 加载试卷列表
+        function loadExams(subjectId, levelId) {
+            fetch(`/api/exams?subject_id=${subjectId}&level_id=${levelId}&per_page=100`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('examsContainer');
+                        const exams = data.data.items;
+                        
+                        if (exams.length === 0) {
+                            container.innerHTML = `
+                                <div class="col-12">
+                                    <div class="alert alert-info text-center">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        该等级下暂无试卷
+                                    </div>
+                                </div>
+                            `;
+                            return;
+                        }
+
+                        container.innerHTML = exams.map(exam => `
+                            <div class="col-md-6">
+                                <div class="card exam-card h-100" onclick="startExam(${exam.id})">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="card-title mb-0">${exam.title}</h5>
+                                            <span class="badge bg-secondary">${exam.question_count || 0} 题</span>
+                                        </div>
+                                        <p class="card-text text-muted small mb-2">${exam.description || '暂无描述'}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-clock me-1"></i>
+                                                    ${exam.duration_minutes ? exam.duration_minutes + ' 分钟' : '不限时'}
+                                                </small>
+                                                <small class="text-muted ms-3">
+                                                    <i class="bi bi-trophy me-1"></i>
+                                                    ${exam.total_score || 0} 分
+                                                </small>
+                                            </div>
+                                            <button class="btn btn-primary btn-sm">
+                                                <i class="bi bi-play-circle me-1"></i>开始测试
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                })
+                .catch(error => {
+                    console.error('加载试卷失败:', error);
+                    showAlert('加载试卷失败', 'danger');
+                });
+        }
+
+        // 选择科目
+        function selectSubject(subjectId, subjectName) {
+            selectedSubject = { id: subjectId, name: subjectName };
+            goToStep(2);
+            loadLevels(subjectId);
+            document.getElementById('selectedSubjectName').textContent = subjectName;
+        }
+
+        // 选择等级
+        function selectLevel(levelId, levelName) {
+            selectedLevel = { id: levelId, name: levelName };
+            goToStep(3);
+            loadExams(selectedSubject.id, levelId);
+            document.getElementById('selectedPath').textContent = 
+                `${selectedSubject.name} > ${levelName}`;
+        }
+
+        // 开始考试
+        function startExam(examId) {
+            if (!confirm('确定要开始考试吗？')) {
+                return;
+            }
+            
+            // 先创建提交记录，然后跳转到答题页面
+            fetch(`/exams/${examId}/start`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    return response.json();
+                }
+            })
+            .then(data => {
+                if (data && data.submission_id) {
+                    window.location.href = `/exam/${data.submission_id}`;
+                }
+            })
+            .catch(error => {
+                console.error('开始考试失败:', error);
+                showAlert('开始考试失败', 'danger');
+            });
+        }
+
+        // 切换步骤
+        function goToStep(step) {
+            // 更新步骤指示器
+            for (let i = 1; i <= 3; i++) {
+                const stepEl = document.getElementById(`step${i}`);
+                const lineEl = document.querySelector(`#step${i} + .step-line, #step${i-1} + .step-line`);
+                
+                if (i < step) {
+                    stepEl.classList.remove('active');
+                    stepEl.classList.add('completed');
+                } else if (i === step) {
+                    stepEl.classList.add('active');
+                    stepEl.classList.remove('completed');
+                } else {
+                    stepEl.classList.remove('active', 'completed');
+                }
+            }
+
+            // 更新步骤线
+            const lines = document.querySelectorAll('.step-line');
+            lines.forEach((line, index) => {
+                if (index < step - 1) {
+                    line.classList.add('completed');
+                } else {
+                    line.classList.remove('completed');
+                }
+            });
+
+            // 更新步骤内容
+            document.querySelectorAll('.step-content').forEach(el => {
+                el.classList.add('d-none');
+            });
+            document.getElementById(`step${step}Content`).classList.remove('d-none');
+
+            // 更新标题
+            const titles = {
+                1: { title: '选择科目', subtitle: '请选择您要考试的科目' },
+                2: { title: '选择等级', subtitle: '请选择难度等级' },
+                3: { title: '选择试卷', subtitle: '请选择要测试的试卷' }
+            };
+            document.getElementById('stepTitle').textContent = titles[step].title;
+            document.getElementById('stepSubtitle').textContent = titles[step].subtitle;
+
+            currentStep = step;
+        }
+
+        // 显示提示
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 3000);
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSubjects();
+        });
+    </script>
+</body>
+</html>
