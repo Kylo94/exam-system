@@ -185,10 +185,16 @@
                     <!-- 题目内容 -->
                     <div class="question-content mb-4">
                         <p class="card-text">{{ question.content|safe }}</p>
-                        
-                        {% if question.has_image and question.image_data %}
+
+                        {% if question.has_image %}
                         <div class="mt-3 mb-3">
+                            {% if question.image_data %}
                             <img src="data:image/png;base64,{{ question.image_data }}" class="img-fluid rounded" alt="题目图片">
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-image me-2"></i>此题目包含图片，但图片数据未上传
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>

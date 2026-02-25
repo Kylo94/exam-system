@@ -316,13 +316,19 @@
                     
                     <div class="question-content mb-3">
                         <p class="mb-2">{{ answer.question.content|safe }}</p>
-                        
-                        {% if answer.question.has_image and answer.question.image_data %}
+
+                        {% if answer.question.has_image %}
                         <div class="mt-2 mb-2">
-                            <img src="data:image/png;base64,{{ answer.question.image_data }}" 
-                                 class="img-fluid rounded" 
+                            {% if answer.question.image_data %}
+                            <img src="data:image/png;base64,{{ answer.question.image_data }}"
+                                 class="img-fluid rounded"
                                  alt="题目图片"
                                  style="max-height: 200px;">
+                            {% else %}
+                            <div class="alert alert-info small">
+                                <i class="bi bi-image me-2"></i>此题目包含图片，但图片数据未上传
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
