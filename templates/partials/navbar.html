@@ -13,11 +13,22 @@
             {% if current_user.is_authenticated %}
             <!-- 已登录用户导航 -->
             <ul class="navbar-nav me-auto">
-                <!-- 普通用户导航 -->
+                <!-- 教师导航 -->
+                {% if current_user.is_teacher() %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.exams_page') }}">
-                        <i class="bi bi-list-task me-1"></i>
-                        考试大厅
+                    <a class="nav-link" href="{{ url_for('teacher.my_students_page') }}">
+                        <i class="bi bi-people me-1"></i>
+                        我的学生
+                    </a>
+                </li>
+                {% endif %}
+
+                <!-- 学生和教师通用导航 -->
+                {% if current_user.is_student() or current_user.is_teacher() %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.exam_select_page') }}">
+                        <i class="bi bi-journal-check me-1"></i>
+                        真题测试
                     </a>
                 </li>
                 <li class="nav-item">
@@ -32,21 +43,6 @@
                         我的记录
                     </a>
                 </li>
-                
-                <!-- 教师导航 -->
-                {% if current_user.is_teacher() %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('teacher.dashboard') }}">
-                        <i class="bi bi-speedometer2 me-1"></i>
-                        教师面板
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/teacher/my-students">
-                        <i class="bi bi-people me-1"></i>
-                        我的学生
-                    </a>
-                </li>
                 {% endif %}
                 
                 <!-- 管理员导航 -->
@@ -57,28 +53,36 @@
                         管理中心
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('main.upload_page') }}">
-                            <i class="bi bi-upload me-1"></i>文档上传
+                        <li><a class="dropdown-item" href="{{ url_for('main.exam_manage_page') }}">
+                            <i class="bi bi-file-earmark-text me-1"></i>试卷管理
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.subjects_page') }}">
+                        <li class="dropdown-header">用户管理</li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.users_page') }}">
+                            <i class="bi bi-people me-1"></i>用户列表
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li class="dropdown-header">内容管理</li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.subjects_page') }}">
                             <i class="bi bi-journal me-1"></i>科目管理
                         </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.levels_page') }}">
-                            <i class="bi bi-bar-chart me-1"></i>难度级别
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.knowledge_points_page') }}">
-                            <i class="bi bi-bookmark me-1"></i>考点管理
+                        <li><a class="dropdown-item" href="{{ url_for('admin.levels_page') }}">
+                            <i class="bi bi-bar-chart me-1"></i>难度等级
                         </a></li>
                         <li><a class="dropdown-item" href="{{ url_for('main.questions_page') }}">
                             <i class="bi bi-question-circle me-1"></i>题目管理
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.submissions_page') }}">
+                        <li class="dropdown-header">其他</li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.submissions_page') }}">
                             <i class="bi bi-clipboard-data me-1"></i>提交记录
                         </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.ai_configs_page') }}">
+                            <i class="bi bi-cpu me-1"></i>AI配置管理
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
-                            <i class="bi bi-sliders me-1"></i>系统管理
+                            <i class="bi bi-speedometer2 me-1"></i>管理控制面板
                         </a></li>
                     </ul>
                 </li>

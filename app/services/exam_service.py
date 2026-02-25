@@ -260,16 +260,21 @@ class ExamService(BaseService[Exam]):
             raise ValueError(f"考试ID {exam_id} 不存在")
         
         now = datetime.utcnow()
+
+        # 处理 None 的时间值
+        start_time = exam.start_time if exam.start_time else datetime.min
+        end_time = exam.end_time if exam.end_time else datetime.max
+
         status = {
             'exam': exam,
             'current_time': now,
-            'is_upcoming': exam.start_time > now,
-            'is_ongoing': exam.start_time <= now <= exam.end_time,
-            'is_completed': exam.end_time < now,
-            'is_expired': exam.end_time < now,
+            'is_upcoming': start_time > now,
+            'is_ongoing': start_time <= now <= end_time,
+            'is_completed': end_time < now,
+            'is_expired': end_time < now,
             'time_remaining': None,
-            'has_started': exam.start_time <= now,
-            'has_ended': exam.end_time < now
+            'has_started': start_time <= now,
+            'has_ended': end_time < now
         }
         
         if status['is_ongoing']:

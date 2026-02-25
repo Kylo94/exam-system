@@ -95,15 +95,6 @@ def knowledge_points_page():
     return render_template('admin/knowledge_points.html')
 
 
-@admin_bp.route('/exams')
-@login_required
-@admin_required
-def exams_page():
-    """试卷管理页面"""
-    exams = Exam.query.order_by(desc(Exam.created_at)).all()
-    return render_template('admin/exams.html', exams=exams)
-
-
 @admin_bp.route('/submissions')
 @login_required
 @admin_required
@@ -876,8 +867,13 @@ def get_exams():
     level_id = request.args.get('level_id', None)
     search = request.args.get('search', '').strip()
 
-    # 构建查询
-    query = Exam.query
+    # 构建查询，使用 joinedload 预加载关联对象
+    from sqlalchemy.orm import joinedload
+
+    query = Exam.query.options(
+        joinedload(Exam.subject),
+        joinedload(Exam.level)
+    )
 
     if subject_id:
         query = query.filter_by(subject_id=subject_id)
@@ -1120,6 +1116,47 @@ def delete_exam(exam_id):
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除试卷失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/exams/batch-delete', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def batch_delete_exams():
+    """批量删除试卷API
+
+    Request JSON:
+        exam_ids: 试卷ID列表
+
+    Returns:
+        删除成功信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    exam_ids = data.get('exam_ids', [])
+    if not exam_ids or not isinstance(exam_ids, list):
+        return error_response('请提供有效的试卷ID列表', 400)
+
+    # 查询要删除的试卷
+    exams = Exam.query.filter(Exam.id.in_(exam_ids)).all()
+    if not exams:
+        return error_response('未找到要删除的试卷', 404)
+
+    deleted_count = 0
+    try:
+        for exam in exams:
+            db.session.delete(exam)
+            deleted_count += 1
+        db.session.commit()
+        return {
+            'message': f'成功删除 {deleted_count} 个试卷',
+            'deleted_count': deleted_count
+        }, 200
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'批量删除试卷失败: {str(e)}', 500)
 
 
 # ==================== 题目管理API ====================

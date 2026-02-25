@@ -262,26 +262,32 @@ class Exam(BaseModel):
     def to_dict(self, include_questions: bool = False) -> dict:
         """
         转换为字典，可包含关联的题目
-        
+
         Args:
             include_questions: 是否包含题目信息
-            
+
         Returns:
             包含试卷信息的字典
         """
         data = super().to_dict()
-        
-        # 添加关联对象信息
+
+        # 添加关联对象信息（前端需要完整的subject和level对象）
+        if self.subject:
+            data['subject'] = self.subject.to_dict()
+        if self.level:
+            data['level'] = self.level.to_dict()
+
+        # 添加名称字段（保留兼容性）
         data['subject_name'] = self.get_subject_name()
         data['level_name'] = self.get_level_name()
-        
+
         if include_questions:
             data['questions'] = [q.to_dict() for q in self.questions.all()]
-        
+
         # 添加统计信息
         data['average_score'] = self.get_average_score()
         data['submission_count'] = self.submissions.count()
-        
+
         return data
     
     def __repr__(self) -> str:

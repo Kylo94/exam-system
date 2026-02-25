@@ -128,7 +128,8 @@ class Subject(BaseModel):
             data['exams'] = [exam.to_dict() for exam in self.exams.limit(10).all()]
 
         if include_levels:
-            data['levels'] = [level.to_dict(include_subject=False) for level in self.levels.order_by(Level.order_index).all()]
+            # 使用字符串形式的 order_index 避免 import Level
+            data['levels'] = [level.to_dict(include_subject=False) for level in self.levels.order_by('order_index').all()]
             data['level_count'] = self.levels.count()
 
         return data

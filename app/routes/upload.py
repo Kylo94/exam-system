@@ -134,13 +134,23 @@ def create_exam_from_document():
             }), 400
 
         # 检查必填字段
-        required_fields = ['title', 'subject_id', 'level_id']
+        required_fields = ['subject_id', 'level_id']
         missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
             return jsonify({
                 'success': False,
                 'message': f'缺少必填字段: {", ".join(missing_fields)}'
             }), 400
+
+        # 如果没有提供标题，自动生成
+        title = data.get('title', '').strip()
+        if not title:
+            # 从文件名生成标题（去掉扩展名）
+            file = request.files['file']
+            if file.filename:
+                title = file.filename.rsplit('.', 1)[0]
+            else:
+                title = '未命名试卷'
 
         # 检查文件
         if 'file' not in request.files:
@@ -170,7 +180,7 @@ def create_exam_from_document():
             ai_parser = AIDocumentParser(use_ai=True)
             exam_data = ai_parser.parse_to_exam(
                 file_path=file_path,
-                exam_title=data['title'],
+                exam_title=title,
                 subject_id=int(data['subject_id']),
                 level_id=int(data['level_id'])
             )
