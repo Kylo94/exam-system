@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 考点管理</title>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+
+    <main class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h2">考点管理</h1>
+            <div>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>返回控制面板
+                </a>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+                    <i class="bi bi-plus-circle me-1"></i>添加考点
+                </button>
+            </div>
+        </div>
+
+        <!-- 筛选条件 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <select class="form-select" id="filterSubject">
+                            <option value="">所有科目</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="filterLevel" disabled>
+                            <option value="">所有难度</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="filterSearch" placeholder="搜索考点名称...">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100" id="searchBtn">
+                            <i class="bi bi-search me-1"></i>搜索
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 考点列表 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">考点列表</h5>
+                <span class="badge bg-secondary" id="totalCount">共 0 个</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>代码</th>
+                                <th>名称</th>
+                                <th>科目</th>
+                                <th>难度</th>
+                                <th>描述</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="knowledgePointsTable">
+                            <tr>
+                                <td colspan="8" class="text-center py-4">
+                                    <p class="text-muted">暂无考点数据</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 创建/编辑模态框 -->
+    <div class="modal fade" id="createModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">添加考点</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="knowledgePointForm">
+                        <input type="hidden" id="editId">
+                        <div class="mb-3">
+                            <label class="form-label">考点代码 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="kpCode" required placeholder="如: tree-01">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">考点名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="kpName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">科目 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="kpSubject" required>
+                                <option value="">请选择科目</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">难度等级</label>
+                            <select class="form-select" id="kpLevel">
+                                <option value="">请选择难度</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">描述</label>
+                            <textarea class="form-control" id="kpDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">排序序号</label>
+                            <input type="number" class="form-control" id="kpOrder" value="0" min="0">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="kpActive" checked>
+                                <label class="form-check-label" for="kpActive">启用</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+
+    <script>
+        // 加载科目列表
+        async function loadSubjects(selectId = 'filterSubject') {
+            try {
+                const response = await fetch('/api/subjects');
+                const result = await response.json();
+                if (result.success && result.data && result.data.items) {
+                    const select = document.getElementById(selectId);
+                    const originalValue = select.value;
+                    select.innerHTML = selectId === 'kpSubject' ? '<option value="">请选择科目</option>' : '<option value="">所有科目</option>';
+                    result.data.items.forEach(subject => {
+                        select.innerHTML += `<option value="${subject.id}">${subject.name}</option>`;
+                    });
+                    if (originalValue) select.value = originalValue;
+                }
+            } catch (error) {
+                console.error('加载科目失败:', error);
+            }
+        }
+
+        // 加载难度列表
+        async function loadLevels(subjectId, selectId = 'filterLevel') {
+            try {
+                const response = await fetch(`/api/levels?subject_id=${subjectId}`);
+                const result = await response.json();
+                if (result.success && result.data && result.data.items) {
+                    const select = document.getElementById(selectId);
+                    select.innerHTML = selectId === 'kpLevel' ? '<option value="">请选择难度</option>' : '<option value="">所有难度</option>';
+                    result.data.items.forEach(level => {
+                        select.innerHTML += `<option value="${level.id}">${level.name}</option>`;
+                    });
+                    select.disabled = false;
+                }
+            } catch (error) {
+                console.error('加载难度失败:', error);
+            }
+        }
+
+        // 加载考点列表
+        async function loadKnowledgePoints() {
+            const subjectId = document.getElementById('filterSubject').value;
+            const levelId = document.getElementById('filterLevel').value;
+            const search = document.getElementById('filterSearch').value;
+
+            let url = '/api/knowledge-points';
+            const params = [];
+            if (subjectId) params.push(`subject_id=${subjectId}`);
+            if (levelId) params.push(`level_id=${levelId}`);
+            if (search) params.push(`search=${encodeURIComponent(search)}`);
+            if (params.length) url += '?' + params.join('&');
+
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
+                if (result.success && result.data && result.data.items) {
+                    renderKnowledgePoints(result.data.items);
+                    document.getElementById('totalCount').textContent = `共 ${result.data.total} 个`;
+                }
+            } catch (error) {
+                console.error('加载考点失败:', error);
+            }
+        }
+
+        // 渲染考点列表
+        function renderKnowledgePoints(items) {
+            const tbody = document.getElementById('knowledgePointsTable');
+
+            if (!items || items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><p class="text-muted">暂无考点数据</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.id}</td>
+                    <td><code>${item.code}</code></td>
+                    <td>${item.name}</td>
+                    <td>${item.subject_name || '-'}</td>
+                    <td>${item.level_name || '-'}</td>
+                    <td>${item.description || '-'}</td>
+                    <td>
+                        <span class="badge bg-${item.is_active ? 'success' : 'secondary'}">
+                            ${item.is_active ? '启用' : '禁用'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editKnowledgePoint(${item.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteKnowledgePoint(${item.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 编辑考点
+        async function editKnowledgePoint(id) {
+            try {
+                const response = await fetch(`/api/knowledge-points/${id}`);
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const kp = result.data;
+                    document.getElementById('editId').value = kp.id;
+                    document.getElementById('kpCode').value = kp.code;
+                    document.getElementById('kpName').value = kp.name;
+                    document.getElementById('kpSubject').value = kp.subject_id;
+                    loadLevels(kp.subject_id, 'kpLevel').then(() => {
+                        document.getElementById('kpLevel').value = kp.level_id || '';
+                    });
+                    document.getElementById('kpDescription').value = kp.description || '';
+                    document.getElementById('kpOrder').value = kp.order_index;
+                    document.getElementById('kpActive').checked = kp.is_active;
+                    document.getElementById('modalTitle').textContent = '编辑考点';
+
+                    new bootstrap.Modal(document.getElementById('createModal')).show();
+                }
+            } catch (error) {
+                console.error('获取考点信息失败:', error);
+            }
+        }
+
+        // 删除考点
+        async function deleteKnowledgePoint(id) {
+            if (!confirm('确定要删除这个考点吗？')) return;
+
+            try {
+                const response = await fetch(`/api/knowledge-points/${id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.success) {
+                    alert('删除成功');
+                    loadKnowledgePoints();
+                } else {
+                    alert('删除失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('删除考点失败:', error);
+                alert('删除失败');
+            }
+        }
+
+        // 保存考点
+        async function saveKnowledgePoint() {
+            const id = document.getElementById('editId').value;
+            const data = {
+                code: document.getElementById('kpCode').value,
+                name: document.getElementById('kpName').value,
+                subject_id: parseInt(document.getElementById('kpSubject').value),
+                level_id: document.getElementById('kpLevel').value ? parseInt(document.getElementById('kpLevel').value) : null,
+                description: document.getElementById('kpDescription').value,
+                order_index: parseInt(document.getElementById('kpOrder').value),
+                is_active: document.getElementById('kpActive').checked
+            };
+
+            try {
+                const url = id ? `/api/knowledge-points/${id}` : '/api/knowledge-points';
+                const method = id ? 'PUT' : 'POST';
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('保存成功');
+                    bootstrap.Modal.getInstance(document.getElementById('createModal')).hide();
+                    loadKnowledgePoints();
+                    resetForm();
+                } else {
+                    alert('保存失败: ' + result.message);
+                }
+            } catch (error) {
+                console.error('保存考点失败:', error);
+                alert('保存失败');
+            }
+        }
+
+        // 重置表单
+        function resetForm() {
+            document.getElementById('knowledgePointForm').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('modalTitle').textContent = '添加考点';
+        }
+
+        // 事件绑定
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSubjects('filterSubject');
+            loadSubjects('kpSubject');
+            loadKnowledgePoints();
+
+            document.getElementById('filterSubject').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    loadLevels(e.target.value, 'filterLevel');
+                } else {
+                    document.getElementById('filterLevel').innerHTML = '<option value="">所有难度</option>';
+                    document.getElementById('filterLevel').disabled = true;
+                }
+                loadKnowledgePoints();
+            });
+
+            document.getElementById('filterLevel').addEventListener('change', loadKnowledgePoints);
+            document.getElementById('searchBtn').addEventListener('click', loadKnowledgePoints);
+
+            document.getElementById('kpSubject').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    loadLevels(e.target.value, 'kpLevel');
+                } else {
+                    document.getElementById('kpLevel').innerHTML = '<option value="">请选择难度</option>';
+                    document.getElementById('kpLevel').disabled = true;
+                }
+            });
+
+            document.getElementById('createModal').addEventListener('hidden.bs.modal', resetForm);
+            document.getElementById('saveBtn').addEventListener('click', saveKnowledgePoint);
+        });
+    </script>
+</body>
+</html>

@@ -60,6 +60,7 @@ def register_blueprints(app: Flask):
         main_bp,
         subjects_bp,
         levels_bp,
+        knowledge_points_bp,
         exams_bp,
         questions_bp,
         submissions_bp,
@@ -88,6 +89,7 @@ def register_blueprints(app: Flask):
     # 注册API蓝图
     app.register_blueprint(subjects_bp, url_prefix='/api')
     app.register_blueprint(levels_bp, url_prefix='/api')
+    app.register_blueprint(knowledge_points_bp, url_prefix='/api')
     app.register_blueprint(exams_bp, url_prefix='/api')
     app.register_blueprint(questions_bp, url_prefix='/api')
     app.register_blueprint(submissions_bp, url_prefix='/api')

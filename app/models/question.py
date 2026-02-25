@@ -72,6 +72,13 @@ class Question(BaseModel):
         nullable=True,
         doc='答案解析'
     )
+    knowledge_point_id = db.Column(
+        db.Integer,
+        db.ForeignKey('knowledge_points.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+        doc='考点ID'
+    )
     question_metadata = db.Column(
         db.JSON,
         nullable=True,
@@ -84,6 +91,12 @@ class Question(BaseModel):
         back_populates='questions',
         lazy='joined',
         doc='关联的试卷'
+    )
+    knowledge_point = db.relationship(
+        'KnowledgePoint',
+        backref='questions',
+        lazy='joined',
+        doc='关联的考点'
     )
     answers = db.relationship(
         'Answer',
@@ -105,6 +118,7 @@ class Question(BaseModel):
         has_image: bool = False,
         image_data: Optional[str] = None,
         explanation: Optional[str] = None,
+        knowledge_point_id: Optional[int] = None,
         metadata: Optional[Dict[str, Any]] = None
     ):
         """
@@ -121,6 +135,7 @@ class Question(BaseModel):
             has_image: 是否包含图片，默认False
             image_data: 图片数据（可选）
             explanation: 答案解析（可选）
+            knowledge_point_id: 考点ID（可选）
             metadata: 额外元数据（可选）
         """
         self.exam_id = exam_id
@@ -133,6 +148,7 @@ class Question(BaseModel):
         self.has_image = has_image
         self.image_data = image_data
         self.explanation = explanation
+        self.knowledge_point_id = knowledge_point_id
         self.question_metadata = metadata or {}
     
     @classmethod

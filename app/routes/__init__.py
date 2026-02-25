@@ -3,6 +3,7 @@
 from .main import main_bp
 from .subjects import subjects_bp
 from .levels import levels_bp
+from .knowledge_points import knowledge_points_bp
 from .exams import exams_bp
 from .questions import questions_bp
 from .submissions import submissions_bp
@@ -18,6 +19,7 @@ __all__ = [
     'main_bp',
     'subjects_bp',
     'levels_bp',
+    'knowledge_points_bp',
     'exams_bp',
     'questions_bp',
     'submissions_bp',

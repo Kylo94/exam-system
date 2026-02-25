@@ -3,6 +3,7 @@
 from .base import BaseModel
 from .subject import Subject
 from .level import Level
+from .knowledge_point import KnowledgePoint
 from .exam import Exam
 from .question import Question
 from .submission import Submission
@@ -14,6 +15,7 @@ __all__ = [
     'BaseModel',
     'Subject',
     'Level',
+    'KnowledgePoint',
     'Exam',
     'Question',
     'Submission',
