@@ -45,7 +45,9 @@ class QuestionService(BaseService[Question]):
                        score: float = 1.0, options: Optional[Dict[str, Any]] = None,
                        correct_answer: Optional[Union[str, List[str]]] = None,
                        explanation: str = "", order_index: int = 0,
-                       knowledge_point_id: Optional[int] = None) -> Question:
+                       knowledge_point_id: Optional[int] = None,
+                       question_metadata: Optional[Dict[str, Any]] = None,
+                       has_image: bool = False, image_data: Optional[str] = None) -> Question:
         """创建新问题
 
         Args:
@@ -58,6 +60,9 @@ class QuestionService(BaseService[Question]):
             explanation: 答案解析
             order_index: 排序索引
             knowledge_point_id: 考点ID（可选）
+            question_metadata: 问题元数据（可选，用于存储额外信息如考点文本等）
+            has_image: 是否包含图片
+            image_data: 图片路径
 
         Returns:
             创建的问题
@@ -109,7 +114,10 @@ class QuestionService(BaseService[Question]):
             'correct_answer': answer_data,
             'explanation': explanation,
             'order_index': order_index,
-            'knowledge_point_id': knowledge_point_id
+            'knowledge_point_id': knowledge_point_id,
+            'question_metadata': question_metadata,
+            'has_image': has_image,
+            'image_data': image_data
         })
     
     def create_single_choice(self, exam_id: int, content: str, 
@@ -334,9 +342,35 @@ class QuestionService(BaseService[Question]):
             query = query.filter_by(type=question_type)
         
         query = query.order_by(Question.order_index, Question.created_at)
-        
+
         return query.offset(skip).limit(limit).all()
-    
+
+    def count_questions(self, exam_id: Optional[int] = None,
+                       content: Optional[str] = None,
+                       question_type: Optional[str] = None) -> int:
+        """统计符合条件的题目数量
+
+        Args:
+            exam_id: 考试ID
+            content: 问题内容（模糊搜索）
+            question_type: 问题类型
+
+        Returns:
+            题目数量
+        """
+        query = Question.query
+
+        if exam_id is not None:
+            query = query.filter_by(exam_id=exam_id)
+
+        if content:
+            query = query.filter(Question.content.ilike(f"%{content}%"))
+
+        if question_type:
+            query = query.filter_by(type=question_type)
+
+        return query.count()
+
     def get_question_with_options(self, question_id: int) -> Dict[str, Any]:
         """获取问题及其选项信息
         

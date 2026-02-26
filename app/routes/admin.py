@@ -4,9 +4,13 @@
 """
 
 from functools import wraps
-from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify
+import os
+import uuid
+from pathlib import Path
+from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import desc, asc
+from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models.user import User
@@ -1363,6 +1367,9 @@ def update_question(question_id):
     if 'has_image' in data:
         question.has_image = bool(data.get('has_image'))
 
+    if 'image_data' in data:
+        question.image_data = data.get('image_data')
+
     try:
         db.session.commit()
         return {
@@ -1677,8 +1684,67 @@ def get_stats():
             'student': User.query.filter_by(role='student').count()
         }
     }
-    
+
     return {
         'stats': stats,
         'message': '统计信息获取成功'
     }, 200
+
+
+@admin_bp.route('/api/upload-image', methods=['POST'])
+@login_required
+@admin_required
+def upload_image():
+    """上传图片接口
+
+    Request:
+        file: 图片文件
+        type: 图片类型（question_image, option_image等）
+
+    Returns:
+        图片路径信息
+    """
+    if 'file' not in request.files:
+        return error_response('没有上传文件', 400)
+
+    file = request.files['file']
+    if file.filename == '':
+        return error_response('没有选择文件', 400)
+
+    # 检查文件类型
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed_extensions:
+        return error_response('不支持的文件类型', 400)
+
+    # 检查文件大小（最大5MB）
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    max_size = 5 * 1024 * 1024  # 5MB
+    if file_size > max_size:
+        return error_response('文件大小超过限制（最大5MB）', 400)
+
+    # 生成唯一文件名
+    unique_id = uuid.uuid4().hex[:8]
+    filename = f"image_{unique_id}{ext}"
+
+    # 保存到uploads/images目录
+    upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'images'
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / filename
+
+    try:
+        file.save(str(file_path))
+
+        # 返回相对于uploads目录的路径
+        relative_path = f"images/{filename}"
+
+        return {
+            'path': relative_path,
+            'filename': filename,
+            'size': file_size,
+            'message': '图片上传成功'
+        }, 200
+    except Exception as e:
+        return error_response(f'图片保存失败: {str(e)}', 500)

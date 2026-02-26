@@ -9,9 +9,9 @@ from .base import BaseResource
 
 class QuestionResource(BaseResource):
     """问题资源"""
-    
+
     service_class = QuestionService
-    
+
     def get(self, question_id=None):
         """获取问题
         
@@ -36,9 +36,13 @@ class QuestionResource(BaseResource):
                     skip=params['skip'],
                     limit=params['limit']
                 )
-                
-                # 统计总数
-                total = self.get_service().count()
+
+                # 统计总数（带过滤条件）
+                total = self.get_service().count_questions(
+                    exam_id=exam_id,
+                    content=content_search,
+                    question_type=question_type
+                )
                 
                 # 转换数据
                 items = [self._serialize_question_with_exam(q) for q in questions]
@@ -62,7 +66,7 @@ class QuestionResource(BaseResource):
                 
         except Exception as e:
             return self.handle_exception(e)
-    
+
     def post(self):
         """创建问题
         
@@ -142,7 +146,7 @@ class QuestionResource(BaseResource):
             
         except Exception as e:
             return self.handle_exception(e)
-    
+
     def put(self, question_id):
         """更新问题
         
@@ -163,7 +167,7 @@ class QuestionResource(BaseResource):
             
         except Exception as e:
             return self.handle_exception(e)
-    
+
     def delete(self, question_id):
         """删除问题
         
@@ -204,6 +208,12 @@ class QuestionResource(BaseResource):
             'order_index': question.order_index,
             'has_image': question.has_image,
             'image_data': question.image_data,
+            'question_metadata': question.question_metadata,
+            'knowledge_point_id': question.knowledge_point_id,
+            'knowledge_point': {
+                'id': question.knowledge_point.id,
+                'name': question.knowledge_point.name
+            } if question.knowledge_point else None,
             'created_at': question.created_at.isoformat() if question.created_at else None,
             'updated_at': question.updated_at.isoformat() if question.updated_at else None
         }

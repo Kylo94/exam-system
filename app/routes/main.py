@@ -437,55 +437,7 @@ def get_question_detail(question_id):
     }, 200
 
 
-@main_bp.route('/api/questions', methods=['GET'])
-@login_required
-@api_response
-def get_questions_list():
-    """获取题目列表API（公开，需要登录）"""
-    from app.models.question import Question
-    from app.utils.response_utils import error_response
-    from flask import request
 
-    try:
-        # 获取分页参数
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
-
-        # 获取筛选参数
-        exam_id = request.args.get('exam_id', type=int)
-        question_type = request.args.get('type', type=str)
-        content = request.args.get('content', type=str)
-
-        # 构建查询
-        query = Question.query
-
-        if exam_id:
-            query = query.filter_by(exam_id=exam_id)
-        if question_type:
-            query = query.filter_by(type=question_type)
-        if content:
-            query = query.filter(Question.content.like(f'%{content}%'))
-
-        # 分页
-        pagination = query.order_by(Question.created_at.desc()).paginate(
-            page=page, per_page=per_page, error_out=False
-        )
-
-        questions = pagination.items
-
-        return {
-            'items': [q.to_dict(include_exam=True) for q in questions],
-            'pagination': {
-                'total': pagination.total,
-                'pages': pagination.pages,
-                'current_page': pagination.page,
-                'per_page': pagination.per_page,
-                'has_next': pagination.has_next,
-                'has_prev': pagination.has_prev
-            }
-        }, 200
-    except Exception as e:
-        return error_response(f'获取题目列表失败: {str(e)}', 500)
 
 
 @main_bp.route('/upload')
