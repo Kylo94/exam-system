@@ -320,10 +320,17 @@
                         {% if answer.question.has_image %}
                         <div class="mt-2 mb-2">
                             {% if answer.question.image_data %}
-                            <img src="data:image/png;base64,{{ answer.question.image_data }}"
-                                 class="img-fluid rounded"
-                                 alt="题目图片"
-                                 style="max-height: 200px;">
+                                {% if answer.question.image_data.startswith('data:') %}
+                                <img src="{{ answer.question.image_data }}"
+                                     class="img-fluid rounded"
+                                     alt="题目图片"
+                                     style="max-height: 200px;">
+                                {% else %}
+                                <img src="{{ url_for('upload.uploaded_file', filename=answer.question.image_data) }}"
+                                     class="img-fluid rounded"
+                                     alt="题目图片"
+                                     style="max-height: 200px;">
+                                {% endif %}
                             {% else %}
                             <div class="alert alert-info small">
                                 <i class="bi bi-image me-2"></i>此题目包含图片，但图片数据未上传
@@ -340,11 +347,13 @@
                         <h6 class="mb-3"><i class="bi bi-list-ul me-1"></i>题目选项</h6>
                         <div class="list-group">
                             {% for option in options_list %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div class="flex-grow-1">
-                                    <span class="fw-bold">{{ option.id }}.</span> {{ option.text }}
-                                </div>
-                                <div class="ms-3">
+                            <div class="list-group-item d-flex flex-column align-items-start">
+                                <div class="d-flex justify-content-between align-items-center w-100 mb-2">
+                                    <div class="flex-grow-1">
+                                        <span class="fw-bold">{{ option.id }}.</span> {{ option.text }}
+                                    </div>
+                                    <div class="ms-3">
+                                    {% if answer.question.type in ['single_choice', 'multiple_choice', 'true_false'] %}
                                     {% if answer.question.type in ['single_choice', 'multiple_choice', 'true_false'] %}
                                         {# 处理正确答案 #}
                                         {% if answer.question.type == 'multiple_choice' %}
@@ -373,6 +382,27 @@
                                         {% endif %}
                                     {% endif %}
                                 </div>
+                                    {% if option.get('has_image') %}
+                                    {% set option_image_path = None %}
+                                    {# 从metadata中获取选项图片路径 #}
+                                    {% if answer.question.question_metadata and answer.question.question_metadata.get('options_images') %}
+                                        {% set options_images = answer.question.question_metadata.options_images %}
+                                        {% if option.id in options_images %}
+                                            {% set option_image_info = options_images[option.id] %}
+                                            {% if option_image_info.get('image_path') %}
+                                                {% set option_image_path = option_image_info.image_path %}
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if option_image_path %}
+                                    <div class="mt-2">
+                                        <img src="{{ url_for('upload.uploaded_file', filename=option_image_path) }}"
+                                             class="img-fluid rounded"
+                                             alt="选项{{ option.id }}图片"
+                                             style="max-height: 150px;">
+                                    </div>
+                                    {% endif %}
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>

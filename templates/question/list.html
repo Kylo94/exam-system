@@ -260,6 +260,14 @@
                                 <label class="form-label">题目内容 <span class="text-danger">*</span></label>
                                 <textarea class="form-control" id="editQuestionContent" rows="3" required placeholder="请输入题目内容"></textarea>
                             </div>
+                            <!-- 题目图片显示 -->
+                            <div class="col-12" id="editQuestionImageContainer" style="display: none;">
+                                <label class="form-label">题目图片</label>
+                                <div id="editQuestionImagePreview" class="mb-2"></div>
+                                <div class="form-text text-muted">
+                                    图片路径: <code id="editQuestionImagePath"></code>
+                                </div>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">分值</label>
                                 <input type="number" class="form-control" id="editQuestionScore" value="1" min="0.1" step="0.1">
@@ -862,6 +870,22 @@
                         document.getElementById('editQuestionScore').value = q.points || q.score || 1;
                         document.getElementById('editQuestionOrder').value = q.order_index || 0;
                         document.getElementById('editQuestionExplanation').value = q.explanation || '';
+
+                        // 显示题目图片
+                        const questionImageContainer = document.getElementById('editQuestionImageContainer');
+                        const questionImagePreview = document.getElementById('editQuestionImagePreview');
+                        const questionImagePath = document.getElementById('editQuestionImagePath');
+                        if (q.has_image && q.image_data) {
+                            questionImageContainer.style.display = 'block';
+                            if (q.image_data.startsWith('data:')) {
+                                questionImagePreview.innerHTML = `<img src="${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
+                            } else {
+                                questionImagePreview.innerHTML = `<img src="/uploads/${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
+                            }
+                            questionImagePath.textContent = q.image_data;
+                        } else {
+                            questionImageContainer.style.display = 'none';
+                        }
                         
                         updateEditFormFields();
 
@@ -870,10 +894,12 @@
                             const options = q.options || {};
                             // 支持多种选项格式: {'choices': [...]}, {'A': '...'}, [{'id': 'A', 'text': '...'}], [...]
                             let choices = [];
+                            let choiceOptions = [];  // 保存完整的选项信息（包含图片）
                             if (Array.isArray(options)) {
-                                // 格式: [{'id': 'A', 'text': '...'}, ...] 或 ['选项A', '选项B', ...]
+                                // 格式: [{'id': 'A', 'text': '...'}, ...]
                                 if (options.length > 0 && typeof options[0] === 'object' && options[0].text) {
                                     choices = options.map(opt => opt.text);
+                                    choiceOptions = options;  // 保存完整信息
                                 } else {
                                     choices = options;
                                 }
@@ -888,9 +914,26 @@
 
                             const container = document.getElementById('editChoicesContainer');
                             const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                            container.innerHTML = choices.map((choice, i) => `
-                                <div class="input-group mb-2">
-                                    <span class="input-group-text">${labels[i]}</span>
+                            // 构建选项HTML，包含图片显示
+                            container.innerHTML = choices.map((choice, i) => {
+                                const optionData = choiceOptions[i] || {};
+                                let imageHtml = '';
+                                if (optionData.has_image && optionData.image_path) {
+                                    imageHtml = `
+                                        <div class="mt-2">
+                                            <img src="/uploads/${optionData.image_path}" class="img-fluid rounded" alt="选项图片" style="max-height: 150px;">
+                                        </div>
+                                    `;
+                                }
+                                return `
+                                <div class="mb-3">
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">${labels[i]}</span>
+                                        <input type="text" class="form-control edit-choice-input" value="${choice}">
+                                    </div>
+                                    ${imageHtml}
+                                </div>
+                            `}).join('');
                                     <input type="text" class="form-control edit-choice-input" value="${choice}">
                                 </div>
                             `).join('');

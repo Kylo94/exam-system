@@ -154,10 +154,6 @@ class DeepSeekService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        # 添加stream参数，如果需要流式输出
-        if kwargs.get('stream', False):
-            payload['stream'] = True
-
         # 增加超时时间到300秒（5分钟），推理模型需要更长的时间
         max_retries = 3
         timeout = 300  # 5分钟超时
@@ -182,13 +178,8 @@ class DeepSeekService(AIServiceBase):
                     'raw': data
                 }
 
-                # 如果有思考过程，提取出来
+                # 如果有思考过程，提取出来（仅推理模型才有）
                 message = data.get('choices', [{}])[0].get('message', {})
-
-                # 调试：打印message的所有键
-                print(f"DEBUG: message keys = {list(message.keys())}")
-                if 'reasoning_content' in message:
-                    print(f"DEBUG: 找到reasoning_content，长度 = {len(message['reasoning_content'])}")
 
                 # 方式1: 直接在message中有reasoning_content字段
                 if 'reasoning_content' in message:

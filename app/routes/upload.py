@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from werkzeug.utils import secure_filename
 
 from app.parsers.ai_document_parser import AIDocumentParser
@@ -88,7 +88,6 @@ def parse_document():
 
         try:
             # 创建进度回调函数，将进度信息存储到全局变量供轮询接口使用
-            import threading
             progress_data = {
                 'percent': 0,
                 'message': '准备解析...',
@@ -112,8 +111,6 @@ def parse_document():
                 log_message = ''
                 log_level = 'info'
 
-                print(f"[DEBUG] progress_callback 被调用，args={args}, kwargs={kwargs}")
-
                 if not args:
                     return
 
@@ -123,24 +120,19 @@ def parse_document():
                     progress_percent = args[0]
                     log_message = str(args[1]) if len(args) > 1 else ''
                     log_level = str(args[2]) if len(args) > 2 else 'info'
-                    print(f"[DEBUG] 解析为带进度模式: progress={progress_percent}, message={log_message[:30]}..., level={log_level}")
                 elif len(args) >= 2 and isinstance(args[0], str):
                     # progress_callback(message, level)
                     log_message = str(args[0])
                     log_level = str(args[1]) if len(args) > 1 else 'info'
-                    print(f"[DEBUG] 解析为带级别模式: message={log_message[:30]}..., level={log_level}")
                 elif len(args) == 1 and isinstance(args[0], str):
                     # progress_callback(message)
                     log_message = str(args[0])
-                    print(f"[DEBUG] 解析为纯消息模式: message={log_message[:30]}...")
 
                 # 更新进度
                 if progress_percent is not None:
                     progress_data['percent'] = progress_percent
-                    print(f"[DEBUG] 更新进度: {progress_percent}%")
                 if log_message:
                     progress_data['message'] = log_message
-                    print(f"[DEBUG] 更新消息: {log_message[:30]}...")
 
                 # 将日志添加到列表
                 if log_message:
@@ -150,29 +142,35 @@ def parse_document():
                         'timestamp': datetime.now().strftime('%H:%M:%S')
                     }
                     progress_data['logs'].append(log_entry)
-                    print(f"[DEBUG] 添加日志条目，当前日志数: {len(progress_data['logs'])}")
 
                     # 限制日志数量，避免内存占用过大
                     if len(progress_data['logs']) > 100:
                         progress_data['logs'] = progress_data['logs'][-100:]
 
-                    print(f"[{log_level.upper()}] {log_message}")
-
             # 使用AI解析器解析文档
-            ai_parser = AIDocumentParser(use_ai=True, progress_callback=progress_callback)
+            # 注意：如果图片提取导致失败，可以暂时禁用 extract_images
+            upload_folder = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'images'
+            ai_parser = AIDocumentParser(
+                use_ai=True,
+                progress_callback=progress_callback,
+                upload_folder=str(upload_folder),
+                extract_images=True  # 设为False可跳过图片提取
+            )
             parsed_data = ai_parser.parse_document(file_path)
 
-            # 标记解析完成
+            # 标记解析完成，并保存解析结果供后续使用
             progress_data['percent'] = 100
             progress_data['message'] = '解析完成'
             progress_data['completed'] = True
+            progress_data['questions'] = parsed_data.get('questions', [])  # 保存完整题目列表
 
-            # 返回解析结果（包含parse_id用于获取日志）
+            # 返回解析结果（包含parse_id用于获取日志和完整题目列表）
             return jsonify({
                 'success': True,
                 'data': {
                     'question_count': parsed_data.get('question_count', 0),
-                    'questions_preview': parsed_data.get('questions', [])[:5],  # 预览前5个问题
+                    'questions': parsed_data.get('questions', []),  # 完整题目列表
+                    'questions_preview': parsed_data.get('questions', [])[:5],  # 预览前5个问题（保持向后兼容）
                     'uploaded_file': original_filename,
                     'parse_method': parsed_data.get('parse_method', 'ai'),
                     'parse_id': parse_id
@@ -181,18 +179,34 @@ def parse_document():
             })
 
         except Exception as e:
-            # 删除临时文件
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            # 标记解析失败
+            progress_data['percent'] = 0
+            progress_data['message'] = f'解析失败: {str(e)}'
+            progress_data['completed'] = True
+
+            # 添加错误日志
+            error_log = {
+                'message': f'解析失败: {str(e)}',
+                'level': 'error',
+                'timestamp': datetime.now().strftime('%H:%M:%S')
+            }
+            progress_data['logs'].append(error_log)
+
+            # 删除临时文件（如果有上传文件）
+            if 'file' in request.files:
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
 
             return jsonify({
                 'success': False,
-                'message': f'文档解析失败: {str(e)}'
+                'message': f'文档解析失败: {str(e)}',
+                'parse_id': parse_id  # 返回parse_id以便前端获取错误日志
             }), 400
 
     except Exception as e:
+        # 外层异常处理（文件检查、保存等）
         return jsonify({
             'success': False,
             'message': f'上传失败: {str(e)}'
@@ -220,7 +234,8 @@ def get_parse_progress(parse_id):
                 'percent': progress_data.get('percent', 0),
                 'message': progress_data.get('message', ''),
                 'logs': progress_data.get('logs', []),
-                'completed': progress_data.get('completed', False)
+                'completed': progress_data.get('completed', False),
+                'questions': progress_data.get('questions', []) if progress_data.get('completed', False) else []  # 完成后返回题目
             }
         })
 
@@ -233,7 +248,7 @@ def get_parse_progress(parse_id):
 
 @upload_bp.route('/upload/create_exam', methods=['POST'])
 def create_exam_from_document():
-    """从文档创建考试（使用AI解析）"""
+    """从文档创建考试（接收前端传来的解析结果，不重复解析）"""
     try:
         # 解析请求数据
         data = request.form
@@ -256,39 +271,74 @@ def create_exam_from_document():
         title = data.get('title', '').strip()
         if not title:
             # 从文件名生成标题（去掉扩展名）
-            file = request.files['file']
-            if file.filename:
+            file = request.files.get('file')
+            if file and file.filename:
                 title = file.filename.rsplit('.', 1)[0]
             else:
                 title = '未命名试卷'
 
-        # 检查文件
-        if 'file' not in request.files:
-            return jsonify({
-                'success': False,
-                'message': '没有上传文件'
-            }), 400
+        # 接收前端传来的解析结果（JSON格式）
+        questions_json = data.get('questions')
+        if not questions_json:
+            # 兼容旧版本：如果没有传questions，则需要上传文件并解析（不推荐）
+            file = request.files.get('file')
+            if not file:
+                return jsonify({
+                    'success': False,
+                    'message': '没有提供题目数据或上传文件'
+                }), 400
 
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({
-                'success': False,
-                'message': '没有选择文件'
-            }), 400
+            if file.filename == '':
+                return jsonify({
+                    'success': False,
+                    'message': '没有选择文件'
+                }), 400
 
-        if not allowed_file(file.filename):
-            return jsonify({
-                'success': False,
-                'message': f'不支持的文件格式。支持的格式: .docx, .doc, .txt'
-            }), 400
+            if not allowed_file(file.filename):
+                return jsonify({
+                    'success': False,
+                    'message': f'不支持的文件格式。支持的格式: .docx, .doc, .txt'
+                }), 400
 
-        # 保存文件
-        file_path, original_filename = save_uploaded_file(file)
+            # 保存文件
+            file_path, original_filename = save_uploaded_file(file)
 
-        try:
-            # 使用AI解析器解析文档
-            ai_parser = AIDocumentParser(use_ai=True)
-            parse_result = ai_parser.parse_document(file_path)
+            try:
+                # 使用AI解析器解析文档（旧版本兼容）
+                upload_folder = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads')) / 'images'
+                ai_parser = AIDocumentParser(
+                    use_ai=True,
+                    upload_folder=str(upload_folder),
+                    extract_images=True
+                )
+                parse_result = ai_parser.parse_document(file_path)
+                original_filename = original_filename
+            except Exception as e:
+                # 删除临时文件
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+                return jsonify({
+                    'success': False,
+                    'message': f'文档解析失败: {str(e)}'
+                }), 400
+        else:
+            # 新版本：直接使用前端传来的解析结果
+            import json
+            file_path = None  # 不需要上传文件
+            try:
+                questions = json.loads(questions_json)
+                original_filename = data.get('filename', '上传文档')
+                parse_result = {
+                    'questions': questions,
+                    'parse_method': 'ai'
+                }
+            except json.JSONDecodeError as e:
+                return jsonify({
+                    'success': False,
+                    'message': f'题目数据格式错误: {str(e)}'
+                }), 400
 
             # 从表单数据获取用户输入的时长和分值
             duration_minutes_input = data.get('duration_minutes')
@@ -329,34 +379,40 @@ def create_exam_from_document():
             question_service = QuestionService(db)
             created_questions = []
             failed_questions = []
-
-            print(f'开始创建题目，共 {len(exam_data.get("questions", []))} 道题目')
             for i, q_data in enumerate(exam_data['questions']):
                 try:
                     # 将选项列表转换为选项字典格式
                     options_list = q_data.get('options', [])
                     options_dict = {}
+                    formatted_options = []  # 保留完整选项信息（包含图片）
                     if options_list:
-                        # 保留选项中的has_image信息
-                        formatted_options = []
                         for opt in options_list:
                             formatted_options.append({
                                 'id': opt.get('id', chr(65 + len(formatted_options))),
                                 'text': opt.get('text', ''),
-                                'has_image': opt.get('has_image', False)
+                                'has_image': opt.get('has_image', False),
+                                'image_path': opt.get('image_path', None)
                             })
                         options_dict = {'choices': [opt.get('text', '') for opt in formatted_options]}
 
-                    # 处理图片标识
+                    # 处理图片标识和图片路径
                     has_image = q_data.get('content_has_image', False)
+                    image_path = q_data.get('image_path', None)
 
                     # 处理考点 - 暂时存储在metadata中，后续可关联KnowledgePoint
                     knowledge_point = q_data.get('knowledge_point', '')
                     metadata = {}
                     if knowledge_point:
                         metadata['knowledge_point_text'] = knowledge_point
+                    # 保存选项图片信息到metadata
+                    if formatted_options:
+                        options_with_images = {
+                            opt['id']: {'has_image': opt['has_image'], 'image_path': opt['image_path']}
+                            for opt in formatted_options if opt['has_image']
+                        }
+                        if options_with_images:
+                            metadata['options_images'] = options_with_images
 
-                    print(f'创建第 {i+1} 道题目，exam_id={exam.id}, has_image={has_image}, knowledge_point={knowledge_point}')
                     question = question_service.create_question(
                         exam_id=exam.id,
                         content=q_data.get('content', f'问题 {i+1}'),
@@ -368,13 +424,14 @@ def create_exam_from_document():
                         order_index=q_data.get('order_index', i + 1)
                     )
 
-                    # 额外设置has_image和metadata
+                    # 额外设置has_image、image_path和metadata
                     question.has_image = has_image
+                    if image_path:
+                        question.image_data = image_path  # 保存图片路径
                     if metadata:
                         question.question_metadata = metadata
                     db.session.commit()
 
-                    print(f'题目创建成功，ID={question.id}, has_image={question.has_image}')
                     created_questions.append(question.id)
                 except Exception as e:
                     import traceback
@@ -388,22 +445,21 @@ def create_exam_from_document():
 
             # 刷新试卷对象并更新统计信息（题目数量）
             db.session.refresh(exam)
-            print(f'刷新后试卷题目数（before update_statistics）: {exam.questions.count()}')
 
             try:
                 exam.update_statistics()
-                print(f'更新后试卷题目数（after update_statistics）: {exam.question_count}')
             except Exception as e:
                 import traceback
                 print(f'更新试卷统计失败: {e}')
                 traceback.print_exc()
                 db.session.rollback()
 
-            # 删除临时文件
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            # 删除临时文件（如果有上传文件）
+            if 'file' in request.files:
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
 
             return jsonify({
                 'success': True,
@@ -427,17 +483,18 @@ def create_exam_from_document():
                 'message': f'试卷创建成功，共导入 {len(created_questions)} 道题目'
             })
 
-        except Exception as e:
-            # 删除临时文件
+    except Exception as e:
+        # 删除临时文件（如果有上传文件）
+        if 'file' in request.files:
             try:
                 os.remove(file_path)
             except:
                 pass
 
-            return jsonify({
-                'success': False,
-                'message': f'创建试卷失败: {str(e)}'
-            }), 400
+        return jsonify({
+            'success': False,
+            'message': f'创建试卷失败: {str(e)}'
+        }), 400
 
     except Exception as e:
         return jsonify({
@@ -486,3 +543,27 @@ def get_mime_type(extension):
     }
 
     return mime_map.get(extension.lower(), ['application/octet-stream'])
+
+
+@upload_bp.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    """提供上传的文件（包括提取的图片）
+
+    Args:
+        filename: 文件名或相对路径
+
+    Returns:
+        文件响应
+    """
+    upload_dir = Path(current_app.config.get('UPLOAD_FOLDER', 'uploads'))
+    # 安全检查：防止目录遍历攻击
+    safe_path = Path(upload_dir) / filename
+    try:
+        # 解析相对路径，确保它在upload_dir内
+        safe_path = safe_path.resolve()
+        upload_dir = upload_dir.resolve()
+        if safe_path.is_relative_to(upload_dir):
+            return send_from_directory(str(upload_dir), filename)
+    except Exception:
+        pass
+    return "文件不存在", 404

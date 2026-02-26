@@ -202,6 +202,8 @@ class QuestionResource(BaseResource):
             'correct_answer': question.correct_answer,
             'explanation': question.explanation,
             'order_index': question.order_index,
+            'has_image': question.has_image,
+            'image_data': question.image_data,
             'created_at': question.created_at.isoformat() if question.created_at else None,
             'updated_at': question.updated_at.isoformat() if question.updated_at else None
         }

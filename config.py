@@ -44,7 +44,7 @@ class Config:
 class DevelopmentConfig(Config):
     """开发环境配置"""
     DEBUG = True
-    SQLALCHEMY_ECHO = True  # 输出SQL语句
+    SQLALCHEMY_ECHO = False  # 不输出SQL语句
     
     @classmethod
     def init_app(cls, app):

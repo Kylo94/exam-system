@@ -381,7 +381,9 @@ class ExamResource(BaseResource):
             'points': question.points,
             'options': question.options,
             'explanation': question.explanation,
-            'order_index': question.order_index
+            'order_index': question.order_index,
+            'has_image': question.has_image,
+            'image_data': question.image_data
         }
 
 

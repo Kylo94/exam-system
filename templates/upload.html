@@ -439,6 +439,7 @@
             let parseId = null;
             let progressInterval = null;
             let parseCompleted = false;
+            let savedQuestions = null;  // 保存解析完成的题目列表
 
             // 首先调用解析接口
             fetch('/api/upload/parse', {
@@ -464,12 +465,25 @@
                             .then(response => response.json())
                             .then(progressData => {
                                 if (progressData.success) {
-                                    const { percent, message, logs, completed } = progressData.data;
+                                    const { percent, message, logs, completed, questions } = progressData.data;
+
+                                    // 保存题目列表（解析完成后）
+                                    if (completed && questions && questions.length > 0) {
+                                        savedQuestions = questions;
+                                    }
 
                                     // 更新进度条
                                     progressBar.style.width = `${percent}%`;
                                     progressBar.setAttribute('aria-valuenow', percent);
                                     progressText.textContent = message;
+
+                                    // 检测解析失败：percent为0且completed为true
+                                    if (completed && percent === 0 && message.includes('失败')) {
+                                        parseCompleted = true;
+                                        clearInterval(progressInterval);
+                                        resetParseUI();
+                                        return;
+                                    }
 
                                     // 更新日志显示
                                     if (logs && logs.length > 0) {
@@ -518,12 +532,26 @@
                                         }
 
                                         // 解析成功后，继续创建考试
-                                        createExam(formData, data.data, logContent, progressBar, progressText, signal);
+                                        const examData = {
+                                            questions: savedQuestions || data.data?.questions || [],
+                                            uploaded_file: data.data?.uploaded_file || '上传文档'
+                                        };
+                                        createExam(formData, examData, logContent, progressBar, progressText, signal);
+                                    } else if (percent === 0 && message.includes('失败')) {
+                                        // 如果进度为0且消息包含"失败"，说明解析出错
+                                        parseCompleted = true;
+                                        clearInterval(progressInterval);
+                                        resetParseUI();
                                     }
                                 }
                             })
                             .catch(err => {
                                 console.error('获取进度失败:', err);
+                                // 如果轮询失败，可能是解析任务不存在，停止轮询
+                                if (progressInterval) {
+                                    clearInterval(progressInterval);
+                                    parseCompleted = true;
+                                }
                             });
                     }, 500); // 每500毫秒轮询一次
 
@@ -547,13 +575,21 @@
 
             // 重置UI函数
             function resetParseUI(message = null) {
-                document.getElementById('btnParse').disabled = false;
-                document.getElementById('btnParse').innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>解析文件并创建试卷';
+                // 重置按钮状态
+                const btnParse = document.getElementById('btnParse');
+                btnParse.disabled = false;
+                btnParse.innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>解析文件并创建试卷';
+                btnParse.classList.remove('btn-success');
+                btnParse.classList.add('btn-primary');
+
+                // 清理定时器
                 if (progressInterval) {
                     clearInterval(progressInterval);
                     progressInterval = null;
                 }
                 parseCompleted = true;
+
+                // 添加提示消息
                 if (message) {
                     logContent.innerHTML += `<div class="text-warning mt-2"><i class="bi bi-exclamation-triangle"></i> ${message}</div>`;
                 }
@@ -566,9 +602,21 @@
                 progressBar.setAttribute('aria-valuenow', 95);
                 progressText.textContent = '正在创建考试...';
 
+                // 创建新的FormData，复用原始数据，但添加解析结果
+                const examFormData = new FormData();
+                // 从原始formData复制所有字段（除了file）
+                for (let [key, value] of formData.entries()) {
+                    if (key !== 'file') {
+                        examFormData.append(key, value);
+                    }
+                }
+                // 添加解析结果（JSON格式）
+                examFormData.append('questions', JSON.stringify(parseData.questions || []));
+                examFormData.append('filename', parseData.uploaded_file || '上传文档');
+
                 fetch('/api/upload/create_exam', {
                     method: 'POST',
-                    body: formData,
+                    body: examFormData,
                     signal: signal
                 })
                 .then(response => response.json())
