@@ -250,8 +250,8 @@
                                     <td class="text-muted small">${formatDate(s.submitted_at || s.started_at)}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            ${s.status === 'in_progress' ? 
-                                                `<a href="/exam/${s.id}" class="btn btn-outline-primary">
+                                            ${s.status === 'in_progress' ?
+                                                `<a href="/exam/${s.exam_id}" class="btn btn-outline-primary">
                                                     <i class="bi bi-play-fill"></i> 继续
                                                 </a>` :
                                                 `<a href="/submission/${s.id}/result" class="btn btn-outline-info">

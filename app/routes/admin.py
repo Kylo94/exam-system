@@ -1407,6 +1407,90 @@ def delete_question(question_id):
         return error_response(f'删除题目失败: {str(e)}', 500)
 
 
+@admin_bp.route('/api/exams/<int:exam_id>/questions', methods=['GET'])
+@login_required
+@admin_required
+@api_response
+def get_exam_questions(exam_id):
+    """获取试卷题目列表API
+
+    Args:
+        exam_id: 试卷ID
+
+    Returns:
+        试卷题目列表
+    """
+    exam = Exam.get_by_id(exam_id)
+    if not exam:
+        return error_response('试卷不存在', 404)
+
+    questions = Question.query.filter_by(exam_id=exam_id).order_by(Question.order_index).all()
+
+    return [question.to_dict() for question in questions], 200
+
+
+@admin_bp.route('/api/exams/<int:exam_id>/questions', methods=['POST'])
+@login_required
+@admin_required
+@api_response
+def create_exam_question(exam_id):
+    """为试卷创建题目API
+
+    Args:
+        exam_id: 试卷ID
+
+    Request JSON:
+        type: 题型
+        content: 题目内容
+        answer: 正确答案
+        score: 分值
+        options: 选项列表（可选）
+        explanation: 答案解析（可选）
+
+    Returns:
+        创建的题目信息
+    """
+    exam = Exam.get_by_id(exam_id)
+    if not exam:
+        return error_response('试卷不存在', 404)
+
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    question_type = data.get('type')
+    content = data.get('content', '').strip()
+    answer = data.get('answer')
+    score = data.get('score', 5)
+    options = data.get('options')
+    explanation = data.get('explanation', '').strip()
+
+    try:
+        # 获取当前最大排序索引
+        max_order = db.session.query(db.func.max(Question.order_index)).filter_by(exam_id=exam_id).scalar() or 0
+
+        question = Question(
+            exam_id=exam_id,
+            type=question_type,
+            content=content,
+            correct_answer=answer,
+            points=score,
+            order_index=max_order + 1,
+            options=options,
+            explanation=explanation
+        )
+        db.session.add(question)
+        db.session.commit()
+
+        return {
+            'data': question.to_dict(),
+            'message': '题目创建成功'
+        }, 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'创建题目失败: {str(e)}', 500)
+
+
 # ==================== 提交管理API ====================
 
 @admin_bp.route('/api/submissions', methods=['GET'])

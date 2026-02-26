@@ -41,6 +41,13 @@
         .option-item input[type="radio"] {
             margin-right: 0.5rem;
         }
+        .option-item .form-check-label {
+            display: inline;
+            cursor: pointer;
+        }
+        .option-item .form-check-label strong {
+            margin-right: 0.25rem;
+        }
         .timer {
             font-size: 1.5rem;
             font-weight: bold;
@@ -178,10 +185,20 @@
                     <!-- 题目内容 -->
                     <div class="question-content mb-4">
                         <p class="card-text">{{ question.content|safe }}</p>
-                        
-                        {% if question.has_image and question.image_data %}
+
+                        {% if question.has_image %}
                         <div class="mt-3 mb-3">
-                            <img src="data:image/png;base64,{{ question.image_data }}" class="img-fluid rounded" alt="题目图片">
+                            {% if question.image_data %}
+                                {% if question.image_data.startswith('data:') %}
+                                <img src="{{ question.image_data }}" class="img-fluid rounded" alt="题目图片">
+                                {% else %}
+                                <img src="{{ url_for('upload.uploaded_file', filename=question.image_data) }}" class="img-fluid rounded" alt="题目图片">
+                                {% endif %}
+                            {% else %}
+                            <div class="alert alert-info">
+                                <i class="bi bi-image me-2"></i>此题目包含图片，但图片数据未上传
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
@@ -190,36 +207,62 @@
                     <div class="answer-area">
                         {% if question.type == 'single_choice' %}
                             <!-- 单选题 -->
-                            {% if question.options and question.options.choices %}
-                                {% for option in question.options.choices %}
-                                <div class="option-item" onclick="selectSingleChoice({{ question.id }}, '{{ option.id }}')">
-                                    <input type="radio" 
-                                           id="q{{ question.id }}_{{ option.id }}" 
-                                           name="answers[{{ question.id }}]" 
-                                           value="{{ option.id }}"
+                            {% set options_list = question.get_options_list() %}
+                            {% set option_labels = ['A', 'B', 'C', 'D', 'E', 'F'] %}
+                            {% if options_list %}
+                                {% for option in options_list %}
+                                {% set option_id = option.get('id', option_labels[loop.index0] if loop.index0 < option_labels|length else loop.index0|string) %}
+                                {% set option_text = option.get('text', option) if option is mapping else option %}
+                                {% set option_label = option_labels[loop.index0] if loop.index0 < option_labels|length else option_id %}
+                                <div class="option-item" onclick="selectSingleChoice({{ question.id }}, '{{ option_id }}')">
+                                    <input type="radio"
+                                           id="q{{ question.id }}_{{ option_id }}"
+                                           name="answers[{{ question.id }}]"
+                                           value="{{ option_id }}"
                                            class="form-check-input">
-                                    <label for="q{{ question.id }}_{{ option.id }}" class="form-check-label w-100">
-                                        <strong>{{ option.id }}.</strong> {{ option.text }}
+                                    <label for="q{{ question.id }}_{{ option_id }}" class="form-check-label">
+                                        <strong>{{ option_label }}.</strong> {{ option_text }}
+                                        {% if option.get('has_image') and option.get('image_path') %}
+                                        <div class="mt-2 mb-2">
+                                            <img src="{{ url_for('upload.uploaded_file', filename=option['image_path']) }}"
+                                                 class="img-fluid rounded"
+                                                 alt="选项{{ option_label }}图片"
+                                                 style="max-height: 150px;">
+                                        </div>
+                                        {% endif %}
                                     </label>
                                 </div>
                                 {% endfor %}
                             {% else %}
                                 <div class="alert alert-warning">此题目没有选项</div>
                             {% endif %}
-                            
+
                         {% elif question.type == 'multiple_choice' %}
                             <!-- 多选题 -->
-                            {% if question.options and question.options.choices %}
-                                {% for option in question.options.choices %}
+                            {% set options_list = question.get_options_list() %}
+                            {% set option_labels = ['A', 'B', 'C', 'D', 'E', 'F'] %}
+                            {% if options_list %}
+                                {% for option in options_list %}
+                                {% set option_id = option.get('id', option_labels[loop.index0] if loop.index0 < option_labels|length else loop.index0|string) %}
+                                {% set option_text = option.get('text', option) if option is mapping else option %}
+                                {% set option_label = option_labels[loop.index0] if loop.index0 < option_labels|length else option_id %}
                                 <div class="option-item">
-                                    <input type="checkbox" 
-                                           id="q{{ question.id }}_{{ option.id }}" 
-                                           name="answers[{{ question.id }}][]" 
-                                           value="{{ option.id }}"
+                                    <input type="checkbox"
+                                           id="q{{ question.id }}_{{ option_id }}"
+                                           name="answers[{{ question.id }}][]"
+                                           value="{{ option_id }}"
                                            class="form-check-input"
                                            onchange="updateMultiChoice({{ question.id }})">
-                                    <label for="q{{ question.id }}_{{ option.id }}" class="form-check-label w-100">
-                                        <strong>{{ option.id }}.</strong> {{ option.text }}
+                                    <label for="q{{ question.id }}_{{ option_id }}" class="form-check-label">
+                                        <strong>{{ option_label }}.</strong> {{ option_text }}
+                                        {% if option.get('has_image') and option.get('image_path') %}
+                                        <div class="mt-2 mb-2">
+                                            <img src="{{ url_for('upload.uploaded_file', filename=option['image_path']) }}"
+                                                 class="img-fluid rounded"
+                                                 alt="选项{{ option_label }}图片"
+                                                 style="max-height: 150px;">
+                                        </div>
+                                        {% endif %}
                                     </label>
                                 </div>
                                 {% endfor %}

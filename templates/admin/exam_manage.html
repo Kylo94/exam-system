@@ -11,12 +11,9 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h3">试卷管理</h1>
             <div>
-                <button class="btn btn-success me-2" onclick="showUploadModal()">
+                <a href="{{ url_for('main.upload_page') }}" class="btn btn-success me-2">
                     <i class="bi bi-upload me-1"></i>上传试卷
-                </button>
-                <button class="btn btn-primary me-2" onclick="showManualCreateModal()">
-                    <i class="bi bi-plus-circle me-1"></i>手动创建
-                </button>
+                </a>
                 <button class="btn btn-danger d-none" id="batchDeleteBtn" onclick="batchDeleteExams()">
                     <i class="bi bi-trash me-1"></i>批量删除 (<span id="selectedCount">0</span>)
                 </button>
@@ -83,106 +80,6 @@
             </div>
         </div>
     </main>
-
-    <!-- 上传试卷模态框 -->
-    <div class="modal fade" id="uploadModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">上传试卷</h5>
-                    <button type="button" class="btn-close" onclick="closeModal('uploadModal')"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="uploadForm">
-                        <div class="mb-3">
-                            <label class="form-label">上传方式</label>
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="uploadType" id="uploadAI" value="ai" checked onchange="toggleUploadType()">
-                                <label class="btn btn-outline-primary" for="uploadAI">
-                                    <i class="bi bi-robot me-1"></i>AI 解析
-                                </label>
-                                <input type="radio" class="btn-check" name="uploadType" id="uploadManual" value="manual" onchange="toggleUploadType()">
-                                <label class="btn btn-outline-secondary" for="uploadManual">
-                                    <i class="bi bi-pencil me-1"></i>手动填写
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- AI 解析区域 -->
-                        <div id="aiUploadArea">
-                            <div class="mb-3">
-                                <label class="form-label">上传文档</label>
-                                <input type="file" class="form-control" id="uploadFile" accept=".doc,.docx,.pdf">
-                                <small class="text-muted">支持 .doc, .docx, .pdf 格式</small>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">科目 <span class="text-danger">*</span></label>
-                                <select class="form-select" id="uploadSubject" required>
-                                    <option value="">请选择科目</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">等级 <span class="text-danger">*</span></label>
-                                <select class="form-select" id="uploadLevel" required>
-                                    <option value="">请选择等级</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">试卷标题</label>
-                                <input type="text" class="form-control" id="uploadTitle" placeholder="留空则自动生成">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">总分</label>
-                                <input type="number" class="form-control" id="uploadTotalScore" placeholder="留空则自动计算">
-                            </div>
-                        </div>
-
-                        <!-- 手动填写区域 -->
-                        <div id="manualUploadArea" class="d-none">
-                            <div class="mb-3">
-                                <label class="form-label">试卷标题 <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="manualTitle" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">科目 <span class="text-danger">*</span></label>
-                                <select class="form-select" id="manualSubject" required>
-                                    <option value="">请选择科目</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">等级 <span class="text-danger">*</span></label>
-                                <select class="form-select" id="manualLevel" required>
-                                    <option value="">请选择等级</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">时长（分钟）</label>
-                                <input type="number" class="form-control" id="manualDuration" placeholder="留空表示不限时">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">及格分数</label>
-                                <input type="number" class="form-control" id="manualPassScore" value="60">
-                            </div>
-                            <hr>
-                            <h6>添加题目</h6>
-                            <div id="questionsContainer">
-                                <!-- 动态添加题目 -->
-                            </div>
-                            <button type="button" class="btn btn-outline-primary mt-2" onclick="addQuestion()">
-                                <i class="bi bi-plus-circle me-1"></i>添加题目
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('uploadModal')">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="submitUpload()">
-                        <i class="bi bi-upload me-1"></i>上传
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- 编辑试卷模态框 -->
     <div class="modal fade" id="editModal" tabindex="-1">
@@ -255,12 +152,10 @@
                         const subjects = (data.data && data.data.subjects) || [];
                         const options = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                         document.getElementById('filterSubject').innerHTML = '<option value="">全部科目</option>' + options;
-                        document.getElementById('uploadSubject').innerHTML = '<option value="">请选择科目</option>' + options;
-                        document.getElementById('manualSubject').innerHTML = '<option value="">请选择科目</option>' + options;
                         document.getElementById('editSubject').innerHTML = '<option value="">请选择科目</option>' + options;
 
                         // 移除旧的事件监听器，避免重复添加
-                        ['filterSubject', 'uploadSubject', 'manualSubject', 'editSubject'].forEach(id => {
+                        ['filterSubject', 'editSubject'].forEach(id => {
                             const element = document.getElementById(id);
                             const newElement = element.cloneNode(true);
                             element.parentNode.replaceChild(newElement, element);
@@ -269,12 +164,6 @@
                         // 科目变化时加载等级
                         document.getElementById('filterSubject').addEventListener('change', (e) => {
                             loadLevelsForSelect(e.target.value, 'filterLevel');
-                        });
-                        document.getElementById('uploadSubject').addEventListener('change', (e) => {
-                            loadLevelsForSelect(e.target.value, 'uploadLevel');
-                        });
-                        document.getElementById('manualSubject').addEventListener('change', (e) => {
-                            loadLevelsForSelect(e.target.value, 'manualLevel');
                         });
                         document.getElementById('editSubject').addEventListener('change', (e) => {
                             loadLevelsForSelect(e.target.value, 'editLevel');
@@ -362,6 +251,7 @@
 
         // 渲染试卷列表
         function renderExams(exams) {
+            console.log('渲染试卷列表，试卷数据:', exams);
             const tbody = document.getElementById('examsBody');
             tbody.innerHTML = exams.map(exam => `
                 <tr data-exam-id="${exam.id}">
@@ -383,9 +273,9 @@
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editExam(${exam.id})">
+                        <a href="/exam-edit/${exam.id}" class="btn btn-sm btn-outline-primary me-1">
                             <i class="bi bi-pencil"></i>
-                        </button>
+                        </a>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteExam(${exam.id})">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -417,240 +307,6 @@
 
             html += '</ul></nav>';
             container.innerHTML = html;
-        }
-
-        // 显示上传模态框
-        function showUploadModal() {
-            document.getElementById('uploadModal').classList.add('show');
-            document.querySelector('#uploadModal').style.display = 'block';
-        }
-
-        // 显示手动创建模态框
-        function showManualCreateModal() {
-            document.querySelector('input[name="uploadType"][value="manual"]').checked = true;
-            toggleUploadType();
-            showUploadModal();
-        }
-
-        // 切换上传方式
-        function toggleUploadType() {
-            const type = document.querySelector('input[name="uploadType"]:checked').value;
-            if (type === 'ai') {
-                document.getElementById('aiUploadArea').classList.remove('d-none');
-                document.getElementById('manualUploadArea').classList.add('d-none');
-            } else {
-                document.getElementById('aiUploadArea').classList.add('d-none');
-                document.getElementById('manualUploadArea').classList.remove('d-none');
-            }
-        }
-
-        // 添加题目（手动创建）
-        function addQuestion() {
-            const container = document.getElementById('questionsContainer');
-            const index = container.children.length;
-            const html = `
-                <div class="card mb-3 question-card" data-index="${index}">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between mb-2">
-                            <h6>题目 ${index + 1}</h6>
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeQuestion(this)">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label">题型</label>
-                            <select class="form-select question-type" onchange="toggleQuestionOptions(this)">
-                                <option value="single_choice">单选题</option>
-                                <option value="multiple_choice">多选题</option>
-                                <option value="judgment">判断题</option>
-                                <option value="fill_blank">填空题</option>
-                                <option value="short_answer">简答题</option>
-                            </select>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label">题目内容</label>
-                            <textarea class="form-control question-content" rows="2" required></textarea>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label">分值</label>
-                            <input type="number" class="form-control question-points" value="10" min="1" required>
-                        </div>
-                        <div class="options-container mb-2"></div>
-                        <div class="mb-2">
-                            <label class="form-label">正确答案</label>
-                            <input type="text" class="form-control question-answer" required>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', html);
-            toggleQuestionOptions(container.querySelector('.question-type'));
-        }
-
-        // 切换题目选项显示
-        function toggleQuestionOptions(select) {
-            const type = select.value;
-            const card = select.closest('.question-card');
-            const optionsContainer = card.querySelector('.options-container');
-
-            if (type === 'single_choice' || type === 'multiple_choice') {
-                optionsContainer.innerHTML = `
-                    <label class="form-label">选项</label>
-                    <div class="options-list">
-                        ${['A', 'B', 'C', 'D'].map((opt, i) => `
-                            <div class="input-group mb-2">
-                                <span class="input-group-text">${opt}</span>
-                                <input type="text" class="form-control option-text" data-option="${opt}" placeholder="选项内容">
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            } else {
-                optionsContainer.innerHTML = '';
-            }
-        }
-
-        // 删除题目
-        function removeQuestion(btn) {
-            btn.closest('.question-card').remove();
-        }
-
-        // 提交上传
-        function submitUpload() {
-            const type = document.querySelector('input[name="uploadType"]:checked').value;
-
-            if (type === 'ai') {
-                submitAIUpload();
-            } else {
-                submitManualUpload();
-            }
-        }
-
-        // AI 解析上传
-        function submitAIUpload() {
-            const file = document.getElementById('uploadFile').files[0];
-            const subject = document.getElementById('uploadSubject').value;
-            const level = document.getElementById('uploadLevel').value;
-            const title = document.getElementById('uploadTitle').value;
-            const totalScore = document.getElementById('uploadTotalScore').value;
-
-            if (!file) {
-                alert('请选择要上传的文件');
-                return;
-            }
-            if (!subject || !level) {
-                alert('请选择科目和等级');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('subject_id', subject);
-            formData.append('level_id', level);
-            formData.append('title', title);  // 始终发送 title，即使为空（后端会自动生成）
-            if (totalScore) formData.append('total_points', totalScore);
-
-            fetch('/api/upload/create_exam', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('试卷创建成功！');
-                    closeModal('uploadModal');
-                    loadExams();
-                } else {
-                    alert('上传失败：' + data.message);
-                }
-            })
-            .catch(error => {
-                alert('上传失败：' + error.message);
-            });
-        }
-
-        // 手动创建上传
-        function submitManualUpload() {
-            const title = document.getElementById('manualTitle').value;
-            const subject = document.getElementById('manualSubject').value;
-            const level = document.getElementById('manualLevel').value;
-            const duration = document.getElementById('manualDuration').value;
-            const passScore = document.getElementById('manualPassScore').value;
-
-            if (!title || !subject || !level) {
-                alert('请填写必填项');
-                return;
-            }
-
-            // 收集题目
-            const questions = [];
-            document.querySelectorAll('.question-card').forEach((card, index) => {
-                const type = card.querySelector('.question-type').value;
-                const content = card.querySelector('.question-content').value;
-                const points = parseInt(card.querySelector('.question-points').value);
-                const answer = card.querySelector('.question-answer').value;
-
-                const question = {
-                    type: type,
-                    content: content,
-                    points: points,
-                    correct_answer: answer,
-                    order_index: index + 1
-                };
-
-                // 如果是选择题，添加选项
-                if (type === 'single_choice' || type === 'multiple_choice') {
-                    const options = [];
-                    card.querySelectorAll('.option-text').forEach(opt => {
-                        if (opt.value) {
-                            options.push({
-                                id: opt.dataset.option,
-                                text: opt.value
-                            });
-                        }
-                    });
-                    if (options.length < 2) {
-                        alert('选择题至少需要2个选项');
-                        return;
-                    }
-                    question.options = options;
-                }
-
-                questions.push(question);
-            });
-
-            if (questions.length === 0) {
-                alert('请至少添加一道题目');
-                return;
-            }
-
-            const examData = {
-                title: title,
-                subject_id: parseInt(subject),
-                level_id: parseInt(level),
-                duration_minutes: duration ? parseInt(duration) : null,
-                pass_score: passScore ? parseFloat(passScore) : 60.0,
-                questions: questions
-            };
-
-            fetch('/admin/api/exams', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(examData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('试卷创建成功！');
-                    closeModal('uploadModal');
-                    loadExams();
-                } else {
-                    alert('创建失败：' + data.message);
-                }
-            })
-            .catch(error => {
-                alert('创建失败：' + error.message);
-            });
         }
 
         // 编辑试卷

@@ -154,28 +154,73 @@ class DeepSeekService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            response.raise_for_status()
+        # 增加超时时间到300秒（5分钟），推理模型需要更长的时间
+        max_retries = 3
+        timeout = 300  # 5分钟超时
 
-            data = response.json()
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout
+                )
+                response.raise_for_status()
 
-            return {
-                'content': data['choices'][0]['message']['content'],
-                'usage': data.get('usage', {}),
-                'model': data.get('model'),
-                'raw': data
-            }
+                data = response.json()
 
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"DeepSeek API请求失败: {str(e)}")
-        except (KeyError, IndexError) as e:
-            raise Exception(f"DeepSeek API响应格式错误: {str(e)}")
+                # DeepSeek R1模型支持返回思考过程
+                result = {
+                    'content': data['choices'][0]['message']['content'],
+                    'usage': data.get('usage', {}),
+                    'model': data.get('model'),
+                    'raw': data
+                }
+
+                # 如果有思考过程，提取出来（仅推理模型才有）
+                message = data.get('choices', [{}])[0].get('message', {})
+
+                # 方式1: 直接在message中有reasoning_content字段
+                if 'reasoning_content' in message:
+                    result['reasoning'] = message['reasoning_content']
+
+                # 方式2: 在delta字段中有reasoning_content
+                if 'delta' in message and 'reasoning_content' in message['delta']:
+                    result['reasoning'] = message['delta']['reasoning_content']
+
+                return result
+
+            except requests.exceptions.Timeout as e:
+                if attempt < max_retries - 1:
+                    print(f"DeepSeek API请求超时，第{attempt + 1}次重试...")
+                    continue
+                raise Exception(f"DeepSeek API请求超时（已重试{max_retries}次）: {str(e)}")
+            except requests.exceptions.HTTPError as e:
+                # 捕获HTTP错误，返回详细错误信息
+                error_msg = f"DeepSeek API返回HTTP错误: {str(e)}"
+                try:
+                    if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                        error_detail = e.response.text[:500]
+                        error_msg += f"\nAPI响应: {error_detail}"
+                except:
+                    pass
+
+                if attempt < max_retries - 1:
+                    print(f"DeepSeek API请求失败，第{attempt + 1}次重试...")
+                    import time
+                    time.sleep(1)
+                    continue
+                raise Exception(error_msg)
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    print(f"DeepSeek API请求失败，第{attempt + 1}次重试: {str(e)}")
+                    import time
+                    time.sleep(1)  # 等待1秒后重试
+                    continue
+                raise Exception(f"DeepSeek API请求失败（已重试{max_retries}次）: {str(e)}")
+            except (KeyError, IndexError) as e:
+                raise Exception(f"DeepSeek API响应格式错误: {str(e)}")
 
 
 class OpenAIService(AIServiceBase):
@@ -207,28 +252,43 @@ class OpenAIService(AIServiceBase):
             'temperature': kwargs.get('temperature', self.temperature),
         }
 
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=payload,
-                timeout=60
-            )
-            response.raise_for_status()
+        # 增加超时时间到300秒（5分钟），支持推理模型
+        max_retries = 3
+        timeout = 300  # 5分钟超时
 
-            data = response.json()
+        for attempt in range(max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=timeout
+                )
+                response.raise_for_status()
 
-            return {
-                'content': data['choices'][0]['message']['content'],
-                'usage': data.get('usage', {}),
-                'model': data.get('model'),
-                'raw': data
-            }
+                data = response.json()
 
-        except requests.exceptions.RequestException as e:
-            raise Exception(f"OpenAI API请求失败: {str(e)}")
-        except (KeyError, IndexError) as e:
-            raise Exception(f"OpenAI API响应格式错误: {str(e)}")
+                return {
+                    'content': data['choices'][0]['message']['content'],
+                    'usage': data.get('usage', {}),
+                    'model': data.get('model'),
+                    'raw': data
+                }
+
+            except requests.exceptions.Timeout as e:
+                if attempt < max_retries - 1:
+                    print(f"OpenAI API请求超时，第{attempt + 1}次重试...")
+                    continue
+                raise Exception(f"OpenAI API请求超时（已重试{max_retries}次）: {str(e)}")
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    print(f"OpenAI API请求失败，第{attempt + 1}次重试: {str(e)}")
+                    import time
+                    time.sleep(1)  # 等待1秒后重试
+                    continue
+                raise Exception(f"OpenAI API请求失败（已重试{max_retries}次）: {str(e)}")
+            except (KeyError, IndexError) as e:
+                raise Exception(f"OpenAI API响应格式错误: {str(e)}")
 
 
 def get_ai_service(config=None) -> AIServiceBase:

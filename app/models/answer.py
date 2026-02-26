@@ -127,38 +127,40 @@ class Answer(BaseModel):
     def get_question_text(self) -> str:
         """
         获取题目文本
-        
+
         Returns:
             题目文本
         """
-        return self.question.text if self.question else ''
-    
+        return self.question.content if self.question and self.question.content else ''
+
     def get_correct_answer(self) -> str:
         """
         获取正确答案
-        
+
         Returns:
             正确答案
         """
-        return self.question.correct_answer if self.question else ''
-    
+        return str(self.question.correct_answer) if self.question and self.question.correct_answer is not None else ''
+
     def get_points(self) -> int:
         """
         获取题目分值
-        
+
         Returns:
             题目分值
         """
-        return self.question.points if self.question else 0
-    
+        if self.question and self.question.points is not None:
+            return self.question.points
+        return 0
+
     def get_question_type(self) -> str:
         """
         获取题目类型
-        
+
         Returns:
             题目类型
         """
-        return self.question.type if self.question else ''
+        return self.question.type if self.question and self.question.type else ''
     
     def get_options(self) -> list:
         """

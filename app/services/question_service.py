@@ -354,7 +354,7 @@ class QuestionService(BaseService[Question]):
             'id': question.id,
             'content': question.content,
             'type': question.type,
-            'score': question.score,
+            'points': question.points,
             'options': question.options,
             'correct_answer': question.correct_answer,
             'explanation': question.explanation,

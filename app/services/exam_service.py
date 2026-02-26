@@ -134,14 +134,14 @@ class ExamService(BaseService[Exam]):
 
         if duration_minutes is not None and duration_minutes <= 0:
             raise ValueError("考试时长必须大于0")
-        
+
         if max_attempts < 1:
             raise ValueError("最大尝试次数必须大于0")
 
         if pass_score < 0 or pass_score > 100:
             raise ValueError("及格分数必须在0-100之间")
 
-        if total_points < 1:
+        if total_points is not None and total_points < 1:
             raise ValueError("总分必须大于0")
 
         return self.create({

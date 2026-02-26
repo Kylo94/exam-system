@@ -212,15 +212,15 @@ class Submission(BaseModel):
     def calculate_score(self) -> float:
         """
         计算总分（基于所有答题记录）
-        
+
         Returns:
             总分
         """
         answers = self.answers.all()
         if not answers:
             return 0.0
-        
-        total = sum(float(answer.score) for answer in answers)
+
+        total = sum(float(answer.score) if answer.score is not None else 0.0 for answer in answers)
         self.total_score = total
         db.session.commit()
         return total

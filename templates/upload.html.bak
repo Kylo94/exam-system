@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    {% include "partials/head.html" %}
+    <title>{{ app_name }} - 新建试卷</title>
+    <style>
+        .upload-method-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid #dee2e6;
+        }
+        .upload-method-card:hover {
+            border-color: #0d6efd;
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .upload-method-card.active {
+            border-color: #0d6efd;
+            background-color: #f8f9fa;
+        }
+        .upload-method-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .drop-zone {
+            border: 2px dashed #dee2e6;
+            border-radius: 0.5rem;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #0d6efd;
+            background-color: #e7f1ff;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            margin: 0 0.5rem;
+            border-radius: 2rem;
+            background-color: #e9ecef;
+            color: #6c757d;
+            transition: all 0.3s ease;
+        }
+        .step-item.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .step-item.completed {
+            background-color: #198754;
+            color: white;
+        }
+        .step-number {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/navbar.html" %}
+    
+    <main class="container py-5">
+        <!-- 面包屑导航 -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.exam_manage_page') }}">试卷管理</a></li>
+                <li class="breadcrumb-item active">新建试卷</li>
+            </ol>
+        </nav>
+
+        <h1 class="mb-4">新建试卷</h1>
+
+        <!-- 创建方式选择 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100 p-4 upload-method-card active" id="methodParse" onclick="selectMethod('parse')">
+                    <div class="text-center">
+                        <div class="icon text-primary">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <h5>解析文件</h5>
+                        <p class="text-muted">上传Word或PDF试卷文件，系统自动解析试题并创建试卷</p>
+                        <ul class="list-unstyled text-start small">
+                            <li><i class="bi bi-check-circle text-success me-2"></i>支持 .docx 格式</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>支持 .pdf 格式</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>自动识别题型和分数</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>自动提取题目和选项</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 p-4 upload-method-card" id="methodManual" onclick="selectMethod('manual')">
+                    <div class="text-center">
+                        <div class="icon text-success">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
+                        <h5>手动创建</h5>
+                        <p class="text-muted">手动填写试卷信息，后续可在编辑试卷中添加题目</p>
+                        <ul class="list-unstyled text-start small">
+                            <li><i class="bi bi-check-circle text-success me-2"></i>灵活设置试卷信息</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>后续可逐步添加题目</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>适合从零开始构建</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i>支持各种题型</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 解析文件方式表单 -->
+        <div id="parseForm" class="card">
+            <div class="card-body">
+                <h5 class="card-title mb-4">解析文件创建试卷</h5>
+                <form id="formParse">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">选择试卷文件 *</label>
+                                <div class="drop-zone" id="dropZoneParse">
+                                    <input type="file" id="parseFile" accept=".docx,.pdf" style="display: none;">
+                                    <i class="bi bi-cloud-arrow-up display-4 text-muted mb-3"></i>
+                                    <h6 class="mb-2">拖拽文件到此处或点击选择</h6>
+                                    <p class="text-muted small">支持 .docx 或 .pdf 格式</p>
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('parseFile').click()">
+                                        <i class="bi bi-folder2-open me-1"></i>选择文件
+                                    </button>
+                                </div>
+                                <div id="parseFileInfo" class="alert alert-info mt-2" style="display: none;">
+                                    <i class="bi bi-file-earmark me-1"></i>
+                                    <span id="parseFileName">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">试卷名称 *</label>
+                                <input type="text" class="form-control" id="parseTitle" placeholder="将根据文件名自动识别" required>
+                                <small class="text-muted">可手动修改</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">试卷等级 *</label>
+                                <select class="form-select" id="parseLevel" required>
+                                    <option value="">请选择试卷等级</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">考试时长（分钟）</label>
+                                <input type="number" class="form-control" id="parseDuration" min="1" placeholder="不限时">
+                                <small class="text-muted">留空表示不限时</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">满分分数</label>
+                                <input type="number" class="form-control" id="parseTotalPoints" min="1" placeholder="自动计算">
+                                <small class="text-muted">留空则根据题目自动计算</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">试卷科目 *</label>
+                                <select class="form-select" id="parseSubject" required onchange="loadParseLevels()">
+                                    <option value="">请选择试卷科目</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="parseActive" checked>
+                        <label class="form-check-label" for="parseActive">
+                            立即发布试卷
+                        </label>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="btnParse">
+                            <i class="bi bi-file-earmark-check me-1"></i>解析文件并创建试卷
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 手动创建方式表单 -->
+        <div id="manualForm" class="card" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title mb-4">手动创建试卷</h5>
+                <form id="formManual">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">试卷名称 *</label>
+                                <input type="text" class="form-control" id="manualTitle" required placeholder="请输入试卷名称">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">试卷科目 *</label>
+                                <select class="form-select" id="manualSubject" required onchange="loadManualLevels()">
+                                    <option value="">请选择试卷科目</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">试卷等级 *</label>
+                                <select class="form-select" id="manualLevel" required>
+                                    <option value="">请选择试卷等级</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">考试时长（分钟）</label>
+                                <input type="number" class="form-control" id="manualDuration" min="1" placeholder="不限时">
+                                <small class="text-muted">留空表示不限时</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">满分分数</label>
+                                <input type="number" class="form-control" id="manualTotalPoints" min="1" placeholder="请输入满分分数">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="manualActive" checked>
+                        <label class="form-check-label" for="manualActive">
+                            立即发布试卷
+                        </label>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>提示：</strong>创建试卷后，可以在试卷管理页面编辑试卷并添加题目。
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg" id="btnManual">
+                            <i class="bi bi-plus-circle me-1"></i>创建试卷
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+            <button class="btn btn-secondary" id="prevBtn" onclick="prevStep()" style="display: none;">
+                <i class="bi bi-arrow-left me-1"></i>上一步
+            </button>
+            <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                下一步<i class="bi bi-arrow-right ms-1"></i>
+            </button>
+            <button class="btn btn-success" id="publishBtn" onclick="publishExam()" style="display: none;">
+                <i class="bi bi-check-circle me-1"></i>完成上传
+            </button>
+        </div>
+    </main>
+
+    {% include "partials/footer.html" %}
+    {% include "partials/scripts.html" %}
+
+    <script>
+        let currentStep = 1;
+
+        // 下一步
+        function nextStep() {
+            if (!validateStep(currentStep)) {
+                return;
+            }
+
+            if (currentStep < 3) {
+                currentStep++;
+                updateStepDisplay();
+            }
+        }
+
+        // 上一步
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepDisplay();
+            }
+        }
+
+        // 更新步骤显示
+        function updateStepDisplay() {
+            // 隐藏所有步骤
+            document.querySelectorAll('.step-content').forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // 显示当前步骤
+            document.getElementById(`step${currentStep}`).style.display = 'block';
+
+            // 更新步骤指示器
+            document.querySelectorAll('.step-item').forEach((item, index) => {
+                item.classList.remove('active', 'completed');
+                if (index + 1 < currentStep) {
+                    item.classList.add('completed');
+                } else if (index + 1 === currentStep) {
+                    item.classList.add('active');
+                }
+            });
+
+            // 更新按钮显示
+            document.getElementById('prevBtn').style.display = currentStep > 1 ? 'inline-block' : 'none';
+            document.getElementById('nextBtn').style.display = currentStep < 3 ? 'inline-block' : 'none';
+            document.getElementById('publishBtn').style.display = currentStep === 3 ? 'inline-block' : 'none';
+
+            // 步骤1: 加载科目和等级
+            if (currentStep === 1) {
+                loadSubjects();
+            }
+
+            // 步骤2: 显示文件信息
+            if (currentStep === 2) {
+                // 可以在这里显示文件已选择的信息
+            }
+
+            // 步骤3: 显示预览
+            if (currentStep === 3) {
+                showPreview();
+            }
+        }
+
+        // 验证当前步骤
+        function validateStep(step) {
+            if (step === 1) {
+                const title = document.getElementById('examTitle').value.trim();
+                const subject = document.getElementById('subjectSelect').value;
+                const level = document.getElementById('levelSelect').value;
+                const totalPoints = document.getElementById('totalPoints').value;
+
+                if (!title) {
+                    alert('请输入试卷标题');
+                    return false;
+                }
+                if (!subject) {
+                    alert('请选择科目');
+                    return false;
+                }
+                if (!level) {
+                    alert('请选择难度等级');
+                    return false;
+                }
+                if (!totalPoints || totalPoints < 1) {
+                    alert('请输入有效的总分');
+                    return false;
+                }
+            } else if (step === 2) {
+                const fileInput = document.getElementById('examFile');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('请选择要上传的文件');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // 加载科目
+        function loadSubjects() {
+            fetch('/api/subjects/active')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('加载科目响应:', data);
+                    if (data.success && data.data) {
+                        const select = document.getElementById('subjectSelect');
+                        // 清空现有选项（保留默认选项）
+                        select.innerHTML = '<option value="">请选择科目</option>';
+                        data.data.forEach(subject => {
+                            const option = document.createElement('option');
+                            option.value = subject.id;
+                            option.textContent = subject.name;
+                            select.appendChild(option);
+                        });
+                        console.log('已加载科目数量:', data.data.length);
+                    } else {
+                        console.error('加载科目失败:', data);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载科目失败:', error);
+                });
+        }
+
+        // 加载等级
+        function loadLevels() {
+            const subjectId = document.getElementById('subjectSelect').value;
+            const levelSelect = document.getElementById('levelSelect');
+            levelSelect.innerHTML = '<option value="">请选择难度等级</option>';
+
+            if (!subjectId) {
+                console.log('未选择科目，不加载等级');
+                return;
+            }
+
+            console.log('正在加载等级，科目ID:', subjectId);
+            fetch(`/api/subjects/${subjectId}/levels`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('加载等级响应:', data);
+                    if (data.success && data.data) {
+                        // 支持两种响应格式: data.data.items (分页) 或 data.data (数组)
+                        const levels = Array.isArray(data.data) ? data.data : data.data.items;
+                        if (levels) {
+                            levels.forEach(level => {
+                                const option = document.createElement('option');
+                                option.value = level.id;
+                                option.textContent = level.name;
+                                levelSelect.appendChild(option);
+                            });
+                            console.log('已加载等级数量:', levels.length);
+                        } else {
+                            console.error('加载等级失败: 响应格式不正确', data);
+                        }
+                    } else {
+                        console.error('加载等级失败:', data);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载等级失败:', error);
+                });
+        }
+
+        // 完成上传
+        function removeOption(index) {
+            if (optionCount <= 2) {
+                alert('至少需要2个选项');
+                return;
+            }
+            optionCount--;
+            initOptions();
+        }
+
+        // 插入图片（占位）
+        function insertImage(targetId) {
+            const input = document.getElementById(targetId);
+            const imageUrl = prompt('请输入图片URL或点击"上传图片"（功能开发中）', '');
+            if (imageUrl) {
+                input.value += `[图片:${imageUrl}]`;
+            }
+        }
+
+        // 添加题目
+        function addQuestion() {
+            const content = document.getElementById('questionContent').value.trim();
+            const correctAnswer = document.getElementById('correctAnswer').value.trim();
+            const points = parseInt(document.getElementById('questionPoints').value);
+            const explanation = document.getElementById('questionExplanation').value.trim();
+
+            if (!content) {
+                alert('请输入题目内容');
+                return;
+            }
+            if (!correctAnswer) {
+                alert('请输入正确答案');
+                return;
+            }
+            if (!points || points < 1) {
+                alert('请输入有效的分值');
+                return;
+            }
+
+            let options = [];
+            if (currentQuestionType === 'single_choice' || currentQuestionType === 'multiple_choice') {
+                for (let i = 0; i < optionCount; i++) {
+                    const optionText = document.getElementById(`option${i}`).value.trim();
+                    if (!optionText) {
+                        alert(`请填写选项 ${String.fromCharCode(65 + i)}`);
+                        return;
+                    }
+                    options.push({
+                        id: String.fromCharCode(65 + i),
+                        text: optionText
+                    });
+                }
+            }
+
+            const question = {
+                id: Date.now(),
+                type: currentQuestionType,
+                content: content,
+                options: options,
+                correct_answer: correctAnswer,
+                points: points,
+                explanation: explanation,
+                order_index: questions.length + 1
+            };
+
+            questions.push(question);
+            updateQuestionList();
+
+            // 清空表单
+            document.getElementById('questionForm').reset();
+            document.getElementById('questionPoints').value = 10;
+        }
+
+        // 更新题目列表
+        function updateQuestionList() {
+            const questionList = document.getElementById('questionList');
+            const container = document.getElementById('questionsContainer');
+
+            if (questions.length === 0) {
+                questionList.style.display = 'none';
+                return;
+            }
+
+            questionList.style.display = 'block';
+            container.innerHTML = '';
+
+            const typeNames = {
+                'single_choice': '单选题',
+                'multiple_choice': '多选题',
+                'judgment': '判断题',
+                'fill_blank': '填空题',
+                'subjective': '简答题'
+            };
+
+            questions.forEach((question, index) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-primary me-2">${typeNames[question.type]}</span>
+                            <strong>第 ${question.order_index} 题</strong> (${question.points}分)
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-warning me-1" onclick="editQuestion(${index})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteQuestion(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        ${question.content}
+                        ${question.options && question.options.length > 0 ? `
+                            <ul class="list-unstyled mt-2 small text-muted">
+                                ${question.options.map(opt => `<li>${opt.id}. ${opt.text}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                        <small class="text-muted">答案：${question.correct_answer}</small>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // 编辑题目
+        function editQuestion(index) {
+            alert('编辑题目功能开发中');
+        }
+
+        // 删除题目
+        function deleteQuestion(index) {
+            if (confirm('确定要删除这道题目吗？')) {
+                questions.splice(index, 1);
+                // 重新排序
+                questions.forEach((q, i) => {
+                    q.order_index = i + 1;
+                });
+                updateQuestionList();
+            }
+        }
+
+        // 显示预览
+        function showPreview() {
+            const title = document.getElementById('examTitle').value;
+            const subjectSelect = document.getElementById('subjectSelect');
+            const levelSelect = document.getElementById('levelSelect');
+            const totalPoints = document.getElementById('totalPoints').value;
+            const passScore = document.getElementById('passScore').value;
+            const isActive = document.getElementById('isActive').checked;
+
+            document.getElementById('previewTitle').textContent = title;
+            document.getElementById('previewSubject').textContent = subjectSelect.options[subjectSelect.selectedIndex].text;
+            document.getElementById('previewLevel').textContent = levelSelect.options[levelSelect.selectedIndex].text;
+            document.getElementById('previewTotalPoints').textContent = totalPoints;
+            document.getElementById('previewQuestionCount').textContent = questions.length;
+            document.getElementById('previewPassScore').textContent = passScore;
+            document.getElementById('previewStatus').textContent = isActive ? '已发布' : '草稿';
+
+            // 预览题目
+            const container = document.getElementById('previewQuestions');
+            container.innerHTML = '';
+
+            const typeNames = {
+                'single_choice': '单选题',
+                'multiple_choice': '多选题',
+                'judgment': '判断题',
+                'fill_blank': '填空题',
+                'subjective': '简答题'
+            };
+
+            questions.forEach(question => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <span class="badge bg-primary me-2">${typeNames[question.type]}</span>
+                    <strong>${question.order_index}.</strong> ${question.content}
+                    <span class="badge bg-secondary ms-2">${question.points}分</span>
+                    ${question.options && question.options.length > 0 ? `
+                        <ul class="list-unstyled mt-2 ms-4">
+                            ${question.options.map(opt => `<li>${opt.id}. ${opt.text}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    <small class="text-muted">正确答案：${question.correct_answer}</small>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // 完成上传
+        function publishExam() {
+            if (!validateStep(3)) {
+                return;
+            }
+
+            // 上传文件并创建试卷
+            const fileInput = document.getElementById('examFile');
+            const file = fileInput.files[0];
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', document.getElementById('examTitle').value);
+            formData.append('subject_id', document.getElementById('subjectSelect').value);
+            formData.append('level_id', document.getElementById('levelSelect').value);
+            formData.append('total_points', document.getElementById('totalPoints').value);
+            formData.append('duration_minutes', document.getElementById('duration').value || '');
+            formData.append('is_active', document.getElementById('isActive').checked);
+
+            // 显示进度
+            document.getElementById('publishBtn').disabled = true;
+            document.getElementById('publishBtn').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>上传中...';
+
+            fetch('/api/upload/create_exam', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('试卷上传成功！');
+                    window.location.href = '/exam-manage';
+                } else {
+                    alert('上传失败：' + data.message);
+                    document.getElementById('publishBtn').disabled = false;
+                    document.getElementById('publishBtn').innerHTML = '<i class="bi bi-check-circle me-1"></i>完成上传';
+                }
+            })
+            .catch(error => {
+                console.error('上传失败:', error);
+                alert('上传失败，请检查网络连接');
+                document.getElementById('publishBtn').disabled = false;
+                document.getElementById('publishBtn').innerHTML = '<i class="bi bi-check-circle me-1"></i>完成上传';
+            });
+        }
+
+        // 清除文件
+        function clearFile() {
+            document.getElementById('examFile').value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+        }
+
+        // 文件选择处理 - 自动识别文件名并填充标题
+        document.getElementById('examFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 显示文件信息
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
+
+            // 自动从文件名生成标题（去除扩展名）
+            const titleInput = document.getElementById('examTitle');
+            if (!titleInput.value) {
+                const fileName = file.name.replace(/\.[^/.]+$/, ''); // 去除文件扩展名
+                titleInput.value = fileName;
+            }
+        });
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // 页面加载
+        document.addEventListener('DOMContentLoaded', function() {
+            // 页面初始化 - 显示第一步
+            document.getElementById('step1').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

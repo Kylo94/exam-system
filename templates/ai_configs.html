@@ -279,6 +279,8 @@
                     if (models.length > 0) {
                         modelSelect.value = models[0];
                     }
+                    // 自动设置max_tokens
+                    autoSetMaxTokens(models[0]);
                 } catch (e) {
                     console.error('解析模型列表失败:', e);
                 }
@@ -289,6 +291,37 @@
                 }
             }
         }
+
+        // 根据模型名称自动设置max_tokens
+        function autoSetMaxTokens(modelName) {
+            const maxTokensInput = document.getElementById('maxTokensInput');
+            if (!modelName) return;
+
+            const model = modelName.toLowerCase();
+            // 推理模型（reasoning/reasoner/R1）支持更大的输出
+            if (model.includes('reason') || model.includes('r1')) {
+                maxTokensInput.value = 64000;
+                console.log('检测到推理模型，设置max_tokens=64000');
+            } else if (model.includes('chat')) {
+                // Chat模型默认8000（DeepSeek chat的最大限制）
+                maxTokensInput.value = 8000;
+                console.log('检测到Chat模型，设置max_tokens=8000');
+            } else {
+                // 其他模型默认2000
+                maxTokensInput.value = 2000;
+                console.log('使用默认max_tokens=2000');
+            }
+        }
+
+        // 监听模型选择变化，自动设置max_tokens
+        document.addEventListener('DOMContentLoaded', function() {
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect) {
+                modelSelect.addEventListener('change', function() {
+                    autoSetMaxTokens(this.value);
+                });
+            }
+        });
 
         // 显示创建模态框
         function showCreateModal() {
