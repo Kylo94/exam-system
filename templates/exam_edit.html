@@ -150,6 +150,17 @@
                             <textarea class="form-control" id="questionContent" rows="3" required></textarea>
                         </div>
 
+                        <!-- 题目图片 -->
+                        <div class="mb-3" id="questionImageContainer">
+                            <label class="form-label">题目图片</label>
+                            <div id="currentQuestionImage" style="display: none;" class="mb-2">
+                                <img id="currentQuestionImagePreview" src="" alt="当前图片" class="img-fluid rounded" style="max-height: 200px;">
+                                <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="removeQuestionImage()">删除图片</button>
+                            </div>
+                            <input type="file" class="form-control" id="questionImageInput" accept="image/*">
+                            <small class="text-muted">支持jpg、png等图片格式，最大5MB</small>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">分值 *</label>
                             <input type="number" class="form-control" id="questionScore" min="1" value="5" required>
@@ -160,15 +171,19 @@
                             <div class="row">
                                 <div class="col-md-6 mb-2">
                                     <input type="text" class="form-control option-input" id="optionA" placeholder="选项 A">
+                                    <input type="file" class="form-control mt-1 option-image-input" data-option="A" accept="image/*" style="display: none;">
                                 </div>
                                 <div class="col-md-6 mb-2">
                                     <input type="text" class="form-control option-input" id="optionB" placeholder="选项 B">
+                                    <input type="file" class="form-control mt-1 option-image-input" data-option="B" accept="image/*" style="display: none;">
                                 </div>
                                 <div class="col-md-6 mb-2">
                                     <input type="text" class="form-control option-input" id="optionC" placeholder="选项 C">
+                                    <input type="file" class="form-control mt-1 option-image-input" data-option="C" accept="image/*" style="display: none;">
                                 </div>
                                 <div class="col-md-6 mb-2">
                                     <input type="text" class="form-control option-input" id="optionD" placeholder="选项 D">
+                                    <input type="file" class="form-control mt-1 option-image-input" data-option="D" accept="image/*" style="display: none;">
                                 </div>
                             </div>
                         </div>
@@ -360,6 +375,19 @@
                     case 'short_answer': typeText = '简答题'; break;
                 }
 
+                // 构建题目图片HTML
+                let imageHtml = '';
+                if (q.has_image && q.image_data) {
+                    console.log('题目图片:', q.id, q.image_data);
+                    if (q.image_data.startsWith('data:')) {
+                        imageHtml = `<img src="${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
+                    } else {
+                        const imageUrl = `/api/uploads/${q.image_data}`;
+                        console.log('图片URL:', imageUrl);
+                        imageHtml = `<img src="${imageUrl}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
+                    }
+                }
+
                 return `
                     <div class="question-card">
                         <div class="question-actions">
@@ -375,7 +403,8 @@
                             <span class="badge bg-success">${q.points} 分</span>
                         </div>
                         <h6 class="mb-2">${index + 1}. ${q.content}</h6>
-                        ${q.options ? renderOptions(q.options) : ''}
+                        ${imageHtml}
+                        ${q.options ? renderOptions(q.options, q.question_metadata) : ''}
                         <div class="text-muted small">
                             <strong>正确答案：</strong>${q.correct_answer}
                             ${q.explanation ? '<br><strong>解析：</strong>' + q.explanation : ''}
@@ -385,24 +414,53 @@
             }).join('');
         }
 
-        function renderOptions(options) {
+        function renderOptions(options, metadata) {
             const optLabels = ['A', 'B', 'C', 'D'];
             if (!options) return '';
+
+            // 获取选项图片信息
+            const optionsImages = metadata && metadata.options_images ? metadata.options_images : {};
 
             // 处理多种格式: [{'id': 'A', 'text': '...'}, ...], ['选项A', '选项B', ...], {'choices': [...]}, {'A': '...', 'B': '...'}
             if (Array.isArray(options)) {
                 return options.map((opt, idx) => {
                     const text = typeof opt === 'object' ? opt.text : opt;
-                    return `<div class="text-muted small">${optLabels[idx] || (idx + 1)}. ${text}</div>`;
+                    const label = optLabels[idx] || (idx + 1);
+                    const optId = optLabels[idx];
+                    const imageInfo = optionsImages[optId];
+
+                    let imageHtml = '';
+                    if (imageInfo && imageInfo.has_image && imageInfo.image_path) {
+                        imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
+                    }
+
+                    return `<div class="text-muted small d-flex align-items-center"><span>${label}. ${text}</span>${imageHtml}</div>`;
                 }).join('');
             } else if (options.choices && Array.isArray(options.choices)) {
                 return options.choices.map((val, idx) => {
-                    return `<div class="text-muted small">${optLabels[idx] || (idx + 1)}. ${val}</div>`;
+                    const label = optLabels[idx] || (idx + 1);
+                    const optId = optLabels[idx];
+                    const imageInfo = optionsImages[optId];
+
+                    let imageHtml = '';
+                    if (imageInfo && imageInfo.has_image && imageInfo.image_path) {
+                        imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
+                    }
+
+                    return `<div class="text-muted small d-flex align-items-center"><span>${label}. ${val}</span>${imageHtml}</div>`;
                 }).join('');
             } else {
                 return Object.entries(options || {}).map(([key, value]) => {
                     const label = optLabels[key.toUpperCase().charCodeAt(0) - 65] || key;
-                    return `<div class="text-muted small">${label}. ${value}</div>`;
+                    const optId = key.toUpperCase();
+                    const imageInfo = optionsImages[optId];
+
+                    let imageHtml = '';
+                    if (imageInfo && imageInfo.has_image && imageInfo.image_path) {
+                        imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
+                    }
+
+                    return `<div class="text-muted small d-flex align-items-center"><span>${label}. ${value}</span>${imageHtml}</div>`;
                 }).join('');
             }
         }
@@ -412,8 +470,16 @@
             document.getElementById('questionModalTitle').textContent = '添加题目';
             document.getElementById('questionForm').reset();
             document.getElementById('questionId').value = '';
+            document.getElementById('currentQuestionImage').style.display = 'none';
+            document.getElementById('questionImageInput').value = '';
             toggleQuestionType();
             new bootstrap.Modal(document.getElementById('questionModal')).show();
+        }
+
+        // 删除题目图片
+        function removeQuestionImage() {
+            document.getElementById('currentQuestionImage').style.display = 'none';
+            document.getElementById('questionImageInput').value = '';
         }
 
         // 编辑题目
@@ -432,6 +498,20 @@
                         document.getElementById('questionScore').value = q.points;
                         document.getElementById('questionAnswer').value = q.correct_answer;
                         document.getElementById('questionExplanation').value = q.explanation || '';
+
+                        // 处理题目图片
+                        if (q.has_image && q.image_data) {
+                            const currentImage = document.getElementById('currentQuestionImage');
+                            const currentImagePreview = document.getElementById('currentQuestionImagePreview');
+                            if (q.image_data.startsWith('data:')) {
+                                currentImagePreview.src = q.image_data;
+                            } else {
+                                currentImagePreview.src = `/api/uploads/${q.image_data}`;
+                            }
+                            currentImage.style.display = 'block';
+                        } else {
+                            document.getElementById('currentQuestionImage').style.display = 'none';
+                        }
 
                         if (q.options) {
                             let optionValues = {};
@@ -508,7 +588,7 @@
         }
 
         // 保存题目
-        function saveQuestion() {
+        async function saveQuestion() {
             const examId = document.getElementById('examId').value;
             const questionId = document.getElementById('questionId').value;
             const type = document.getElementById('questionType').value;
@@ -540,6 +620,26 @@
             const url = isEdit ? `/admin/api/questions/${questionId}` : `/admin/api/exams/${examId}/questions`;
             const method = isEdit ? 'PUT' : 'POST';
 
+            // 处理题目图片上传
+            const imageInput = document.getElementById('questionImageInput');
+            if (imageInput.files && imageInput.files[0]) {
+                const imageData = await uploadImage(imageInput.files[0]);
+                if (imageData) {
+                    data.has_image = true;
+                    data.image_data = imageData;
+                } else {
+                    alert('图片上传失败');
+                    return;
+                }
+            } else {
+                // 如果删除了图片，则标记为无图片
+                const currentImage = document.getElementById('currentQuestionImage');
+                if (currentImage.style.display === 'none') {
+                    data.has_image = false;
+                    data.image_data = '';
+                }
+            }
+
             fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
@@ -555,6 +655,30 @@
                     alert('操作失败：' + data.message);
                 }
             });
+        }
+
+        // 上传图片
+        async function uploadImage(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', 'question_image');
+
+            try {
+                const response = await fetch('/admin/api/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success && result.data && result.data.path) {
+                    return result.data.path;
+                } else {
+                    console.error('上传失败:', result);
+                    return null;
+                }
+            } catch (error) {
+                console.error('上传错误:', error);
+                return null;
+            }
         }
 
         // 页面加载

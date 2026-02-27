@@ -119,7 +119,8 @@ class Question(BaseModel):
         image_data: Optional[str] = None,
         explanation: Optional[str] = None,
         knowledge_point_id: Optional[int] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        question_metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None  # 兼容旧参数名
     ):
         """
         初始化题目
@@ -136,7 +137,8 @@ class Question(BaseModel):
             image_data: 图片数据（可选）
             explanation: 答案解析（可选）
             knowledge_point_id: 考点ID（可选）
-            metadata: 额外元数据（可选）
+            question_metadata: 额外元数据（可选）
+            metadata: 额外元数据（可选，兼容旧参数名）
         """
         self.exam_id = exam_id
         self.type = type
@@ -149,7 +151,8 @@ class Question(BaseModel):
         self.image_data = image_data
         self.explanation = explanation
         self.knowledge_point_id = knowledge_point_id
-        self.question_metadata = metadata or {}
+        # 兼容两种参数名，question_metadata优先
+        self.question_metadata = question_metadata or metadata or {}
     
     @classmethod
     def get_by_exam(cls, exam_id: int) -> List['Question']:

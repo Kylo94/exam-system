@@ -2,6 +2,9 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{{ app_name }} - 题目管理</title>
 </head>
 <body>
@@ -74,6 +77,7 @@
                                 <th width="100">题型</th>
                                 <th width="80">分值</th>
                                 <th width="150">试卷</th>
+                                <th width="120">考点</th>
                                 <th width="150">创建时间</th>
                                 <th width="180">操作</th>
                             </tr>
@@ -536,6 +540,9 @@
                         <td>
                             <a href="/exams/${q.exam_id}" class="text-decoration-none">${examTitle}</a>
                         </td>
+                        <td>
+                            ${getKnowledgePointText(q)}
+                        </td>
                         <td>${formatDate(q.created_at)}</td>
                         <td>
                             <div class="btn-group btn-group-sm">
@@ -574,6 +581,7 @@
                                 </div>
                                 <h6 class="card-title">${plainContent.substring(0, 60)}${plainContent.length > 60 ? '...' : ''}</h6>
                                 <p class="card-text small text-muted mb-2">试卷: ${examTitle}</p>
+                                <p class="card-text small text-muted mb-2">考点: ${getKnowledgePointText(q)}</p>
                                 ${plainExplanation ? `<p class="card-text small text-muted mb-2">解析: ${plainExplanation.substring(0, 40)}...</p>` : ''}
                             </div>
                             <div class="card-footer bg-transparent border-top-0">
@@ -880,7 +888,7 @@
                             if (q.image_data.startsWith('data:')) {
                                 questionImagePreview.innerHTML = `<img src="${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
                             } else {
-                                questionImagePreview.innerHTML = `<img src="/uploads/${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
+                                questionImagePreview.innerHTML = `<img src="/api/uploads/${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
                             }
                             questionImagePath.textContent = q.image_data;
                         } else {
@@ -921,7 +929,7 @@
                                 if (optionData.has_image && optionData.image_path) {
                                     imageHtml = `
                                         <div class="mt-2">
-                                            <img src="/uploads/${optionData.image_path}" class="img-fluid rounded" alt="选项图片" style="max-height: 150px;">
+                                            <img src="/api/uploads/${optionData.image_path}" class="img-fluid rounded" alt="选项图片" style="max-height: 150px;">
                                         </div>
                                     `;
                                 }
@@ -934,10 +942,7 @@
                                     ${imageHtml}
                                 </div>
                             `}).join('');
-                                    <input type="text" class="form-control edit-choice-input" value="${choice}">
-                                </div>
-                            `).join('');
-                            
+
                             // 处理正确答案
                             if (q.type === 'single_choice') {
                                 document.getElementById('editSingleCorrect').value = q.correct_answer;
@@ -1068,7 +1073,7 @@
                         const q = data.data.question;
                         const typeLabel = typeLabels[q.type] || q.type;
                         const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
-                        
+
                         let optionsHtml = '';
                         if (q.type === 'single_choice' || q.type === 'multiple_choice') {
                             const options = q.options || {};
@@ -1094,7 +1099,7 @@
                                 </div>
                             `).join('');
                         }
-                        
+
                         let answerHtml = '';
                         if (q.type === 'single_choice' || q.type === 'multiple_choice') {
                             answerHtml = `<span class="badge bg-success">${q.correct_answer}</span>`;
@@ -1186,6 +1191,22 @@
             if (!dateString) return '';
             const date = new Date(dateString);
             return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // 获取考点文本
+        function getKnowledgePointText(q) {
+            // 优先显示关联的考点名称
+            if (q.knowledge_point && q.knowledge_point.name) {
+                return q.knowledge_point.name;
+            }
+            // 回退到metadata中的文本
+            if (q.question_metadata) {
+                const metadata = typeof q.question_metadata === 'string' ? JSON.parse(q.question_metadata) : q.question_metadata;
+                if (metadata.knowledge_point_text) {
+                    return metadata.knowledge_point_text;
+                }
+            }
+            return '-';
         }
     </script>
 </body>

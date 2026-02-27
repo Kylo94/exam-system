@@ -421,16 +421,11 @@ def create_exam_from_document():
                         options=options_dict,
                         correct_answer=q_data.get('correct_answer', ''),
                         explanation=q_data.get('explanation', ''),
-                        order_index=q_data.get('order_index', i + 1)
+                        order_index=q_data.get('order_index', i + 1),
+                        question_metadata=metadata if metadata else None,
+                        has_image=has_image,
+                        image_data=image_path
                     )
-
-                    # 额外设置has_image、image_path和metadata
-                    question.has_image = has_image
-                    if image_path:
-                        question.image_data = image_path  # 保存图片路径
-                    if metadata:
-                        question.question_metadata = metadata
-                    db.session.commit()
 
                     created_questions.append(question.id)
                 except Exception as e:

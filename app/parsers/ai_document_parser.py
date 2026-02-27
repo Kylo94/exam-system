@@ -402,13 +402,28 @@ class AIDocumentParser:
         Returns:
             上下文文本
         """
-        # 优先向后查找，找到第一个非空的段落
-        for i in range(current_para_idx + 1, min(current_para_idx + 5, len(all_paragraphs))):
-            if all_paragraphs[i].strip():
-                return all_paragraphs[i][:100]
+        # 首先检查当前段落（图片和选项标识可能在同一段落）
+        if current_para_idx < len(all_paragraphs):
+            current_text = all_paragraphs[current_para_idx].strip()
+            if current_text:
+                # 如果当前段落包含选项标识，提取它
+                # 例如: "A. 选项内容" 或 "A. [图片]"
+                match = re.match(r'^([A-D])[\.、)\s]', current_text)
+                if match:
+                    return current_text[:100]
 
-        # 如果向后找不到，向前查找
-        for i in range(current_para_idx - 1, max(current_para_idx - 3, -1), -1):
+        # 如果当前段落没有选项标识，向前查找（选项标识通常在图片前面）
+        for i in range(current_para_idx - 1, max(current_para_idx - 5, -1), -1):
+            if all_paragraphs[i].strip():
+                text = all_paragraphs[i].strip()
+                # 如果这段文本是选项格式（以A-D开头），返回它
+                if re.match(r'^[A-D][\.、)\s]', text):
+                    return text[:100]
+                # 如果不是选项格式，也返回，让后面的逻辑判断
+                return text[:100]
+
+        # 如果向前找不到，向后查找
+        for i in range(current_para_idx + 1, min(current_para_idx + 5, len(all_paragraphs))):
             if all_paragraphs[i].strip():
                 return all_paragraphs[i][:100]
 
@@ -758,6 +773,42 @@ class AIDocumentParser:
     - 题目和选项中的代码示例、字典示例等需要转义其中的引号
     - **最后一个试题对象后面的括号必须正确闭合，确保数组以 ] 结尾**
 
+**JSON格式示例：**
+[
+  {{
+    "type": "single_choice",
+    "content": "以下哪个数据结构遵循先进先出（FIFO）原则？",
+    "options": [
+      {{"id": "A", "text": "栈", "has_image": false}},
+      {{"id": "B", "text": "队列", "has_image": false}},
+      {{"id": "C", "text": "链表", "has_image": false}},
+      {{"id": "D", "text": "二叉树", "has_image": false}}
+    ],
+    "correct_answer": "B",
+    "points": 2,
+    "explanation": "队列遵循先进先出（FIFO）原则，栈遵循后进先出（LIFO）原则。",
+    "knowledge_point": "队列的基本特性",
+    "content_has_image": false,
+    "order_index": 1
+  }},
+  {{
+    "type": "multiple_choice",
+    "content": "以下哪些是二叉树遍历的方法？",
+    "options": [
+      {{"id": "A", "text": "前序遍历", "has_image": false}},
+      {{"id": "B", "text": "中序遍历", "has_image": false}},
+      {{"id": "C", "text": "后序遍历", "has_image": false}},
+      {{"id": "D", "text": "拓扑排序", "has_image": false}}
+    ],
+    "correct_answer": "ABC",
+    "points": 4,
+    "explanation": "二叉树的遍历方法包括前序、中序和后序遍历，拓扑排序是图算法。",
+    "knowledge_point": "二叉树的遍历",
+    "content_has_image": false,
+    "order_index": 2
+  }}
+]
+
 **试卷内容（完整文档，共{len(text)}个字符）：**
 {text}
 
@@ -766,7 +817,7 @@ class AIDocumentParser:
 - 不要包含任何解释性文字、markdown代码块标记或其他额外内容
 - 确保所有字段都完整
 - 答案必须准确，从文档的"正确答案"或"答案解析"中提取
-- 考点要精炼准确，用简短的词组描述
+- 考点要精炼准确，用简短的词组描述，如"队列的基本特性"、"二叉树的遍历"、"动态规划"等
 - 代码题必须保持原始缩进和格式，这是最关键的要求
 - **返回的必须是纯JSON，不要有任何markdown代码块标记（```json或```）**
 - **JSON必须使用双引号"，不能使用单引号'**
@@ -880,6 +931,11 @@ class AIDocumentParser:
                     if option_id not in images_by_question[q_num]['option_images']:
                         images_by_question[q_num]['option_images'][option_id] = []
                     images_by_question[q_num]['option_images'][option_id].append(img)
+                else:
+                    # 如果无法识别选项ID，添加到未知列表，后面按顺序分配
+                    if 'unknown_options' not in images_by_question[q_num]:
+                        images_by_question[q_num]['unknown_options'] = []
+                    images_by_question[q_num]['unknown_options'].append(img)
 
         for question in questions:
             order_index = question.get('order_index', 0)
@@ -898,13 +954,28 @@ class AIDocumentParser:
                 # 检查选项是否有图片
                 if question.get('type') in ['single_choice', 'multiple_choice'] and 'options' in question:
                     option_images = images_by_question[order_index]['option_images']
+
+                    # 获取未知选项图片（无法识别选项ID的）
+                    unknown_options = images_by_question[order_index].get('unknown_options', [])
+
+                    # 为每个选项分配图片
+                    option_id_order = ['A', 'B', 'C', 'D', 'E', 'F']  # 选项ID顺序
+                    unknown_index = 0  # 未知图片的索引
+
                     for option in question['options']:
                         option_id = option.get('id', '')
+
+                        # 优先使用已识别的选项图片
                         if option_id in option_images and option_images[option_id]:
                             option['has_image'] = True
-                            # 使用第一张选项图片的路径
                             option['image_path'] = option_images[option_id][0].get('image_path')
-                            self._add_log(f"    第{order_index}题选项{option_id}包含图片: {option['image_path']}", 'info')
+                            self._add_log(f"    第{order_index}题选项{option_id}包含图片(已识别): {option['image_path']}", 'info')
+                        # 如果有未识别的图片，按选项顺序分配
+                        elif unknown_options and unknown_index < len(unknown_options):
+                            option['has_image'] = True
+                            option['image_path'] = unknown_options[unknown_index].get('image_path')
+                            self._add_log(f"    第{order_index}题选项{option_id}包含图片(自动分配): {option['image_path']}", 'info')
+                            unknown_index += 1
                         else:
                             option['has_image'] = False
             else:
@@ -928,15 +999,31 @@ class AIDocumentParser:
         if not text:
             return None
 
-        # 匹配选项ID模式
+        text = text.strip()
+
+        # 匹配选项ID模式 - 先检查开头
         patterns = [
             r'^([A-D])[\.、]\s*',
             r'^\(([A-D])\)\s*',
-            r'^([A-D])\s+'
+            r'^([A-D])\s+',
+            r'^\s*选项\s*([A-D])',
+            r'^\s*[A-D]\s*[、.]'
         ]
 
         for pattern in patterns:
-            match = re.match(pattern, text.strip())
+            match = re.match(pattern, text)
+            if match:
+                return match.group(1).upper()
+
+        # 如果开头没有匹配到，尝试在文本中查找（处理像"A. xxx"出现在文本中间的情况）
+        match_patterns = [
+            r'([A-D])[\.、]\s*',
+            r'\(([A-D])\)\s*',
+            r'选项\s*([A-D])'
+        ]
+
+        for pattern in match_patterns:
+            match = re.search(pattern, text)
             if match:
                 return match.group(1).upper()
 
@@ -1021,6 +1108,7 @@ class AIDocumentParser:
                 'points': points,
                 'options': options,
                 'explanation': q.get('explanation', ''),
+                'knowledge_point': q.get('knowledge_point', ''),
                 'order_index': idx + 1
             }
 
