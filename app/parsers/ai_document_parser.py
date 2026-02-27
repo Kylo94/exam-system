@@ -402,18 +402,28 @@ class AIDocumentParser:
         Returns:
             上下文文本
         """
-        # 优先向后查找，找到第一个非空的段落，并且要检查是否是选项文本
-        for i in range(current_para_idx + 1, min(current_para_idx + 5, len(all_paragraphs))):
+        # 首先检查当前段落（图片和选项标识可能在同一段落）
+        if current_para_idx < len(all_paragraphs):
+            current_text = all_paragraphs[current_para_idx].strip()
+            if current_text:
+                # 如果当前段落包含选项标识，提取它
+                # 例如: "A. 选项内容" 或 "A. [图片]"
+                match = re.match(r'^([A-D])[\.、)\s]', current_text)
+                if match:
+                    return current_text[:100]
+
+        # 如果当前段落没有选项标识，向前查找（选项标识通常在图片前面）
+        for i in range(current_para_idx - 1, max(current_para_idx - 5, -1), -1):
             if all_paragraphs[i].strip():
-                # 如果这段文本是选项格式（以A-D开头），返回它
                 text = all_paragraphs[i].strip()
+                # 如果这段文本是选项格式（以A-D开头），返回它
                 if re.match(r'^[A-D][\.、)\s]', text):
                     return text[:100]
-                # 否则也返回，让后面的逻辑判断
+                # 如果不是选项格式，也返回，让后面的逻辑判断
                 return text[:100]
 
-        # 如果向后找不到，向前查找
-        for i in range(current_para_idx - 1, max(current_para_idx - 3, -1), -1):
+        # 如果向前找不到，向后查找
+        for i in range(current_para_idx + 1, min(current_para_idx + 5, len(all_paragraphs))):
             if all_paragraphs[i].strip():
                 return all_paragraphs[i][:100]
 
