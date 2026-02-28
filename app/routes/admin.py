@@ -436,6 +436,9 @@ def get_subjects():
     Returns:
         科目列表
     """
+    from app.utils.response_utils import pagination_response
+    from sqlalchemy import or_
+
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     search = request.args.get('search', '').strip()
@@ -445,7 +448,7 @@ def get_subjects():
 
     if search:
         query = query.filter(
-            db.or_(
+            or_(
                 Subject.name.ilike(f'%{search}%'),
                 Subject.description.ilike(f'%{search}%')
             )
@@ -458,17 +461,20 @@ def get_subjects():
 
     subjects = pagination.items
 
-    return {
-        'subjects': [subject.to_dict() for subject in subjects],
-        'pagination': {
-            'page': pagination.page,
-            'per_page': pagination.per_page,
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'has_next': pagination.has_next,
-            'has_prev': pagination.has_prev
-        }
-    }, 200
+    # 构建科目数据，包含试卷数量
+    subjects_data = []
+    for subject in subjects:
+        subject_dict = subject.to_dict()
+        subject_dict['exam_count'] = subject.exams.count()
+        subjects_data.append(subject_dict)
+
+    return pagination_response(
+        items=subjects_data,
+        total=pagination.total,
+        page=pagination.page,
+        per_page=pagination.per_page,
+        message="查询成功"
+    )
 
 
 @admin_bp.route('/api/subjects/<int:subject_id>', methods=['GET'])
@@ -484,13 +490,16 @@ def get_subject(subject_id):
     Returns:
         科目详情
     """
+    from app.utils.response_utils import success_response
+
     subject = Subject.get_by_id(subject_id)
     if not subject:
         return error_response('科目不存在', 404)
 
-    return {
-        'subject': subject.to_dict(include_exams=True)
-    }, 200
+    subject_dict = subject.to_dict()
+    subject_dict['exam_count'] = subject.exams.count()
+
+    return success_response(data=subject_dict, message="查询成功")
 
 
 @admin_bp.route('/api/subjects', methods=['POST'])
@@ -543,10 +552,7 @@ def create_subject():
         db.session.add(subject)
         db.session.commit()
 
-        return {
-            'subject': subject.to_dict(),
-            'message': '科目创建成功'
-        }, 201
+        return success_response(data=subject.to_dict(), message="科目创建成功"), 201
     except Exception as e:
         db.session.rollback()
         return error_response(f'创建科目失败: {str(e)}', 500)
@@ -598,10 +604,7 @@ def update_subject(subject_id):
 
     try:
         db.session.commit()
-        return {
-            'subject': subject.to_dict(),
-            'message': '科目更新成功'
-        }, 200
+        return success_response(data=subject.to_dict(), message="科目更新成功"), 200
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新科目失败: {str(e)}', 500)
@@ -627,9 +630,7 @@ def delete_subject(subject_id):
     try:
         db.session.delete(subject)
         db.session.commit()
-        return {
-            'message': '科目删除成功'
-        }, 200
+        return success_response(message="科目删除成功"), 200
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除科目失败: {str(e)}', 500)
