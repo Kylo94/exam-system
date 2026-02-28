@@ -344,17 +344,39 @@ psql -U postgres -c "DROP DATABASE examdb;"  # PostgreSQL
 flask db upgrade
 ```
 
-### Q: 如何修改上传文件大小限制？
-编辑 `.env` 文件中的 `MAX_CONTENT_LENGTH`（单位：字节）：
-```
-MAX_CONTENT_LENGTH=52428800  # 50MB
+### Q: 如何创建管理员账号？
+```bash
+# 运行管理员创建脚本
+python create_admin.py
+
+# 默认账号信息：
+# 用户名: admin
+# 密码: admin
+# 邮箱: admin@example.com
 ```
 
+**注意：** 首次登录后请立即修改密码！
+
 ### Q: 如何配置 AI 解析？
-在 `.env` 文件中配置 API 密钥：
+AI 配置在管理员后台进行设置，无需修改 `.env` 文件：
+
+1. 使用管理员账号登录系统
+2. 进入"后台管理" -> "AI配置"
+3. 配置 AI 提供商（DeepSeek / OpenAI）
+4. 填写 API Key 和 Base URL
+5. 保存配置即可使用
+
+**支持的 AI 提供商：**
+- DeepSeek API（推荐）
+- OpenAI API（GPT 系列）
+
+### Q: 如何修改上传文件大小限制？
+上传文件大小限制在管理员后台进行设置，或者编辑 `.env` 文件：
+
+1. 管理员后台：系统设置 -> 文件上传设置
+2. 编辑 `.env` 文件（单位：字节）：
 ```
-DEEPSEEK_API_KEY=your-deepseek-api-key
-DEEPSEEK_BASE_URL=https://api.deepseek.com
+MAX_CONTENT_LENGTH=52428800  # 50MB
 ```
 
 ### Q: 如何查看日志？
@@ -369,7 +391,19 @@ sudo journalctl -u exam-system -f
 docker-compose logs -f web
 ```
 
+### Q: 学生如何绑定教师？
+1. 学生登录后进入个人中心
+2. 在"绑定教师"页面输入教师 ID
+3. 提交绑定申请
+4. 教师在"绑定申请"中批准申请
+5. 绑定成功后，学生可以查看教师发布的试卷
+
 ## 版本历史
+
+- **v1.0.0** (2026-02-27) - 🎉 首个正式发布版本
+  - 完整的 Docker 部署支持
+  - 完善的部署文档和快速部署脚本
+  - 生产环境优化建议
 
 - **v0.9.6** (2026-02-27)
   - 修复教师绑定申请功能
@@ -380,7 +414,7 @@ docker-compose logs -f web
   - 添加教师注册和学生绑定功能
   - 优化用户权限管理
 
-更多版本历史请查看 [CHANGELOG.md](docs/CHANGELOG.md)（待创建）。
+更多版本历史请查看 [CHANGELOG.md](docs/CHANGELOG.md)。
 
 ## 技术支持
 
