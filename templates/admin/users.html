@@ -334,13 +334,13 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            const user = data.data.user;
+                            const user = data.data;
                             $('#edit-user-id').val(user.id);
                             $('#edit-username').val(user.username);
                             $('#edit-email').val(user.email);
                             $('#edit-role').val(user.role);
                             $('#edit-is_active').prop('checked', user.is_active);
-                            
+
                             $('#editUserModal').modal('show');
                         } else {
                             alert('获取用户信息失败: ' + data.message);
@@ -377,18 +377,25 @@
                     credentials: 'include',
                     body: JSON.stringify(formData)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            throw new Error(err.message || err.error || '服务器错误');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         alert('用户更新成功');
                         location.reload();
                     } else {
-                        alert('更新失败: ' + data.message);
+                        alert('更新失败: ' + (data.message || '未知错误'));
                     }
                 })
                 .catch(error => {
                     console.error('更新失败:', error);
-                    alert('更新失败');
+                    alert('更新失败: ' + error.message);
                 });
             });
             

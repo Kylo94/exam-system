@@ -53,8 +53,8 @@
                         管理中心
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('main.exam_manage_page') }}">
-                            <i class="bi bi-file-earmark-text me-1"></i>试卷管理
+                        <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
+                            <i class="bi bi-speedometer2 me-1"></i>管理控制面板
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li class="dropdown-header">用户管理</li>
@@ -69,8 +69,14 @@
                         <li><a class="dropdown-item" href="{{ url_for('admin.levels_page') }}">
                             <i class="bi bi-bar-chart me-1"></i>难度等级
                         </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('main.questions_page') }}">
+                        <li><a class="dropdown-item" href="{{ url_for('admin.knowledge_points_page') }}">
+                            <i class="bi bi-bookmark me-1"></i>知识点管理
+                        </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.questions_page') }}">
                             <i class="bi bi-question-circle me-1"></i>题目管理
+                        </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.exams_page') }}">
+                            <i class="bi bi-file-earmark-text me-1"></i>试卷管理
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li class="dropdown-header">其他</li>
@@ -79,10 +85,6 @@
                         </a></li>
                         <li><a class="dropdown-item" href="{{ url_for('admin.ai_configs_page') }}">
                             <i class="bi bi-cpu me-1"></i>AI配置管理
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
-                            <i class="bi bi-speedometer2 me-1"></i>管理控制面板
                         </a></li>
                     </ul>
                 </li>

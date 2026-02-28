@@ -20,7 +20,7 @@ from app.models.exam import Exam
 from app.models.question import Question
 from app.models.submission import Submission
 from app.utils.response_utils import (
-    error_response, success_response, api_response, validation_error_response
+    error_response, success_response, api_response, validation_error_response, pagination_response
 )
 from app.utils.validators import (
     validate_string, validate_email, validate_password, validate_choice, batch_validate
@@ -116,6 +116,68 @@ def ai_configs_page():
     return render_template('ai_configs.html')
 
 
+@admin_bp.route('/exams')
+@login_required
+@admin_required
+def exams_page():
+    """试卷管理页面"""
+    return render_template('admin/exam_manage.html')
+
+
+@admin_bp.route('/exams/<int:exam_id>/edit')
+@login_required
+@admin_required
+def exam_edit_page(exam_id):
+    """试卷编辑页面"""
+    from app.services import ExamService
+    service = ExamService(db)
+    exam = service.get_by_id(exam_id)
+
+    if not exam:
+        return render_template('errors/404.html', message='试卷不存在'), 404
+
+    return render_template('exam_edit.html', exam_id=exam_id)
+
+
+@admin_bp.route('/questions')
+@login_required
+@admin_required
+def questions_page():
+    """题目管理页面"""
+    return render_template('question/list.html')
+
+
+@admin_bp.route('/questions/create')
+@login_required
+@admin_required
+def create_question_page():
+    """创建题目页面"""
+    return render_template('question/create.html')
+
+
+@admin_bp.route('/questions/<int:question_id>/edit')
+@login_required
+@admin_required
+def edit_question_page(question_id):
+    """编辑题目页面"""
+    from app.services import QuestionService
+    service = QuestionService(db)
+    question = service.get_by_id(question_id)
+
+    if not question:
+        return render_template('errors/404.html', message='题目不存在'), 404
+
+    return render_template('question/edit.html', question=question)
+
+
+@admin_bp.route('/upload')
+@login_required
+@admin_required
+def upload_page():
+    """试卷上传页面"""
+    return render_template('upload.html')
+
+
 # ==================== API路由 ====================
 
 @admin_bp.route('/api/users', methods=['GET'])
@@ -164,18 +226,14 @@ def get_users():
     )
     
     users = pagination.items
-    
-    return {
-        'users': [user.to_dict(include_sensitive=True) for user in users],
-        'pagination': {
-            'page': pagination.page,
-            'per_page': pagination.per_page,
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'has_next': pagination.has_next,
-            'has_prev': pagination.has_prev
-        }
-    }, 200
+
+    return pagination_response(
+        items=[user.to_dict(include_sensitive=True) for user in users],
+        total=pagination.total,
+        page=pagination.page,
+        per_page=pagination.per_page,
+        message="查询成功"
+    )
 
 
 @admin_bp.route('/api/users/<int:user_id>', methods=['GET'])
@@ -194,10 +252,8 @@ def get_user(user_id):
     user = User.get_by_id(user_id)
     if not user:
         return error_response('用户不存在', 404)
-    
-    return {
-        'user': user.to_dict(include_sensitive=True)
-    }, 200
+
+    return success_response(data=user.to_dict(include_sensitive=True))
 
 
 @admin_bp.route('/api/users', methods=['POST'])
@@ -266,11 +322,8 @@ def create_user():
         
         user_dict = user.to_dict(include_sensitive=True)
         print(f"DEBUG: user_dict = {user_dict}")
-        
-        return {
-            'user': user_dict,
-            'message': '用户创建成功'
-        }, 201
+
+        return success_response(data=user_dict, message="用户创建成功")
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -313,43 +366,44 @@ def update_user(user_id):
             if User.get_by_username(username):
                 return error_response('用户名已存在', 400)
             user.username = username
-    
+
     if 'email' in data:
         email = data.get('email', '').strip().lower()
         if email and email != user.email:
             if User.get_by_email(email):
                 return error_response('邮箱地址已存在', 400)
             user.email = email
-    
+
     if 'role' in data:
         role = data.get('role', '').strip()
         if role and role != user.role:
             if role not in ['admin', 'teacher', 'student']:
                 return error_response('用户角色无效', 400)
             user.role = role
-    
+
     if 'is_active' in data:
         user.is_active = bool(data.get('is_active'))
-    
+
     if 'profile' in data:
         user.profile = data.get('profile')
-    
+
     # 更新密码（如果有）
     if 'password' in data and data['password']:
         password = data.get('password', '').strip()
-        is_valid, error_msg = validate_password(password, '密码', min_length=6, max_length=50, allow_empty=False)
+        is_valid, error_msg = validate_password(password, '密码')
         if not is_valid:
             return error_response(error_msg, 400)
         user.set_password(password)
-    
+
     try:
         db.session.commit()
-        return {
-            'user': user.to_dict(include_sensitive=True),
-            'message': '用户更新成功'
-        }, 200
+        # 刷新以获取最新的数据
+        db.session.refresh(user)
+        return success_response(data=user.to_dict(include_sensitive=True), message="用户更新成功")
     except Exception as e:
         db.session.rollback()
+        import traceback
+        traceback.print_exc()
         return error_response(f'更新用户失败: {str(e)}', 500)
 
 
@@ -377,9 +431,7 @@ def delete_user(user_id):
     try:
         db.session.delete(user)
         db.session.commit()
-        return {
-            'message': '用户删除成功'
-        }, 200
+        return success_response(message="用户删除成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除用户失败: {str(e)}', 500)
@@ -410,10 +462,10 @@ def toggle_user_active(user_id):
     
     try:
         db.session.commit()
-        return {
-            'user': user.to_dict(include_sensitive=True),
-            'message': f'用户已{"激活" if user.is_active else "停用"}'
-        }, 200
+        return success_response(
+            data=user.to_dict(include_sensitive=True),
+            message=f'用户已{"激活" if user.is_active else "停用"}'
+        )
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新用户状态失败: {str(e)}', 500)
@@ -552,7 +604,7 @@ def create_subject():
         db.session.add(subject)
         db.session.commit()
 
-        return success_response(data=subject.to_dict(), message="科目创建成功"), 201
+        return success_response(data=subject.to_dict(), message="科目创建成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'创建科目失败: {str(e)}', 500)
@@ -604,7 +656,7 @@ def update_subject(subject_id):
 
     try:
         db.session.commit()
-        return success_response(data=subject.to_dict(), message="科目更新成功"), 200
+        return success_response(data=subject.to_dict(), message="科目更新成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新科目失败: {str(e)}', 500)
@@ -630,7 +682,7 @@ def delete_subject(subject_id):
     try:
         db.session.delete(subject)
         db.session.commit()
-        return success_response(message="科目删除成功"), 200
+        return success_response(message="科目删除成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除科目失败: {str(e)}', 500)
@@ -648,6 +700,7 @@ def get_levels():
     Query Parameters:
         page: 页码（可选，默认1）
         per_page: 每页数量（可选，默认20）
+        subject_id: 按科目ID过滤（可选）
         search: 搜索关键词（可选）
 
     Returns:
@@ -655,10 +708,14 @@ def get_levels():
     """
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
+    subject_id = request.args.get('subject_id', None)
     search = request.args.get('search', '').strip()
 
     # 构建查询
     query = Level.query
+
+    if subject_id:
+        query = query.filter_by(subject_id=subject_id)
 
     if search:
         query = query.filter(
@@ -675,17 +732,13 @@ def get_levels():
 
     levels = pagination.items
 
-    return {
-        'levels': [level.to_dict() for level in levels],
-        'pagination': {
-            'page': pagination.page,
-            'per_page': pagination.per_page,
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'has_next': pagination.has_next,
-            'has_prev': pagination.has_prev
-        }
-    }, 200
+    return pagination_response(
+        items=[level.to_dict() for level in levels],
+        total=pagination.total,
+        page=pagination.page,
+        per_page=pagination.per_page,
+        message="查询成功"
+    )
 
 
 @admin_bp.route('/api/levels/<int:level_id>', methods=['GET'])
@@ -705,9 +758,7 @@ def get_level(level_id):
     if not level:
         return error_response('等级不存在', 404)
 
-    return {
-        'level': level.to_dict(include_exams=True)
-    }, 200
+    return success_response(data=level.to_dict(include_exams=True))
 
 
 @admin_bp.route('/api/levels', methods=['POST'])
@@ -718,6 +769,7 @@ def create_level():
     """创建等级API
 
     Request JSON:
+        subject_id: 所属科目ID
         name: 等级名称
         description: 等级描述（可选）
         order_index: 排序索引（可选）
@@ -731,11 +783,12 @@ def create_level():
         return error_response('请求数据不能为空', 400)
 
     # 验证必填字段
-    required_fields = ['name']
+    required_fields = ['subject_id', 'name']
     for field in required_fields:
         if field not in data:
             return error_response(f'缺少必填字段: {field}', 400)
 
+    subject_id = data.get('subject_id')
     name = data.get('name', '').strip()
     description = data.get('description', '').strip()
     order_index = data.get('order_index', 0)
@@ -746,12 +799,17 @@ def create_level():
     if not is_valid:
         return error_response(error_msg, 400)
 
+    # 检查科目是否存在
+    if not Subject.get_by_id(subject_id):
+        return error_response('科目不存在', 400)
+
     # 检查名称是否已存在
     if Level.get_by_name(name):
         return error_response('等级名称已存在', 400)
 
     try:
         level = Level(
+            subject_id=subject_id,
             name=name,
             description=description,
             order_index=order_index,
@@ -760,10 +818,7 @@ def create_level():
         db.session.add(level)
         db.session.commit()
 
-        return {
-            'level': level.to_dict(),
-            'message': '等级创建成功'
-        }, 201
+        return success_response(data=level.to_dict(), message="等级创建成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'创建等级失败: {str(e)}', 500)
@@ -815,10 +870,7 @@ def update_level(level_id):
 
     try:
         db.session.commit()
-        return {
-            'level': level.to_dict(),
-            'message': '等级更新成功'
-        }, 200
+        return success_response(data=level.to_dict(), message="等级更新成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新等级失败: {str(e)}', 500)
@@ -844,9 +896,7 @@ def delete_level(level_id):
     try:
         db.session.delete(level)
         db.session.commit()
-        return {
-            'message': '等级删除成功'
-        }, 200
+        return success_response(message="等级删除成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除等级失败: {str(e)}', 500)
@@ -901,17 +951,13 @@ def get_exams():
 
     exams = pagination.items
 
-    return {
-        'exams': [exam.to_dict() for exam in exams],
-        'pagination': {
-            'page': pagination.page,
-            'per_page': pagination.per_page,
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'has_next': pagination.has_next,
-            'has_prev': pagination.has_prev
-        }
-    }, 200
+    return pagination_response(
+        items=[exam.to_dict() for exam in exams],
+        total=pagination.total,
+        page=pagination.page,
+        per_page=pagination.per_page,
+        message="查询成功"
+    )
 
 
 @admin_bp.route('/api/exams/<int:exam_id>', methods=['GET'])
@@ -931,9 +977,7 @@ def get_exam(exam_id):
     if not exam:
         return error_response('试卷不存在', 404)
 
-    return {
-        'exam': exam.to_dict(include_questions=True)
-    }, 200
+    return success_response(data=exam.to_dict(include_questions=True))
 
 
 @admin_bp.route('/api/exams', methods=['POST'])
@@ -1091,10 +1135,7 @@ def update_exam(exam_id):
 
     try:
         db.session.commit()
-        return {
-            'exam': exam.to_dict(),
-            'message': '试卷更新成功'
-        }, 200
+        return success_response(data=exam.to_dict(), message="试卷更新成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新试卷失败: {str(e)}', 500)
@@ -1120,9 +1161,7 @@ def delete_exam(exam_id):
     try:
         db.session.delete(exam)
         db.session.commit()
-        return {
-            'message': '试卷删除成功'
-        }, 200
+        return success_response(message="试卷删除成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除试卷失败: {str(e)}', 500)
@@ -1160,10 +1199,10 @@ def batch_delete_exams():
             db.session.delete(exam)
             deleted_count += 1
         db.session.commit()
-        return {
-            'message': f'成功删除 {deleted_count} 个试卷',
-            'deleted_count': deleted_count
-        }, 200
+        return success_response(
+            data={'deleted_count': deleted_count},
+            message=f'成功删除 {deleted_count} 个试卷'
+        )
     except Exception as e:
         db.session.rollback()
         return error_response(f'批量删除试卷失败: {str(e)}', 500)
@@ -1183,7 +1222,8 @@ def get_questions():
         per_page: 每页数量（可选，默认20）
         exam_id: 按试卷ID过滤（可选）
         type: 按题型过滤（可选）
-        search: 搜索关键词（可选）
+        search: 搜索关键词（可选，搜索题目内容和考点）
+        knowledge_point_id: 按分配的知识点ID过滤（可选）
 
     Returns:
         题目列表
@@ -1193,6 +1233,7 @@ def get_questions():
     exam_id = request.args.get('exam_id', None)
     question_type = request.args.get('type', None)
     search = request.args.get('search', '').strip()
+    knowledge_point_id = request.args.get('knowledge_point_id', None)
 
     # 构建查询
     query = Question.query
@@ -1203,8 +1244,16 @@ def get_questions():
     if question_type:
         query = query.filter_by(type=question_type)
 
+    if knowledge_point_id:
+        query = query.filter_by(knowledge_point_id=int(knowledge_point_id))
+
     if search:
+        # 搜索题目内容
         query = query.filter(Question.content.ilike(f'%{search}%'))
+
+        # 注意：SQLite 不支持直接搜索 JSON 字段
+        # 如果需要搜索 metadata 中的考点文本，可以在查询后进行过滤
+        # PostgreSQL 可以使用: Question.question_metadata['knowledge_point_text'].astext.ilike(f'%{search}%')
 
     # 分页
     pagination = query.order_by(Question.order_index).paginate(
@@ -1213,17 +1262,13 @@ def get_questions():
 
     questions = pagination.items
 
-    return {
-        'questions': [question.to_dict() for question in questions],
-        'pagination': {
-            'page': pagination.page,
-            'per_page': pagination.per_page,
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'has_next': pagination.has_next,
-            'has_prev': pagination.has_prev
-        }
-    }, 200
+    return pagination_response(
+        items=[question.to_dict(include_exam=True) for question in questions],
+        total=pagination.total,
+        page=pagination.page,
+        per_page=pagination.per_page,
+        message="查询成功"
+    )
 
 
 @admin_bp.route('/api/questions/<int:question_id>', methods=['GET'])
@@ -1243,9 +1288,7 @@ def get_question(question_id):
     if not question:
         return error_response('题目不存在', 404)
 
-    return {
-        'question': question.to_dict(include_exam=True)
-    }, 200
+    return success_response(data=question.to_dict(include_exam=True))
 
 
 @admin_bp.route('/api/questions', methods=['POST'])
@@ -1274,7 +1317,7 @@ def create_question():
         return error_response('请求数据不能为空', 400)
 
     # 验证必填字段
-    required_fields = ['exam_id', 'type', 'content', 'correct_answer']
+    required_fields = ['type', 'content', 'correct_answer']
     for field in required_fields:
         if field not in data:
             return error_response(f'缺少必填字段: {field}', 400)
@@ -1283,7 +1326,7 @@ def create_question():
     question_type = data.get('type')
     content = data.get('content', '').strip()
     correct_answer = data.get('correct_answer')
-    points = data.get('points', 10)
+    points = data.get('points', data.get('score', 10))  # 兼容 score 和 points
     order_index = data.get('order_index', 0)
     options = data.get('options')
     explanation = data.get('explanation', '').strip()
@@ -1309,10 +1352,7 @@ def create_question():
         db.session.add(question)
         db.session.commit()
 
-        return {
-            'question': question.to_dict(),
-            'message': '题目创建成功'
-        }, 201
+        return success_response(data=question.to_dict(include_exam=True), message="题目创建成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'创建题目失败: {str(e)}', 500)
@@ -1378,10 +1418,7 @@ def update_question(question_id):
 
     try:
         db.session.commit()
-        return {
-            'question': question.to_dict(),
-            'message': '题目更新成功'
-        }, 200
+        return success_response(data=question.to_dict(), message="题目更新成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新题目失败: {str(e)}', 500)
@@ -1407,9 +1444,7 @@ def delete_question(question_id):
     try:
         db.session.delete(question)
         db.session.commit()
-        return {
-            'message': '题目删除成功'
-        }, 200
+        return success_response(message="题目删除成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除题目失败: {str(e)}', 500)
@@ -1434,7 +1469,7 @@ def get_exam_questions(exam_id):
 
     questions = Question.query.filter_by(exam_id=exam_id).order_by(Question.order_index).all()
 
-    return [question.to_dict() for question in questions], 200
+    return success_response(data=[question.to_dict() for question in questions])
 
 
 @admin_bp.route('/api/exams/<int:exam_id>/questions', methods=['POST'])
@@ -1552,17 +1587,13 @@ def get_submissions():
 
     submissions = pagination.items
 
-    return {
-        'submissions': [submission.to_dict() for submission in submissions],
-        'pagination': {
-            'page': pagination.page,
-            'per_page': pagination.per_page,
-            'total': pagination.total,
-            'pages': pagination.pages,
-            'has_next': pagination.has_next,
-            'has_prev': pagination.has_prev
-        }
-    }, 200
+    return pagination_response(
+        items=[submission.to_dict() for submission in submissions],
+        total=pagination.total,
+        page=pagination.page,
+        per_page=pagination.per_page,
+        message="查询成功"
+    )
 
 
 @admin_bp.route('/api/submissions/<int:submission_id>', methods=['GET'])
@@ -1582,9 +1613,7 @@ def get_submission(submission_id):
     if not submission:
         return error_response('提交不存在', 404)
 
-    return {
-        'submission': submission.to_dict(include_answers=True)
-    }, 200
+    return success_response(data=submission.to_dict(include_answers=True))
 
 
 @admin_bp.route('/api/submissions/<int:submission_id>', methods=['PUT'])
@@ -1629,10 +1658,7 @@ def update_submission(submission_id):
 
     try:
         db.session.commit()
-        return {
-            'submission': submission.to_dict(),
-            'message': '提交更新成功'
-        }, 200
+        return success_response(data=submission.to_dict(), message="提交更新成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'更新提交失败: {str(e)}', 500)
@@ -1658,9 +1684,7 @@ def delete_submission(submission_id):
     try:
         db.session.delete(submission)
         db.session.commit()
-        return {
-            'message': '提交删除成功'
-        }, 200
+        return success_response(message="提交删除成功")
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除提交失败: {str(e)}', 500)
@@ -1691,10 +1715,7 @@ def get_stats():
         }
     }
 
-    return {
-        'stats': stats,
-        'message': '统计信息获取成功'
-    }, 200
+    return success_response(data=stats, message="统计信息获取成功")
 
 
 @admin_bp.route('/api/upload-image', methods=['POST'])
@@ -1746,11 +1767,13 @@ def upload_image():
         # 返回相对于uploads目录的路径
         relative_path = f"images/{filename}"
 
-        return {
-            'path': relative_path,
-            'filename': filename,
-            'size': file_size,
-            'message': '图片上传成功'
-        }, 200
+        return success_response(
+            data={
+                'path': relative_path,
+                'filename': filename,
+                'size': file_size
+            },
+            message="图片上传成功"
+        )
     except Exception as e:
         return error_response(f'图片保存失败: {str(e)}', 500)

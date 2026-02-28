@@ -31,7 +31,7 @@
         <!-- 面包屑导航 -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('main.exam_manage_page') }}">试卷管理</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.exams_page') }}">试卷管理</a></li>
                 <li class="breadcrumb-item active">编辑试卷</li>
             </ol>
         </nav>
@@ -170,20 +170,56 @@
                             <label class="form-label">选项</label>
                             <div class="row">
                                 <div class="col-md-6 mb-2">
-                                    <input type="text" class="form-control option-input" id="optionA" placeholder="选项 A">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control option-input" id="optionA" placeholder="选项 A">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('A')" title="上传图片">
+                                            <i class="bi bi-image"></i>
+                                        </button>
+                                    </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="A" accept="image/*" style="display: none;">
+                                    <div id="optionImagePreviewA" style="display: none;" class="mt-1">
+                                        <img src="" alt="选项A图片" class="img-fluid rounded" style="max-height: 80px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeOptionImage('A')">删除</button>
+                                    </div>
                                 </div>
                                 <div class="col-md-6 mb-2">
-                                    <input type="text" class="form-control option-input" id="optionB" placeholder="选项 B">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control option-input" id="optionB" placeholder="选项 B">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('B')" title="上传图片">
+                                            <i class="bi bi-image"></i>
+                                        </button>
+                                    </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="B" accept="image/*" style="display: none;">
+                                    <div id="optionImagePreviewB" style="display: none;" class="mt-1">
+                                        <img src="" alt="选项B图片" class="img-fluid rounded" style="max-height: 80px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeOptionImage('B')">删除</button>
+                                    </div>
                                 </div>
                                 <div class="col-md-6 mb-2">
-                                    <input type="text" class="form-control option-input" id="optionC" placeholder="选项 C">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control option-input" id="optionC" placeholder="选项 C">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('C')" title="上传图片">
+                                            <i class="bi bi-image"></i>
+                                        </button>
+                                    </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="C" accept="image/*" style="display: none;">
+                                    <div id="optionImagePreviewC" style="display: none;" class="mt-1">
+                                        <img src="" alt="选项C图片" class="img-fluid rounded" style="max-height: 80px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeOptionImage('C')">删除</button>
+                                    </div>
                                 </div>
                                 <div class="col-md-6 mb-2">
-                                    <input type="text" class="form-control option-input" id="optionD" placeholder="选项 D">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control option-input" id="optionD" placeholder="选项 D">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('D')" title="上传图片">
+                                            <i class="bi bi-image"></i>
+                                        </button>
+                                    </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="D" accept="image/*" style="display: none;">
+                                    <div id="optionImagePreviewD" style="display: none;" class="mt-1">
+                                        <img src="" alt="选项D图片" class="img-fluid rounded" style="max-height: 80px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeOptionImage('D')">删除</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -222,8 +258,8 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('试卷信息响应:', data);
-                    if (data.success && data.data && data.data.exam) {
-                        const exam = data.data.exam;
+                    if (data.success && data.data) {
+                        const exam = data.data;
                         console.log('试卷数据:', exam);
                         document.getElementById('examTitle').value = exam.title;
                         document.getElementById('examSubject').value = exam.subject_id;
@@ -402,12 +438,12 @@
                             <span class="badge bg-primary">${typeText}</span>
                             <span class="badge bg-success">${q.points} 分</span>
                         </div>
-                        <h6 class="mb-2">${index + 1}. ${q.content}</h6>
+                        <h6 class="mb-2" style="white-space: pre-wrap;">${index + 1}. ${q.content}</h6>
                         ${imageHtml}
                         ${q.options ? renderOptions(q.options, q.question_metadata) : ''}
-                        <div class="text-muted small">
+                        <div class="text-muted small" style="white-space: pre-wrap;">
                             <strong>正确答案：</strong>${q.correct_answer}
-                            ${q.explanation ? '<br><strong>解析：</strong>' + q.explanation : ''}
+                            ${q.explanation ? '\n<strong>解析：</strong>' + q.explanation : ''}
                         </div>
                     </div>
                 `;
@@ -434,7 +470,7 @@
                         imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
                     }
 
-                    return `<div class="text-muted small d-flex align-items-center"><span>${label}. ${text}</span>${imageHtml}</div>`;
+                    return `<div class="text-muted small d-flex align-items-center" style="white-space: pre-wrap;"><span>${label}. ${text}</span>${imageHtml}</div>`;
                 }).join('');
             } else if (options.choices && Array.isArray(options.choices)) {
                 return options.choices.map((val, idx) => {
@@ -447,7 +483,7 @@
                         imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
                     }
 
-                    return `<div class="text-muted small d-flex align-items-center"><span>${label}. ${val}</span>${imageHtml}</div>`;
+                    return `<div class="text-muted small d-flex align-items-center" style="white-space: pre-wrap;"><span>${label}. ${val}</span>${imageHtml}</div>`;
                 }).join('');
             } else {
                 return Object.entries(options || {}).map(([key, value]) => {
@@ -460,7 +496,7 @@
                         imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
                     }
 
-                    return `<div class="text-muted small d-flex align-items-center"><span>${label}. ${value}</span>${imageHtml}</div>`;
+                    return `<div class="text-muted small d-flex align-items-center" style="white-space: pre-wrap;"><span>${label}. ${value}</span>${imageHtml}</div>`;
                 }).join('');
             }
         }
@@ -472,6 +508,18 @@
             document.getElementById('questionId').value = '';
             document.getElementById('currentQuestionImage').style.display = 'none';
             document.getElementById('questionImageInput').value = '';
+
+            // 清除选项图片预览
+            const labels = ['A', 'B', 'C', 'D'];
+            labels.forEach(label => {
+                const preview = document.getElementById(`optionImagePreview${label}`);
+                const input = document.querySelector(`.option-image-input[data-option="${label}"]`);
+                preview.style.display = 'none';
+                preview.querySelector('img').src = '';
+                input.value = '';
+                input.style.display = 'none';
+            });
+
             toggleQuestionType();
             new bootstrap.Modal(document.getElementById('questionModal')).show();
         }
@@ -482,14 +530,34 @@
             document.getElementById('questionImageInput').value = '';
         }
 
+        // 切换选项图片上传框显示
+        function toggleOptionImage(option) {
+            const input = document.querySelector(`.option-image-input[data-option="${option}"]`);
+            if (input.style.display === 'none') {
+                input.style.display = 'block';
+            } else {
+                input.style.display = 'none';
+            }
+        }
+
+        // 删除选项图片
+        function removeOptionImage(option) {
+            const preview = document.getElementById(`optionImagePreview${option}`);
+            const input = document.querySelector(`.option-image-input[data-option="${option}"]`);
+            preview.style.display = 'none';
+            input.value = '';
+            // 移除预览图的 src
+            preview.querySelector('img').src = '';
+        }
+
         // 编辑题目
         function editQuestion(questionId) {
             fetch(`/admin/api/questions/${questionId}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log('编辑题目API响应:', data);
-                    if (data.success && data.data && data.data.question) {
-                        const q = data.data.question;
+                    if (data.success && data.data) {
+                        const q = data.data;
                         console.log('题目详情:', q);
                         document.getElementById('questionModalTitle').textContent = '编辑题目';
                         document.getElementById('questionId').value = q.id;
@@ -542,6 +610,21 @@
                             document.getElementById('optionB').value = optionValues.B || '';
                             document.getElementById('optionC').value = optionValues.C || '';
                             document.getElementById('optionD').value = optionValues.D || '';
+
+                            // 处理选项图片
+                            const optionsImages = q.question_metadata && q.question_metadata.options_images ? q.question_metadata.options_images : {};
+                            const labels = ['A', 'B', 'C', 'D'];
+                            labels.forEach(label => {
+                                const preview = document.getElementById(`optionImagePreview${label}`);
+                                const img = preview.querySelector('img');
+                                if (optionsImages[label] && optionsImages[label].has_image && optionsImages[label].image_path) {
+                                    img.src = `/api/uploads/${optionsImages[label].image_path}`;
+                                    preview.style.display = 'block';
+                                } else {
+                                    img.src = '';
+                                    preview.style.display = 'none';
+                                }
+                            });
                         }
 
                         toggleQuestionType();
@@ -615,6 +698,36 @@
                     C: document.getElementById('optionC').value,
                     D: document.getElementById('optionD').value
                 };
+
+                // 处理选项图片上传
+                const optionsImages = {};
+                const labels = ['A', 'B', 'C', 'D'];
+                for (const label of labels) {
+                    const imageInput = document.querySelector(`.option-image-input[data-option="${label}"]`);
+                    const preview = document.getElementById(`optionImagePreview${label}`);
+                    const img = preview.querySelector('img');
+
+                    if (imageInput.files && imageInput.files[0]) {
+                        // 上传新图片
+                        const imageData = await uploadImage(imageInput.files[0]);
+                        if (imageData) {
+                            optionsImages[label] = {
+                                has_image: true,
+                                image_path: imageData
+                            };
+                        }
+                    } else if (img.src && img.src !== window.location.href) {
+                        // 保留现有图片
+                        optionsImages[label] = {
+                            has_image: true,
+                            image_path: img.src.replace('/api/uploads/', '')
+                        };
+                    }
+                }
+
+                if (Object.keys(optionsImages).length > 0) {
+                    data.question_metadata = { options_images: optionsImages };
+                }
             }
 
             const url = isEdit ? `/admin/api/questions/${questionId}` : `/admin/api/exams/${examId}/questions`;

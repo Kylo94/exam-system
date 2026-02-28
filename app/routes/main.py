@@ -392,32 +392,20 @@ def levels_page():
 
 @main_bp.route('/questions')
 def questions_page():
-    """问题管理页面"""
-    return render_template('question/list.html')
+    """问题管理页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.questions_page'))
 
 
 @main_bp.route('/questions/create')
 def create_question_page():
-    """创建题目页面"""
-    return render_template('question/create.html')
+    """创建题目页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.create_question_page'))
 
 
 @main_bp.route('/questions/<int:question_id>/edit')
 def edit_question_page(question_id):
-    """编辑题目页面"""
-    try:
-        from app.services import QuestionService
-        from app.extensions import db
-
-        service = QuestionService(db)
-        question = service.get_by_id(question_id)
-        
-        if not question:
-            return render_template('errors/404.html', message='题目不存在'), 404
-        
-        return render_template('question/edit.html', question=question)
-    except Exception as e:
-        return render_template('errors/500.html', message=str(e)), 500
+    """编辑题目页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.edit_question_page', question_id=question_id))
 
 
 @main_bp.route('/api/questions/<int:question_id>', methods=['GET'])
@@ -443,25 +431,21 @@ def get_question_detail(question_id):
 @main_bp.route('/upload')
 @login_required
 def upload_page():
-    """试卷上传页面"""
-    return render_template('upload.html')
+    """试卷上传页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.upload_page'))
 
 
 @main_bp.route('/exam-manage')
 @login_required
 def exam_manage_page():
-    """试卷管理页面"""
-    from flask import flash
-    if not current_user.is_admin():
-        flash('您没有权限访问此页面', 'danger')
-        return redirect(url_for('main.dashboard'))
-    return render_template('admin/exam_manage.html')
+    """试卷管理页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.exams_page'))
 
 
 @main_bp.route('/submissions')
 def submissions_page():
-    """提交记录页面"""
-    return render_template('submissions.html')
+    """提交记录页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.submissions_page'))
 
 
 @main_bp.route('/ai-configs')
@@ -479,20 +463,8 @@ def practice_page():
 @main_bp.route('/exam-edit/<int:exam_id>')
 @login_required
 def exam_edit_page(exam_id):
-    """试卷编辑页面"""
-    try:
-        from app.services import ExamService
-        from app.extensions import db
-
-        service = ExamService(db)
-        exam = service.get_by_id(exam_id)
-
-        if not exam:
-            return render_template('errors/404.html', message='试卷不存在'), 404
-
-        return render_template('exam_edit.html', exam_id=exam_id)
-    except Exception as e:
-        return render_template('errors/500.html', message=str(e)), 500
+    """试卷编辑页面（已重定向到admin路由）"""
+    return redirect(url_for('admin.exam_edit_page', exam_id=exam_id))
 
 
 @main_bp.route('/api/health')

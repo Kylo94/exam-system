@@ -122,7 +122,14 @@
                 <div class="modal-body">
                     <form id="levelForm">
                         <input type="hidden" id="levelId" name="level_id">
-                        
+
+                        <div class="mb-3">
+                            <label for="subjectSelect" class="form-label">科目 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="subjectSelect" name="subject_id" required>
+                                <option value="">请选择科目</option>
+                            </select>
+                        </div>
+
                         <div class="mb-3">
                             <label for="levelName" class="form-label">等级名称 <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="levelName" name="name" required>
@@ -191,8 +198,25 @@
         
         // 页面加载时初始化
         document.addEventListener('DOMContentLoaded', function() {
+            loadSubjects();
             loadLevels();
         });
+
+        // 加载科目列表
+        async function loadSubjects() {
+            try {
+                const response = await fetch('/admin/api/subjects');
+                const result = await response.json();
+
+                if (result.success && result.data && result.data.items) {
+                    const select = document.getElementById('subjectSelect');
+                    const options = result.data.items.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                    select.innerHTML = '<option value="">请选择科目</option>' + options;
+                }
+            } catch (error) {
+                console.error('加载科目列表失败:', error);
+            }
+        }
         
         // 加载等级列表
         async function loadLevels(page = 1) {
@@ -207,16 +231,16 @@
             showContainer(false);
             
             try {
-                let url = `/api/teacher/levels?page=${page}&per_page=${pageSize}`;
+                let url = `/admin/api/levels?page=${page}&per_page=${pageSize}`;
                 if (search) url += `&search=${encodeURIComponent(search)}`;
                 if (status === 'active') url += `&is_active=true`;
                 if (status === 'inactive') url += `&is_active=false`;
                 
                 const response = await fetch(url);
                 const result = await response.json();
-                
-                if (result.levels && Array.isArray(result.levels)) {
-                    renderLevels(result.levels, result.pagination);
+
+                if (result.success && result.data && Array.isArray(result.data.items)) {
+                    renderLevels(result.data.items, result.data.pagination);
                 } else {
                     showEmpty(true);
                 }
@@ -323,11 +347,11 @@
         // 查看等级详情
         async function viewLevel(levelId) {
             try {
-                const response = await fetch(`/api/teacher/levels/${levelId}`);
+                const response = await fetch(`/admin/api/levels/${levelId}`);
                 const result = await response.json();
-                
-                if (result.level) {
-                    const level = result.level;
+
+                if (result.success && result.data) {
+                    const level = result.data;
                     document.getElementById('detailContent').innerHTML = `
                         <table class="table table-bordered">
                             <tr><th class="col-4">ID</th><td>${level.id}</td></tr>
@@ -357,18 +381,19 @@
             editingLevelId = levelId;
             
             try {
-                const response = await fetch(`/api/teacher/levels/${levelId}`);
+                const response = await fetch(`/admin/api/levels/${levelId}`);
                 const result = await response.json();
-                
-                if (result.level) {
-                    const level = result.level;
+
+                if (result.success && result.data) {
+                    const level = result.data;
                     document.getElementById('levelId').value = level.id;
+                    document.getElementById('subjectSelect').value = level.subject_id;
                     document.getElementById('levelName').value = level.name;
                     document.getElementById('levelDescription').value = level.description || '';
                     document.getElementById('orderIndex').value = level.order_index || 0;
                     document.getElementById('isActive').checked = level.is_active;
                     document.getElementById('levelModalTitle').textContent = '编辑等级';
-                    
+
                     new bootstrap.Modal(document.getElementById('levelModal')).show();
                 }
             } catch (error) {
@@ -386,6 +411,7 @@
             
             const levelId = document.getElementById('levelId').value;
             const data = {
+                subject_id: parseInt(document.getElementById('subjectSelect').value),
                 name: document.getElementById('levelName').value.trim(),
                 description: document.getElementById('levelDescription').value.trim(),
                 order_index: parseInt(document.getElementById('orderIndex').value) || 0,
@@ -393,7 +419,7 @@
             };
             
             try {
-                const url = levelId ? `/api/teacher/levels/${levelId}` : '/api/teacher/levels';
+                const url = levelId ? `/admin/api/levels/${levelId}` : '/admin/api/levels';
                 const method = levelId ? 'PUT' : 'POST';
                 
                 const response = await fetch(url, {
@@ -406,13 +432,13 @@
                 
                 const result = await response.json();
                 
-                if (response.ok) {
+                if (response.ok && result.success) {
                     alert(result.message || '保存成功');
                     bootstrap.Modal.getInstance(document.getElementById('levelModal')).hide();
                     resetForm();
                     loadLevels(currentPage);
                 } else {
-                    alert(result.error || '保存失败');
+                    alert(result.error || result.message || '保存失败');
                 }
             } catch (error) {
                 alert('保存失败：' + error.message);
@@ -426,7 +452,7 @@
             }
             
             try {
-                const response = await fetch(`/api/teacher/levels/${levelId}`, {
+                const response = await fetch(`/admin/api/levels/${levelId}`, {
                     method: 'DELETE'
                 });
                 
@@ -447,6 +473,7 @@
         function resetForm() {
             document.getElementById('levelForm').reset();
             document.getElementById('levelId').value = '';
+            document.getElementById('subjectSelect').value = '';
             document.getElementById('levelModalTitle').textContent = '创建等级';
             editingLevelId = null;
         }
@@ -461,12 +488,12 @@
         // 导出等级
         async function exportLevels() {
             try {
-                const response = await fetch('/api/teacher/levels');
+                const response = await fetch('/admin/api/levels');
                 const result = await response.json();
-                
-                if (result.levels && Array.isArray(result.levels)) {
+
+                if (result.success && result.data && Array.isArray(result.data.items)) {
                     let csv = 'ID,名称,描述,排序,状态,创建时间\n';
-                    result.levels.forEach(level => {
+                    result.data.items.forEach(level => {
                         csv += `${level.id},"${level.name}","${level.description || ''}",${level.order_index || 0},${level.is_active ? '启用' : '禁用'},"${formatDate(level.created_at)}"\n`;
                     });
                     

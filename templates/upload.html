@@ -50,7 +50,7 @@
         <!-- 面包屑导航 -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('main.exam_manage_page') }}">试卷管理</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.exams_page') }}">试卷管理</a></li>
                 <li class="breadcrumb-item active">新建试卷</li>
             </ol>
         </nav>
@@ -648,7 +648,7 @@
                                 countdownMsg.innerHTML = `<i class="bi bi-hourglass"></i> ${countdown}秒后自动跳转到试卷管理页面...`;
                             } else {
                                 clearInterval(countdownInterval);
-                                window.location.href = '/exam-manage';
+                                window.location.href = '/admin/exams';
                             }
                         }, 1000);
                     } else {
@@ -692,6 +692,7 @@
             .then(data => {
                 if (data.success) {
                     alert('试卷创建成功！可以在试卷管理页面编辑试卷并添加题目。');
+                    window.location.href = '/admin/exams';
                     window.location.href = '/exam-manage';
                 } else {
                     alert('创建失败：' + data.message);

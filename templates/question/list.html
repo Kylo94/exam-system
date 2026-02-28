@@ -25,9 +25,9 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <label class="form-label">考试筛选</label>
+                        <label class="form-label">试卷筛选</label>
                         <select class="form-select" id="examFilter">
-                            <option value="">全部考试</option>
+                            <option value="">全部试卷</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -77,7 +77,7 @@
                                 <th width="100">题型</th>
                                 <th width="80">分值</th>
                                 <th width="150">试卷</th>
-                                <th width="120">考点</th>
+                                <th width="120">知识点</th>
                                 <th width="150">创建时间</th>
                                 <th width="180">操作</th>
                             </tr>
@@ -125,9 +125,9 @@
                     <form id="createQuestionForm">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">考试 <span class="text-danger">*</span></label>
-                                <select class="form-select" id="examSelect" required>
-                                    <option value="">请选择考试</option>
+                                <label class="form-label">试卷</label>
+                                <select class="form-select" id="examSelect">
+                                    <option value="">请选择试卷（可选）</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -141,9 +141,25 @@
                                     <option value="short_answer">简答题</option>
                                 </select>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label">知识点</label>
+                                <select class="form-select" id="knowledgePointSelect">
+                                    <option value="">请选择知识点（可选）</option>
+                                </select>
+                            </div>
                             <div class="col-12">
                                 <label class="form-label">题目内容 <span class="text-danger">*</span></label>
                                 <textarea class="form-control" id="questionContent" rows="3" required placeholder="请输入题目内容"></textarea>
+                            </div>
+                            <!-- 题目图片 -->
+                            <div class="col-12">
+                                <label class="form-label">题目图片</label>
+                                <div id="currentQuestionImage" style="display: none;" class="mb-2">
+                                    <img id="currentQuestionImagePreview" src="" alt="当前图片" class="img-fluid rounded" style="max-height: 200px;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="removeQuestionImage()">删除图片</button>
+                                </div>
+                                <input type="file" class="form-control" id="questionImageInput" accept="image/*">
+                                <small class="text-muted">支持jpg、png等图片格式，最大5MB</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">分值</label>
@@ -244,9 +260,9 @@
                         <input type="hidden" id="editQuestionId">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">考试 <span class="text-danger">*</span></label>
-                                <select class="form-select" id="editExamSelect" required>
-                                    <option value="">请选择考试</option>
+                                <label class="form-label">试卷</label>
+                                <select class="form-select" id="editExamSelect">
+                                    <option value="">请选择试卷</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
@@ -260,17 +276,25 @@
                                     <option value="short_answer">简答题</option>
                                 </select>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label">知识点</label>
+                                <select class="form-select" id="editKnowledgePointSelect">
+                                    <option value="">请选择知识点（可选）</option>
+                                </select>
+                            </div>
                             <div class="col-12">
                                 <label class="form-label">题目内容 <span class="text-danger">*</span></label>
                                 <textarea class="form-control" id="editQuestionContent" rows="3" required placeholder="请输入题目内容"></textarea>
                             </div>
-                            <!-- 题目图片显示 -->
-                            <div class="col-12" id="editQuestionImageContainer" style="display: none;">
+                            <!-- 题目图片 -->
+                            <div class="col-12">
                                 <label class="form-label">题目图片</label>
-                                <div id="editQuestionImagePreview" class="mb-2"></div>
-                                <div class="form-text text-muted">
-                                    图片路径: <code id="editQuestionImagePath"></code>
+                                <div id="currentEditQuestionImage" style="display: none;" class="mb-2">
+                                    <img id="currentEditQuestionImagePreview" src="" alt="当前图片" class="img-fluid rounded" style="max-height: 200px;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="removeEditQuestionImage()">删除图片</button>
                                 </div>
+                                <input type="file" class="form-control" id="editQuestionImageInput" accept="image/*">
+                                <small class="text-muted">支持jpg、png等图片格式，最大5MB</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">分值</label>
@@ -407,8 +431,9 @@
         // 页面加载
         document.addEventListener('DOMContentLoaded', function() {
             loadExams();
+            loadKnowledgePoints();
             loadQuestions();
-            
+
             // 视图切换
             document.getElementById('viewToggle').addEventListener('change', function() {
                 const tableView = document.getElementById('tableView');
@@ -447,26 +472,51 @@
             fetch('/api/exams?per_page=100')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
+                    console.log('加载考试API响应:', data);
+                    if (data.success && data.data && data.data.items) {
                         const exams = data.data.items;
                         const examFilter = document.getElementById('examFilter');
                         const examSelect = document.getElementById('examSelect');
                         const editExamSelect = document.getElementById('editExamSelect');
-                        
-                        const options = '<option value="">全部考试</option>' + 
-                            exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
-                        
-                        examFilter.innerHTML = options;
-                        
-                        const selectOptions = '<option value="">请选择考试</option>' + 
-                            exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
-                        
-                        examSelect.innerHTML = selectOptions;
-                        editExamSelect.innerHTML = selectOptions;
+
+                        const options = exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+                        examFilter.innerHTML = '<option value="">全部试卷</option>' + options;
+
+                        const selectOptions = exams.map(e => `<option value="${e.id}">${e.title}</option>`).join('');
+                        examSelect.innerHTML = '<option value="">请选择试卷（可选）</option>' + selectOptions;
+                        editExamSelect.innerHTML = '<option value="">请选择试卷</option>' + selectOptions;
+                    } else {
+                        console.error('加载考试失败:', data);
                     }
+                })
+                .catch(error => {
+                    console.error('加载考试请求失败:', error);
                 });
         }
-        
+
+        // 加载知识点列表
+        function loadKnowledgePoints() {
+            fetch('/admin/api/knowledge-points')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('加载知识点API响应:', data);
+                    if (data.success && data.data && data.data.items) {
+                        const knowledgePoints = data.data.items;
+                        const kpSelect = document.getElementById('knowledgePointSelect');
+                        const editKpSelect = document.getElementById('editKnowledgePointSelect');
+
+                        const options = knowledgePoints.map(kp => `<option value="${kp.id}">${kp.name} (${kp.code})</option>`).join('');
+                        kpSelect.innerHTML = '<option value="">请选择知识点（可选）</option>' + options;
+                        editKpSelect.innerHTML = '<option value="">请选择知识点（可选）</option>' + options;
+                    } else {
+                        console.error('加载知识点失败:', data);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载知识点请求失败:', error);
+                });
+        }
+
         // 加载题目列表
         function loadQuestions(page = 1) {
             currentPage = page;
@@ -476,24 +526,27 @@
             const type = document.getElementById('typeFilter').value;
             const content = document.getElementById('searchInput').value;
             
-            let url = `/api/questions?page=${page}&per_page=${pageSize}`;
+            let url = `/admin/api/questions?page=${page}&per_page=${pageSize}`;
             if (examId) url += `&exam_id=${examId}`;
             if (type) url += `&type=${type}`;
             if (content) url += `&content=${encodeURIComponent(content)}`;
-            
+
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
+                    console.log('加载题目API响应:', data);
+                    if (data.success && data.data && data.data.items) {
                         const questions = data.data.items;
                         const pagination = data.data.pagination;
                         
                         renderQuestions(questions);
                         renderPagination(pagination);
+                    } else {
+                        console.error('加载题目失败:', data);
                     }
                 })
                 .catch(error => {
-                    console.error('加载题目失败:', error);
+                    console.error('加载题目请求失败:', error);
                 });
         }
         
@@ -516,7 +569,7 @@
             
             // 表格视图
             const tableHtml = questions.map(q => {
-                const examTitle = q.exam ? q.exam.title : (q.exam_title || '未关联');
+                const examTitle = q.exam ? q.exam.title : '未关联试卷';
                 const typeLabel = typeLabels[q.type] || q.type;
                 const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
                 // 去除HTML标签的预览
@@ -538,7 +591,7 @@
                         </td>
                         <td>${q.points || q.score || 0}</td>
                         <td>
-                            <a href="/exams/${q.exam_id}" class="text-decoration-none">${examTitle}</a>
+                            ${q.exam ? `<a href="/admin/exams/${q.exam.id}/edit" class="text-decoration-none">${examTitle}</a>` : '<span class="text-muted">' + examTitle + '</span>'}
                         </td>
                         <td>
                             ${getKnowledgePointText(q)}
@@ -565,7 +618,7 @@
 
             // 卡片视图
             const cardsHtml = questions.map(q => {
-                const examTitle = q.exam ? q.exam.title : (q.exam_title || '未关联');
+                const examTitle = q.exam ? q.exam.title : '未关联试卷';
                 const typeLabel = typeLabels[q.type] || q.type;
                 const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
                 const plainContent = q.content ? q.content.replace(/<[^>]*>/g, '') : '';
@@ -581,7 +634,7 @@
                                 </div>
                                 <h6 class="card-title">${plainContent.substring(0, 60)}${plainContent.length > 60 ? '...' : ''}</h6>
                                 <p class="card-text small text-muted mb-2">试卷: ${examTitle}</p>
-                                <p class="card-text small text-muted mb-2">考点: ${getKnowledgePointText(q)}</p>
+                                <p class="card-text small text-muted mb-2">知识点: ${getKnowledgePointText(q)}</p>
                                 ${plainExplanation ? `<p class="card-text small text-muted mb-2">解析: ${plainExplanation.substring(0, 40)}...</p>` : ''}
                             </div>
                             <div class="card-footer bg-transparent border-top-0">
@@ -620,13 +673,13 @@
         function renderPagination(pagination) {
             const nav = document.getElementById('paginationNav');
             const info = document.getElementById('pageInfo');
-            
+
             totalPages = pagination.total_pages;
-            
+
             info.textContent = `第 ${pagination.page} 页，共 ${pagination.total} 条`;
-            
+
             let html = '<ul class="pagination mb-0">';
-            
+
             // 上一页
             html += `
                 <li class="page-item ${pagination.has_prev ? '' : 'disabled'}">
@@ -635,19 +688,46 @@
                     </a>
                 </li>
             `;
-            
-            // 页码
-            const startPage = Math.max(1, pagination.page - 2);
-            const endPage = Math.min(totalPages, pagination.page + 2);
-            
+
+            // 第一页
+            if (totalPages > 0) {
+                if (pagination.page !== 1) {
+                    html += `
+                        <li class="page-item"><a class="page-link" href="#" onclick="loadQuestions(1); return false;">1</a></li>
+                    `;
+                }
+            }
+
+            // 前置省略号（当前页距第一页较远时显示）
+            if (pagination.page > 4) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+
+            // 当前页附近的页码（前后各3页，显示更多页码）
+            const startPage = Math.max(2, pagination.page - 2);
+            const endPage = Math.min(totalPages - 1, pagination.page + 2);
+
             for (let i = startPage; i <= endPage; i++) {
+                if (i === 1 || i === totalPages) continue; // 跳过第一页和最后一页，已单独处理
                 html += `
                     <li class="page-item ${i === pagination.page ? 'active' : ''}">
                         <a class="page-link" href="#" onclick="loadQuestions(${i}); return false;">${i}</a>
                     </li>
                 `;
             }
-            
+
+            // 后置省略号（当前页距最后一页较远时显示）
+            if (pagination.page < totalPages - 3) {
+                html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+
+            // 最后一页
+            if (totalPages > 1 && pagination.page !== totalPages) {
+                html += `
+                    <li class="page-item"><a class="page-link" href="#" onclick="loadQuestions(${totalPages}); return false;">${totalPages}</a></li>
+                `;
+            }
+
             // 下一页
             html += `
                 <li class="page-item ${pagination.has_next ? '' : 'disabled'}">
@@ -656,7 +736,7 @@
                     </a>
                 </li>
             `;
-            
+
             html += '</ul>';
             nav.innerHTML = html;
         }
@@ -751,89 +831,228 @@
                 input.dataset.index = index;
             });
         }
-        
+
+        // 添加编辑选项
+        function addEditChoice() {
+            const container = document.getElementById('editChoicesContainer');
+            const count = container.querySelectorAll('.edit-choice-input').length;
+            const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+            const div = document.createElement('div');
+            div.className = 'mb-3';
+            const label = labels[count];
+            div.innerHTML = `
+                <div class="input-group mb-2">
+                    <span class="input-group-text">${label}</span>
+                    <input type="text" class="form-control edit-choice-input">
+                    <button type="button" class="btn btn-outline-secondary" onclick="toggleEditChoiceImage(this, '${label}')" title="上传图片">
+                        <i class="bi bi-image"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="removeEditChoice(this)">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <input type="file" class="form-control mt-1 edit-choice-image-input" data-option="${label}" accept="image/*" style="display: none;">
+                <div class="edit-choice-image-preview mt-1" style="display: none;">
+                    <img src="" alt="选项${label}图片" class="img-fluid rounded" style="max-height: 80px;">
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditChoiceImage(this, '${label}')">删除</button>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        // 移除编辑选项
+        function removeEditChoice(btn) {
+            btn.closest('.mb-3').remove();
+            // 更新选项标签
+            const container = document.getElementById('editChoicesContainer');
+            const inputs = container.querySelectorAll('.edit-choice-input');
+            const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const groups = container.querySelectorAll('.input-group');
+            const fileInputs = container.querySelectorAll('.edit-choice-image-input');
+            groups.forEach((group, index) => {
+                group.querySelector('.input-group-text').textContent = labels[index];
+                fileInputs[index].dataset.option = labels[index];
+            });
+        }
+
+        // 切换编辑选项图片上传
+        function toggleEditChoiceImage(btn, option) {
+            const mb3 = btn.closest('.mb-3');
+            const fileInput = mb3.querySelector('.edit-choice-image-input');
+            if (fileInput.style.display === 'none') {
+                fileInput.style.display = 'block';
+            } else {
+                fileInput.style.display = 'none';
+            }
+        }
+
+        // 删除编辑选项图片
+        function removeEditChoiceImage(btn, option) {
+            const mb3 = btn.closest('.mb-3');
+            const preview = mb3.querySelector('.edit-choice-image-preview');
+            const fileInput = mb3.querySelector('.edit-choice-image-input');
+            preview.style.display = 'none';
+            preview.querySelector('img').src = '';
+            fileInput.value = '';
+        }
+
+        // 上传图片（用于选项图片）
+        async function uploadImage(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('type', 'question_image');
+
+            try {
+                const response = await fetch('/admin/api/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success && result.data && result.data.path) {
+                    return result.data.path;
+                } else {
+                    console.error('上传失败:', result);
+                    return null;
+                }
+            } catch (error) {
+                console.error('上传错误:', error);
+                return null;
+            }
+        }
+
         // 创建题目
         function createQuestion() {
             const examId = document.getElementById('examSelect').value;
+            const knowledgePointId = document.getElementById('knowledgePointSelect').value;
             const type = document.getElementById('questionType').value;
             const content = document.getElementById('questionContent').value;
             const score = document.getElementById('questionScore').value;
             const order = document.getElementById('questionOrder').value;
             const explanation = document.getElementById('questionExplanation').value;
-            
-            if (!examId || !type || !content) {
+            const questionImageInput = document.getElementById('questionImageInput');
+
+            if (!type || !content) {
                 alert('请填写必填字段！');
                 return;
             }
-            
-            const data = {
-                exam_id: parseInt(examId),
-                content: content,
-                type: type,
-                score: parseFloat(score),
-                order_index: parseInt(order),
-                explanation: explanation
-            };
-            
-            // 根据题型处理选项和答案
-            if (type === 'single_choice' || type === 'multiple_choice') {
-                const choiceInputs = document.querySelectorAll('.choice-input');
-                const choices = Array.from(choiceInputs).map(input => input.value).filter(v => v.trim());
-                
-                if (choices.length < 2) {
-                    alert('选择题至少需要2个选项！');
-                    return;
+
+            // 处理图片上传
+            const processSubmit = (imageData) => {
+                const data = {
+                    content: content,
+                    type: type,
+                    points: parseFloat(score),
+                    order_index: parseInt(order),
+                    explanation: explanation
+                };
+
+                // 如果有图片，添加图片数据
+                if (imageData) {
+                    data.has_image = true;
+                    data.image_data = imageData;
                 }
-                
-                data.choices = choices;
-                
-                if (type === 'single_choice') {
-                    data.correct_answer = document.getElementById('singleCorrect').value;
+
+                // 如果选择了试卷，则添加exam_id
+            if (examId) {
+                data.exam_id = parseInt(examId);
+            }
+
+                // 如果选择了知识点，则添加knowledge_point_id
+                if (knowledgePointId) {
+                    data.knowledge_point_id = parseInt(knowledgePointId);
                 } else {
-                    const checked = [];
-                    document.querySelectorAll('#answerMultiple input:checked').forEach(cb => checked.push(cb.value));
-                    if (checked.length === 0) {
-                        alert('多选题至少需要选择一个正确答案！');
+                    data.knowledge_point_id = null;
+                }
+                if (examId) {
+                    data.exam_id = parseInt(examId);
+                }
+
+                // 如果选择了考点，则添加knowledge_point_id
+                if (knowledgePointId) {
+                    data.knowledge_point_id = parseInt(knowledgePointId);
+                }
+
+                // 根据题型处理选项和答案
+                if (type === 'single_choice' || type === 'multiple_choice') {
+                    const choiceInputs = document.querySelectorAll('.choice-input');
+                    const choices = Array.from(choiceInputs).map(input => input.value).filter(v => v.trim());
+
+                    if (choices.length < 2) {
+                        alert('选择题至少需要2个选项！');
                         return;
                     }
-                    data.correct_answer = checked;
+
+                    data.choices = choices;
+
+                    if (type === 'single_choice') {
+                        data.correct_answer = document.getElementById('singleCorrect').value;
+                    } else {
+                        const checked = [];
+                        document.querySelectorAll('#answerMultiple input:checked').forEach(cb => checked.push(cb.value));
+                        if (checked.length === 0) {
+                            alert('多选题至少需要选择一个正确答案！');
+                            return;
+                        }
+                        data.correct_answer = checked;
+                    }
+                } else if (type === 'true_false') {
+                    data.correct_answer = document.getElementById('boolCorrect').value === 'true';
+                } else {
+                    const answer = document.getElementById('textCorrect').value;
+                    if (!answer) {
+                        alert('请输入正确答案！');
+                        return;
+                    }
+                    data.correct_answer = answer;
                 }
-            } else if (type === 'true_false') {
-                data.correct_answer = document.getElementById('boolCorrect').value === 'true';
-            } else {
-                const answer = document.getElementById('textCorrect').value;
-                if (!answer) {
-                    alert('请输入正确答案！');
+
+                fetch('/admin/api/questions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('createQuestionModal')).hide();
+                        alert('题目创建成功！');
+                        resetCreateForm();
+                        loadQuestions();
+                    } else {
+                        alert('创建失败：' + (data.message || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    console.error('创建题目失败:', error);
+                    alert('创建失败，请稍后重试');
+                });
+            };
+
+            // 检查是否有图片上传
+            if (questionImageInput.files && questionImageInput.files[0]) {
+                const file = questionImageInput.files[0];
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('图片大小不能超过5MB！');
                     return;
                 }
-                data.correct_answer = answer;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    processSubmit(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                processSubmit(null);
             }
-            
-            fetch('/api/questions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('createQuestionModal')).hide();
-                    alert('题目创建成功！');
-                    resetCreateForm();
-                    loadQuestions();
-                } else {
-                    alert('创建失败：' + (data.message || '未知错误'));
-                }
-            })
-            .catch(error => {
-                console.error('创建题目失败:', error);
-                alert('创建失败，请稍后重试');
-            });
         }
         
         // 重置创建表单
         function resetCreateForm() {
             document.getElementById('createQuestionForm').reset();
+            
+            // 清除题目图片
+            document.getElementById('currentQuestionImage').style.display = 'none';
+            document.getElementById('questionImageInput').value = '';
             
             // 重置选项
             const container = document.getElementById('choicesContainer');
@@ -859,20 +1078,32 @@
             updateFormFields();
         }
         
+        // 删除题目图片（创建）
+        function removeQuestionImage() {
+            document.getElementById('currentQuestionImage').style.display = 'none';
+            document.getElementById('questionImageInput').value = '';
+        }
+        
+        // 删除题目图片（编辑）
+        function removeEditQuestionImage() {
+            document.getElementById('currentEditQuestionImage').style.display = 'none';
+            document.getElementById('editQuestionImageInput').value = '';
+        }
+
         // 编辑题目
         function editQuestion(id) {
-            fetch(`/api/questions/${id}`)
+            fetch(`/admin/api/questions/${id}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log('编辑题目API响应:', data);
                     console.log('success:', data.success);
                     console.log('data:', data.data);
-                    console.log('question:', data.data?.question);
-                    if (data.success && data.data && data.data.question) {
-                        const q = data.data.question;
-                        
+                    if (data.success && data.data) {
+                        const q = data.data;
+
                         document.getElementById('editQuestionId').value = q.id;
                         document.getElementById('editExamSelect').value = q.exam_id;
+                        document.getElementById('editKnowledgePointSelect').value = q.knowledge_point_id || '';
                         document.getElementById('editQuestionType').value = q.type;
                         document.getElementById('editQuestionContent').value = q.content;
                         document.getElementById('editQuestionScore').value = q.points || q.score || 1;
@@ -880,19 +1111,17 @@
                         document.getElementById('editQuestionExplanation').value = q.explanation || '';
 
                         // 显示题目图片
-                        const questionImageContainer = document.getElementById('editQuestionImageContainer');
-                        const questionImagePreview = document.getElementById('editQuestionImagePreview');
-                        const questionImagePath = document.getElementById('editQuestionImagePath');
+                        const currentImage = document.getElementById('currentEditQuestionImage');
+                        const currentImagePreview = document.getElementById('currentEditQuestionImagePreview');
                         if (q.has_image && q.image_data) {
-                            questionImageContainer.style.display = 'block';
                             if (q.image_data.startsWith('data:')) {
-                                questionImagePreview.innerHTML = `<img src="${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
+                                currentImagePreview.src = q.image_data;
                             } else {
-                                questionImagePreview.innerHTML = `<img src="/api/uploads/${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 300px;">`;
+                                currentImagePreview.src = `/api/uploads/${q.image_data}`;
                             }
-                            questionImagePath.textContent = q.image_data;
+                            currentImage.style.display = 'block';
                         } else {
-                            questionImageContainer.style.display = 'none';
+                            currentImage.style.display = 'none';
                         }
                         
                         updateEditFormFields();
@@ -922,22 +1151,55 @@
 
                             const container = document.getElementById('editChoicesContainer');
                             const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                            // 构建选项HTML，包含图片显示
+                            // 获取选项图片信息（从 metadata）
+                            const optionsImages = q.question_metadata && q.question_metadata.options_images ? q.question_metadata.options_images : {};
+
+                            // 构建选项HTML，包含图片显示和上传功能
                             container.innerHTML = choices.map((choice, i) => {
+                                const label = labels[i];
                                 const optionData = choiceOptions[i] || {};
                                 let imageHtml = '';
+
+                                // 先从 optionData 中查找（如果有的话）
                                 if (optionData.has_image && optionData.image_path) {
                                     imageHtml = `
-                                        <div class="mt-2">
-                                            <img src="/api/uploads/${optionData.image_path}" class="img-fluid rounded" alt="选项图片" style="max-height: 150px;">
+                                        <input type="file" class="form-control mt-1 edit-choice-image-input" data-option="${label}" accept="image/*" style="display: none;">
+                                        <div class="edit-choice-image-preview mt-1">
+                                            <img src="/api/uploads/${optionData.image_path}" alt="选项${label}图片" class="img-fluid rounded" style="max-height: 80px;">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditChoiceImage(this, '${label}')">删除</button>
+                                        </div>
+                                    `;
+                                } else if (optionsImages[label] && optionsImages[label].has_image && optionsImages[label].image_path) {
+                                    // 从 metadata 中查找
+                                    imageHtml = `
+                                        <input type="file" class="form-control mt-1 edit-choice-image-input" data-option="${label}" accept="image/*" style="display: none;">
+                                        <div class="edit-choice-image-preview mt-1">
+                                            <img src="/api/uploads/${optionsImages[label].image_path}" alt="选项${label}图片" class="img-fluid rounded" style="max-height: 80px;">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditChoiceImage(this, '${label}')">删除</button>
+                                        </div>
+                                    `;
+                                } else {
+                                    // 没有图片，添加上传功能
+                                    imageHtml = `
+                                        <input type="file" class="form-control mt-1 edit-choice-image-input" data-option="${label}" accept="image/*" style="display: none;">
+                                        <div class="edit-choice-image-preview mt-1" style="display: none;">
+                                            <img src="" alt="选项${label}图片" class="img-fluid rounded" style="max-height: 80px;">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEditChoiceImage(this, '${label}')">删除</button>
                                         </div>
                                     `;
                                 }
+
                                 return `
                                 <div class="mb-3">
                                     <div class="input-group mb-2">
-                                        <span class="input-group-text">${labels[i]}</span>
+                                        <span class="input-group-text">${label}</span>
                                         <input type="text" class="form-control edit-choice-input" value="${choice}">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="toggleEditChoiceImage(this, '${label}')" title="上传图片">
+                                            <i class="bi bi-image"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" onclick="removeEditChoice(this)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </div>
                                     ${imageHtml}
                                 </div>
@@ -980,43 +1242,114 @@
                     alert('编辑题目请求失败，请稍后重试');
                 });
         }
-        
+
         // 更新题目
-        function updateQuestion() {
+        async function updateQuestion() {
             const id = document.getElementById('editQuestionId').value;
             const examId = document.getElementById('editExamSelect').value;
+            const knowledgePointId = document.getElementById('editKnowledgePointSelect').value;
             const type = document.getElementById('editQuestionType').value;
             const content = document.getElementById('editQuestionContent').value;
             const score = document.getElementById('editQuestionScore').value;
             const order = document.getElementById('editQuestionOrder').value;
             const explanation = document.getElementById('editQuestionExplanation').value;
-            
-            if (!examId || !type || !content) {
+            const editQuestionImageInput = document.getElementById('editQuestionImageInput');
+
+            if (!type || !content) {
                 alert('请填写必填字段！');
                 return;
             }
-            
+
             const data = {
-                exam_id: parseInt(examId),
                 content: content,
                 type: type,
-                score: parseFloat(score),
+                points: parseFloat(score),
                 order_index: parseInt(order),
                 explanation: explanation
             };
-            
+
+            // 处理题目图片上传
+            if (editQuestionImageInput.files && editQuestionImageInput.files[0]) {
+                const file = editQuestionImageInput.files[0];
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('图片大小不能超过5MB！');
+                    return;
+                }
+                const imageData = await uploadImage(file);
+                if (imageData) {
+                    data.has_image = true;
+                    data.image_data = imageData;
+                } else {
+                    alert('图片上传失败');
+                    return;
+                }
+            } else if (document.getElementById('currentEditQuestionImage').style.display === 'none') {
+                // 删除了原有图片
+                data.has_image = false;
+                data.image_data = '';
+            }
+
+            // 如果选择了试卷，则添加exam_id
+            if (examId) {
+                data.exam_id = parseInt(examId);
+            }
+
+                // 如果选择了知识点，则添加knowledge_point_id
+                if (knowledgePointId) {
+                    data.knowledge_point_id = parseInt(knowledgePointId);
+                } else {
+                    data.knowledge_point_id = null;
+                }
+            if (examId) {
+                data.exam_id = parseInt(examId);
+            }
+
             // 根据题型处理选项和答案
             if (type === 'single_choice' || type === 'multiple_choice') {
                 const choiceInputs = document.querySelectorAll('.edit-choice-input');
                 const choices = Array.from(choiceInputs).map(input => input.value).filter(v => v.trim());
-                
+
                 if (choices.length < 2) {
                     alert('选择题至少需要2个选项！');
                     return;
                 }
-                
+
                 data.options = { choices: choices };
-                
+
+                // 处理选项图片上传
+                const optionsImages = {};
+                const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                const container = document.getElementById('editChoicesContainer');
+                const mb3Divs = container.querySelectorAll('.mb-3');
+
+                for (const [index, div] of Array.from(mb3Divs).entries()) {
+                    const label = labels[index];
+                    const fileInput = div.querySelector('.edit-choice-image-input');
+                    const preview = div.querySelector('.edit-choice-image-preview');
+                    const img = preview.querySelector('img');
+
+                    if (fileInput.files && fileInput.files[0]) {
+                        // 上传新图片
+                        const imageData = await uploadImage(fileInput.files[0]);
+                        if (imageData) {
+                            optionsImages[label] = {
+                                has_image: true,
+                                image_path: imageData
+                            };
+                        }
+                    } else if (img.src && img.src !== window.location.href && preview.style.display !== 'none') {
+                        // 保留现有图片
+                        optionsImages[label] = {
+                            has_image: true,
+                            image_path: img.src.replace('/api/uploads/', '')
+                        };
+                    }
+                }
+
+                if (Object.keys(optionsImages).length > 0) {
+                    data.question_metadata = { options_images: optionsImages };
+                }
+
                 if (type === 'single_choice') {
                     data.correct_answer = document.getElementById('editSingleCorrect').value;
                 } else {
@@ -1038,8 +1371,8 @@
                 }
                 data.correct_answer = answer;
             }
-            
-            fetch(`/api/questions/${id}`, {
+
+            fetch(`/admin/api/questions/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -1059,18 +1392,17 @@
                 alert('更新失败，请稍后重试');
             });
         }
-        
+
         // 预览题目
         function previewQuestion(id) {
-            fetch(`/api/questions/${id}`)
+            fetch(`/admin/api/questions/${id}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log('预览题目API响应:', data);
                     console.log('success:', data.success);
                     console.log('data:', data.data);
-                    console.log('question:', data.data?.question);
-                    if (data.success && data.data && data.data.question) {
-                        const q = data.data.question;
+                    if (data.success && data.data) {
+                        const q = data.data;
                         const typeLabel = typeLabels[q.type] || q.type;
                         const badgeColor = typeBadgeColors[q.type] || 'bg-secondary';
 
@@ -1132,13 +1464,17 @@
                         console.error('获取题目详情失败:', data);
                         alert('获取题目详情失败：' + (data.message || '未知错误'));
                     }
+                })
+                .catch(error => {
+                    console.error('预览题目请求失败:', error);
+                    alert('预览题目请求失败，请稍后重试');
                 });
         }
         
         // 删除题目
         function deleteQuestion(id) {
             if (confirm('确定要删除这个题目吗？此操作不可撤销！')) {
-                fetch(`/api/questions/${id}`, { method: 'DELETE' })
+                fetch(`/admin/api/questions/${id}`, { method: 'DELETE' })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -1170,9 +1506,9 @@
         // 确认批量删除
         function confirmBatchDelete() {
             const ids = Array.from(selectedQuestions);
-            
-            Promise.all(ids.map(id => 
-                fetch(`/api/questions/${id}`, { method: 'DELETE' })
+
+            Promise.all(ids.map(id =>
+                fetch(`/admin/api/questions/${id}`, { method: 'DELETE' })
                     .then(response => response.json())
             ))
             .then(results => {

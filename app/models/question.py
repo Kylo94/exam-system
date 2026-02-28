@@ -19,7 +19,7 @@ class Question(BaseModel):
     exam_id = db.Column(
         db.Integer,
         db.ForeignKey('exams.id', ondelete='CASCADE'),
-        nullable=False,
+        nullable=True,
         index=True,
         doc='试卷ID'
     )
@@ -291,15 +291,15 @@ class Question(BaseModel):
     def to_dict(self, include_exam: bool = False) -> dict:
         """
         转换为字典，可包含关联的试卷信息
-        
+
         Args:
             include_exam: 是否包含试卷信息
-            
+
         Returns:
             包含题目信息的字典
         """
         data = super().to_dict()
-        
+
         # 处理JSON字段
         if 'options' in data and data['options']:
             if isinstance(data['options'], str):
@@ -307,20 +307,37 @@ class Question(BaseModel):
                     data['options'] = json.loads(data['options'])
                 except json.JSONDecodeError:
                     data['options'] = []
-        
+
+        # 处理 question_metadata 字段
+        if 'question_metadata' in data and data['question_metadata']:
+            if isinstance(data['question_metadata'], str):
+                try:
+                    data['question_metadata'] = json.loads(data['question_metadata'])
+                except json.JSONDecodeError:
+                    data['question_metadata'] = {}
+        elif 'question_metadata' not in data:
+            data['question_metadata'] = {}
+
+        # 处理 metadata 字段（兼容旧版本）
         if 'metadata' in data and data['metadata']:
             if isinstance(data['metadata'], str):
                 try:
                     data['metadata'] = json.loads(data['metadata'])
                 except json.JSONDecodeError:
                     data['metadata'] = {}
-        
+
         # 添加统计信息
         data['correct_rate'] = self.get_correct_rate()
-        
-        if include_exam and self.exam:
-            data['exam_title'] = self.exam.title
-        
+
+        if include_exam:
+            if self.exam:
+                data['exam'] = {
+                    'id': self.exam.id,
+                    'title': self.exam.title
+                }
+            else:
+                data['exam'] = None
+
         return data
     
     def __repr__(self) -> str:

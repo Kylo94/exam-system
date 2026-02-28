@@ -11,7 +11,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h3">试卷管理</h1>
             <div>
-                <a href="{{ url_for('main.upload_page') }}" class="btn btn-success me-2">
+                <a href="{{ url_for('admin.upload_page') }}" class="btn btn-success me-2">
                     <i class="bi bi-upload me-1"></i>上传试卷
                 </a>
                 <button class="btn btn-danger d-none" id="batchDeleteBtn" onclick="batchDeleteExams()">
@@ -144,12 +144,13 @@
 
         // 加载科目和等级
         function loadSubjects() {
-            fetch('/api/subjects')
+            fetch('/admin/api/subjects')
                 .then(response => response.json())
                 .then(data => {
                     console.log('Subjects response:', data);
                     if (data.success) {
-                        const subjects = (data.data && data.data.subjects) || [];
+                        const apiData = data.data || {};
+                        const subjects = apiData.items || [];
                         const options = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                         document.getElementById('filterSubject').innerHTML = '<option value="">全部科目</option>' + options;
                         document.getElementById('editSubject').innerHTML = '<option value="">请选择科目</option>' + options;
@@ -192,13 +193,13 @@
                 return;
             }
 
-            fetch(`/api/subjects/${subjectId}/levels`)
+            fetch(`/admin/api/levels?subject_id=${subjectId}`)
                 .then(response => response.json())
                 .then(data => {
                     console.log(`Levels response for subject ${subjectId}:`, data);
                     if (data.success) {
                         const apiData = data.data || {};
-                        const levels = apiData.items || apiData.levels || [];
+                        const levels = apiData.items || [];
                         const defaultText = selectId === 'filterLevel' ? '全部等级' : '请选择等级';
                         const options = levels.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
                         select.innerHTML = `<option value="">${defaultText}</option>` + options;
@@ -231,7 +232,7 @@
                     console.log('Exams response:', data);
                     if (data.success) {
                         const apiData = data.data || {};
-                        examData = apiData.exams || [];
+                        examData = apiData.items || [];
                         renderExams(examData);
                         renderPagination(apiData.pagination || null);
                     } else {
@@ -265,7 +266,7 @@
                     <td>${exam.subject ? exam.subject.name : '未知'}</td>
                     <td>${exam.level ? exam.level.name : '未知'}</td>
                     <td><span class="badge bg-info">${exam.question_count || 0}</span></td>
-                    <td><span class="badge bg-success">${exam.total_score || 0} 分</span></td>
+                    <td><span class="badge bg-success">${exam.total_points || 0} 分</span></td>
                     <td>${exam.duration_minutes ? exam.duration_minutes + ' 分钟' : '不限时'}</td>
                     <td>
                         <span class="badge ${exam.is_active ? 'bg-success' : 'bg-secondary'}">
@@ -273,7 +274,7 @@
                         </span>
                     </td>
                     <td>
-                        <a href="/exam-edit/${exam.id}" class="btn btn-sm btn-outline-primary me-1">
+                        <a href="/admin/exams/${exam.id}/edit" class="btn btn-sm btn-outline-primary me-1">
                             <i class="bi bi-pencil"></i>
                         </a>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteExam(${exam.id})">
@@ -321,6 +322,9 @@
             document.getElementById('editDuration').value = exam.duration_minutes || '';
             document.getElementById('editPassScore').value = exam.pass_score || 60;
             document.getElementById('editStatus').value = exam.is_active.toString();
+
+            // 加载对应等级
+            loadLevelsForSelect(exam.subject_id, 'editLevel');
 
             // 加载对应等级
             loadLevelsForSelect(exam.subject_id, 'editLevel');

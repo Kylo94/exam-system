@@ -17,6 +17,10 @@ class KnowledgePointResource(BaseResource):
 
     def _serialize_knowledge_point(self, knowledge_point):
         """序列化考点对象"""
+        # 统计题目数量
+        from app.models import Question
+        question_count = Question.query.filter_by(knowledge_point_id=knowledge_point.id).count()
+
         data = {
             'id': knowledge_point.id,
             'name': knowledge_point.name,
@@ -27,6 +31,7 @@ class KnowledgePointResource(BaseResource):
             'parent_id': knowledge_point.parent_id,
             'order_index': knowledge_point.order_index,
             'is_active': knowledge_point.is_active,
+            'question_count': question_count,
             'created_at': knowledge_point.created_at.isoformat() if knowledge_point.created_at else None,
             'updated_at': knowledge_point.updated_at.isoformat() if knowledge_point.updated_at else None
         }
@@ -235,11 +240,18 @@ def knowledge_points_by_level(level_id):
 
 @knowledge_points_bp.route('/knowledge-points/by-subject-level/<int:subject_id>/<int:level_id>', methods=['GET'])
 def knowledge_points_by_subject_level(subject_id, level_id):
-    """根据科目和难度等级获取考点列表"""
+    """根据科目和难度等级获取考点列表（用于刷题筛选）"""
     service = KnowledgePointResource()
 
     knowledge_points = service.get_service().get_by_subject_and_level(subject_id, level_id)
-    items = [service._serialize_knowledge_point(kp) for kp in knowledge_points]
+    # 只返回有题目的知识点
+    from app.models import Question
+    items = []
+    for kp in knowledge_points:
+        question_count = Question.query.filter_by(knowledge_point_id=kp.id).count()
+        if question_count > 0:
+            data = service._serialize_knowledge_point(kp)
+            items.append(data)
 
     return jsonify({
         'success': True,
