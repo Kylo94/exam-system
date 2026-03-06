@@ -59,6 +59,10 @@ docs/
 *.md
 !README.md
 
+# 数据库迁移 - 必须包含
+!migrations/
+!migrations/**
+
 # Docker
 Dockerfile
 docker-compose.yml
