@@ -49,11 +49,6 @@ services:
 
   # Flask Web 应用（开发模式）
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - BUILD_ENV=development
     image: exam-system:dev
     container_name: exam-web-dev
     command: >

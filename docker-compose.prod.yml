@@ -88,13 +88,6 @@ services:
 
   # Web 应用服务
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - BUILD_ENV=production
-        - PYTHON_VERSION=3.9
-
     image: exam-system:latest
     container_name: exam-web
 

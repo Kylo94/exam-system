@@ -45,10 +45,13 @@ cd exam-system
 # 2. 配置环境变量
 cp .env.example .env
 
-# 3. 启动服务
+# 3. 构建镜像
+./scripts/build-image.sh dev
+
+# 4. 启动服务
 docker-compose up -d
 
-# 4. 访问应用
+# 5. 访问应用
 # http://localhost:5002
 ```
 
@@ -58,16 +61,19 @@ docker-compose up -d
 cp .env.production .env
 # 编辑 .env 文件，修改密钥和密码
 
-# 2. 启动服务
+# 2. 构建镜像
+./scripts/build-image.sh prod
+
+# 3. 启动服务
 docker-compose -f docker-compose.prod.yml up -d
 
-# 3. 初始化数据库
+# 4. 初始化数据库
 docker-compose -f docker-compose.prod.yml exec web flask db upgrade
 
-# 4. 创建管理员账户
+# 5. 创建管理员账户
 docker-compose -f docker-compose.prod.yml exec web python create_admin.py
 
-# 5. 访问应用
+# 6. 访问应用
 # http://localhost:80
 ```
 

@@ -31,9 +31,13 @@ git clone https://github.com/Kylo94/exam-system.git
 cd exam-system
 
 # 2. 开发环境一键启动
+cp .env.example .env
+./scripts/build-image.sh dev
 docker-compose up -d
 
 # 3. 生产环境一键启动
+cp .env.production .env
+./scripts/build-image.sh prod
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -227,17 +231,21 @@ services:
 ### 方式一：使用 Docker Compose（推荐）
 
 ```bash
-# 1. 创建并编辑 .env 文件
+# 步骤 1: 配置环境变量
 cp .env.example .env
 vim .env
 
-# 2. 启动服务
+# 步骤 2: 构建镜像
+./scripts/build-image.sh dev
+# 或手动构建：docker build -t exam-system:dev --build-arg BUILD_ENV=development .
+
+# 步骤 3: 启动容器
 docker-compose up -d
 
-# 3. 查看日志
+# 步骤 4: 查看日志
 docker-compose logs -f web
 
-# 4. 访问应用
+# 步骤 5: 访问应用
 # http://localhost:5002
 ```
 
@@ -284,26 +292,31 @@ flask run --host=0.0.0.0 --port=5002
 ### 方式一：使用 Docker Compose（推荐）
 
 ```bash
-# 1. 创建并编辑环境变量
+# 步骤 1: 创建并编辑环境变量
 cp .env.production .env
 vim .env
+# 重要：修改 SECRET_KEY 和 DB_PASSWORD
 
-# 2. 生成安全密钥
+# 步骤 2: 生成安全密钥
 python -c "import secrets; print(secrets.token_hex(32))"
 
-# 3. 创建必要目录
+# 步骤 3: 构建生产镜像
+./scripts/build-image.sh prod
+# 或手动构建：docker build -t exam-system:latest --build-arg BUILD_ENV=production .
+
+# 步骤 4: 创建必要目录
 mkdir -p data/{postgres,redis,uploads,logs,nginx}
 
-# 4. 启动服务
+# 步骤 5: 启动容器
 docker-compose -f docker-compose.prod.yml up -d
 
-# 5. 初始化数据库
+# 步骤 6: 初始化数据库
 docker-compose -f docker-compose.prod.yml exec web flask db upgrade
 
-# 6. 创建管理员账户
+# 步骤 7: 创建管理员账户
 docker-compose -f docker-compose.prod.yml exec web python create_admin.py
 
-# 7. 查看服务状态
+# 步骤 8: 查看服务状态
 docker-compose -f docker-compose.prod.yml ps
 ```
 
@@ -504,10 +517,29 @@ python create_admin.py
 
 ### Docker Compose 命令
 
+#### 镜像构建命令
+
+```bash
+# 构建开发环境镜像
+./scripts/build-image.sh dev
+# 或手动：docker build -t exam-system:dev --build-arg BUILD_ENV=development .
+
+# 构建生产环境镜像
+./scripts/build-image.sh prod
+# 或手动：docker build -t exam-system:latest --build-arg BUILD_ENV=production .
+
+# 查看镜像
+docker images exam-system
+
+# 删除镜像
+docker rmi exam-system:dev exam-system:latest
+```
+
 #### 开发环境
 
 ```bash
-# 启动服务
+# 启动服务（需要先构建镜像）
+./scripts/build-image.sh dev
 docker-compose up -d
 
 # 停止服务
@@ -526,10 +558,6 @@ docker-compose ps
 docker-compose exec web bash
 docker-compose exec db psql -U examuser -d examdb
 
-# 更新镜像并重启
-docker-compose pull
-docker-compose up -d
-
 # 清理数据（危险！）
 docker-compose down -v
 ```
@@ -537,7 +565,8 @@ docker-compose down -v
 #### 生产环境
 
 ```bash
-# 启动服务
+# 启动服务（需要先构建镜像）
+./scripts/build-image.sh prod
 docker-compose -f docker-compose.prod.yml up -d
 
 # 停止服务
@@ -557,7 +586,8 @@ docker-compose -f docker-compose.prod.yml exec web bash
 docker-compose -f docker-compose.prod.yml exec db psql -U examuser -d examdb
 
 # 重新构建镜像
-docker-compose -f docker-compose.prod.yml build --no-cache
+./scripts/build-image.sh prod
+docker-compose -f docker-compose.prod.yml up -d
 
 # 查看资源使用
 docker stats
