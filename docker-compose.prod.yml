@@ -125,7 +125,7 @@ services:
 
       # Redis 配置
       REDIS_URL: redis://redis:6379/0
-      REDIS_CACHE_PREFIX: exam_system:
+      REDIS_CACHE_PREFIX: "exam_system:"
       REDIS_CACHE_TTL: 3600
 
       # 文件上传配置
@@ -142,7 +142,7 @@ services:
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_PASSWORD: ${MAIL_SMTP_PASSWORD:-}
       MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-noreply@example.com}
 
     volumes:
