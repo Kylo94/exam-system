@@ -61,7 +61,7 @@ docs/
 
 # 数据库迁移 - 必须包含
 !migrations/
-!migrations/**
+!migrations/**/*
 
 # Docker
 Dockerfile
