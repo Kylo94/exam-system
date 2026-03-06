@@ -57,9 +57,7 @@ services:
       # 持久化日志
       - ./logs:/app/logs
       # 数据库迁移文件
-      - ./migrations:/app/migrations:ro
-      # 环境配置文件（用于在容器中运行脚本）
-      - ./.env:/app/.env:ro
+      - ./migrations:/app/migrations
     depends_on:
       db:
         condition: service_healthy
