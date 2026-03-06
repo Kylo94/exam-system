@@ -53,6 +53,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ### 系统要求
 
 - **操作系统**: Linux / macOS / Windows (WSL2)
+- **Python**: 3.12+
 - **Docker**: 20.10+
 - **Docker Compose**: 2.0+
 - **内存**: 最小 2GB，推荐 4GB+

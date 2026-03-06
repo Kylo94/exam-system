@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-latest-blue.svg)](https://hub.docker.com/)
-[![Python](https://img.shields.io/badge/python-3.9+-green.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.12+-green.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/flask-3.0+-red.svg)](https://flask.palletsprojects.com/)
 
 ## 功能特性
@@ -30,7 +30,7 @@
 ## 快速开始
 
 ### 前置要求
-- Python 3.9+
+- Python 3.12+
 - Docker 20.10+
 - Docker Compose 2.0+
 
@@ -145,7 +145,7 @@ python create_admin.py
 ## 技术栈
 
 ### 后端
-- **Python 3.9+** - 核心语言
+- **Python 3.12+** - 核心语言
 - **Flask 3.0+** - Web 框架
 - **SQLAlchemy 2.0+** - ORM
 - **Flask-Migrate** - 数据库迁移
