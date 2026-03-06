@@ -1,0 +1,280 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库服务
+  db:
+    image: postgres:14-alpine
+    container_name: exam-postgres
+    environment:
+      # 数据库基础配置
+      POSTGRES_DB: examdb
+      POSTGRES_USER: examuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-exam_password_123456}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+
+      # 性能优化配置
+      POSTGRES_SHARED_BUFFERS: 256MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 1GB
+      POSTGRES_MAINTENANCE_WORK_MEM: 64MB
+      POSTGRES_CHECKPOINT_COMPLETION_TARGET: 0.9
+      POSTGRES_WAL_BUFFERS: 16MB
+      POSTGRES_DEFAULT_STATISTICS_TARGET: 100
+      POSTGRES_RANDOM_PAGE_COST: 1.1
+      POSTGRES_EFFECTIVE_IO_CONCURRENCY: 200
+      POSTGRES_WORK_MEM: 4MB
+      POSTGRES_MIN_WAL_SIZE: 1GB
+      POSTGRES_MAX_WAL_SIZE: 4GB
+
+      # 连接池配置
+      POSTGRES_MAX_CONNECTIONS: 100
+
+    volumes:
+      # 持久化数据库数据
+      - postgres_data:/var/lib/postgresql/data
+      # 初始化脚本
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init-db.sql:ro
+      # 性能配置
+      - ./docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql.conf"
+
+    networks:
+      - exam-network
+
+    restart: unless-stopped
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U examuser -d examdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis 缓存和会话存储
+  redis:
+    image: redis:7-alpine
+    container_name: exam-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --tcp-keepalive 300
+      --timeout 300
+
+    volumes:
+      - redis_data:/data
+
+    networks:
+      - exam-network
+
+    restart: unless-stopped
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Web 应用服务
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=production
+        - PYTHON_VERSION=3.9
+
+    image: exam-system:latest
+    container_name: exam-web
+
+    # 使用 Gunicorn 作为生产服务器
+    command: >
+      gunicorn
+      --bind 0.0.0.0:5002
+      --workers ${GUNICORN_WORKERS:-4}
+      --worker-class sync
+      --threads ${GUNICORN_THREADS:-2}
+      --timeout 120
+      --keepalive 5
+      --max-requests 1000
+      --max-requests-jitter 50
+      --log-level info
+      --access-logfile -
+      --error-logfile -
+      --capture-output
+      wsgi:app
+
+    ports:
+      - "${FLASK_PORT:-5002}:5002"
+
+    environment:
+      # Flask 配置
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
+
+      # 数据库配置
+      DATABASE_URL: postgresql://examuser:${DB_PASSWORD:-exam_password_123456}@db:5432/examdb?sslmode=disable
+
+      # 安全配置
+      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}
+      SECURITY_PASSWORD_SALT: ${SECURITY_PASSWORD_SALT:-change-this-salt-in-production}
+
+      # AI API 配置
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+
+      # Redis 配置
+      REDIS_URL: redis://redis:6379/0
+      REDIS_CACHE_PREFIX: exam_system:
+      REDIS_CACHE_TTL: 3600
+
+      # 文件上传配置
+      MAX_CONTENT_LENGTH: 52428800
+      UPLOAD_FOLDER: /app/uploads
+      ALLOWED_EXTENSIONS: docx,doc,pdf,jpg,jpeg,png,gif
+
+      # 日志配置
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+
+      # 邮件配置（可选）
+      MAIL_SERVER: ${MAIL_SERVER:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-noreply@example.com}
+
+    volumes:
+      # 持久化上传文件
+      - uploads_data:/app/uploads
+      # 持久化日志
+      - logs_data:/app/logs
+      # 数据库迁移文件
+      - ./migrations:/app/migrations:ro
+
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    networks:
+      - exam-network
+
+    restart: unless-stopped
+
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: exam-nginx
+
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+
+    volumes:
+      # Nginx 配置文件
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      # SSL 证书（如果有）
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      # Nginx 日志
+      - nginx_logs:/var/log/nginx
+      # 静态文件（可选，提升性能）
+      - ./static:/usr/share/nginx/html/static:ro
+
+    depends_on:
+      web:
+        condition: service_healthy
+
+    networks:
+      - exam-network
+
+    restart: unless-stopped
+
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# 数据卷定义
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+
+  uploads_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/uploads
+
+  logs_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/logs
+
+  nginx_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/nginx
+
+# 网络定义
+networks:
+  exam-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: exam_br
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
