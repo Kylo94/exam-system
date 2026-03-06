@@ -1,6 +1,11 @@
-# 在线答题系统 v3.0
+# 在线答题系统 v1.1.0
 
 基于 Flask 的模块化、可扩展的在线答题系统，支持 Word 文档上传、AI 智能解析、多题型自动判卷。
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-latest-blue.svg)](https://hub.docker.com/)
+[![Python](https://img.shields.io/badge/python-3.9+-green.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/flask-3.0+-red.svg)](https://flask.palletsprojects.com/)
 
 ## 功能特性
 
@@ -22,6 +27,115 @@
 - **易于扩展**：插件式解析器、判卷器设计
 - **容器化部署**：完整的 Docker 支持，一键部署
 
+## 快速开始
+
+### 前置要求
+- Python 3.9+
+- Docker 20.10+
+- Docker Compose 2.0+
+
+### 一键部署
+
+#### 开发环境
+```bash
+# 1. 克隆仓库
+git clone https://github.com/Kylo94/exam-system.git
+cd exam-system
+
+# 2. 配置环境变量
+cp .env.example .env
+
+# 3. 启动服务
+docker-compose up -d
+
+# 4. 访问应用
+# http://localhost:5002
+```
+
+#### 生产环境
+```bash
+# 1. 配置生产环境变量
+cp .env.production .env
+# 编辑 .env 文件，修改密钥和密码
+
+# 2. 启动服务
+docker-compose -f docker-compose.prod.yml up -d
+
+# 3. 初始化数据库
+docker-compose -f docker-compose.prod.yml exec web flask db upgrade
+
+# 4. 创建管理员账户
+docker-compose -f docker-compose.prod.yml exec web python create_admin.py
+
+# 5. 访问应用
+# http://localhost:80
+```
+
+### 本地开发
+
+```bash
+# 1. 创建虚拟环境
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate  # Windows
+
+# 2. 安装依赖
+pip install -r requirements.txt
+
+# 3. 配置环境变量
+cp .env.example .env
+
+# 4. 初始化数据库
+flask db upgrade
+
+# 5. 创建管理员
+python create_admin.py
+
+# 6. 启动开发服务器
+flask run --host=0.0.0.0 --port=5002
+```
+
+## 文档
+
+- **[部署指南](docs/DEPLOYMENT_GUIDE.md)** - 完整的部署说明（推荐）
+  - 环境准备
+  - 开发/生产环境部署
+  - 数据库配置
+  - 默认账号密码
+  - 常用命令
+  - 故障排查
+
+- **[生产环境部署](docs/PRODUCTION_DEPLOYMENT.md)** - 生产环境详细部署
+  - Nginx 配置
+  - SSL 证书配置
+  - 性能优化
+  - 监控和日志
+
+- **[版本更新记录](docs/CHANGELOG.md)** - 版本历史和更新内容
+
+## 默认账号密码
+
+首次部署需要创建管理员账户：
+
+```bash
+# 使用创建脚本
+python create_admin.py
+```
+
+输入示例：
+```
+用户名: admin
+邮箱: admin@example.com
+密码: your_password
+```
+
+系统默认配置：
+- **数据库用户**: `examuser`
+- **数据库名称**: `examdb`
+- **数据库密码**: 开发环境 `exam_password_123456` / 生产环境需自定义
+
+⚠️ **生产环境必须修改所有默认密码！**
+
 ## 技术栈
 
 ### 后端
@@ -42,26 +156,19 @@
 - **jQuery** - DOM 操作
 
 ### 数据库
-- **SQLite** - 开发环境默认数据库
-- **PostgreSQL** - 生产环境推荐数据库
+- **PostgreSQL** - 生产环境推荐
+- **SQLite** - 开发环境
 
 ### AI 集成
-- **langchain** - 多 AI 提供商统一接口
 - **DeepSeek API** - 智能解析支持
 - **OpenAI API** - GPT 模型支持
 
 ### 缓存
-- **Redis** - 会话缓存和任务队列（可选）
+- **Redis 7** - 会话缓存和任务队列
 
 ### Web 服务器
-- **Gunicorn** - WSGI 服务器（生产环境）
-- **Nginx** - 反向代理和静态文件服务
-
-### 开发工具
-- **pytest** - 单元测试
-- **black/isort** - 代码格式化
-- **mypy** - 类型检查
-- **python-dotenv** - 环境变量管理
+- **Gunicorn** - WSGI 服务器
+- **Nginx 1.25** - 反向代理
 
 ## 项目结构
 
@@ -106,97 +213,29 @@
 ├── tests/                       # 测试目录
 ├── migrations/                  # 数据库迁移文件
 ├── scripts/                     # 部署脚本
-│   ├── deploy-linux.sh        # Linux 部署脚本
-│   ├── deploy-windows.bat     # Windows 部署脚本
-│   ├── docker-start.sh        # Docker 启动脚本
-│   └── docker-start.bat       # Windows Docker 脚本
-├── nginx/                       # Nginx 配置
-│   └── nginx.conf             # Nginx 配置文件
+│   ├── deploy-production.sh   # 生产环境一键部署
+│   ├── backup-db.sh          # 数据库备份脚本
+│   └── ...
+├── docker/                       # Docker 配置
+│   ├── init-db.sql           # 数据库初始化脚本
+│   ├── postgresql.conf      # PostgreSQL 配置
+│   └── nginx/                # Nginx 配置
+│       ├── nginx.conf       # Nginx 主配置
+│       └── conf.d/           # 应用配置
 ├── docs/                        # 项目文档
-│   └── DEPLOYMENT.md          # 部署文档
+│   ├── DEPLOYMENT_GUIDE.md   # 部署指南（推荐）
+│   ├── PRODUCTION_DEPLOYMENT.md  # 生产环境部署
+│   └── CHANGELOG.md          # 版本更新记录
 ├── config.py                   # 配置文件
 ├── run.py                      # 开发入口
 ├── wsgi.py                     # 生产入口
 ├── requirements.txt            # 生产依赖
 ├── requirements-dev.txt        # 开发依赖
 ├── Dockerfile                   # Docker 镜像文件
-├── docker-compose.yml           # Docker Compose 配置
+├── docker-compose.yml           # 开发环境配置
+├── docker-compose.prod.yml      # 生产环境配置
 └── create_admin.py             # 创建管理员脚本
 ```
-
-## 快速开始
-
-### 方式一：Docker 部署（推荐，最简单）
-
-```bash
-# 克隆项目
-git clone <repository-url>
-cd 答题网站
-
-# 使用快速启动脚本（Linux/Mac）
-./scripts/docker-start.sh
-
-# Windows 使用
-scripts\docker-start.bat
-
-# 或手动启动
-docker-compose up -d
-```
-
-### 方式二：本地开发环境
-
-#### 1. 环境配置
-```bash
-# 克隆项目
-git clone <repository-url>
-cd 答题网站
-
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或 venv\Scripts\activate  # Windows
-
-# 安装依赖
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # 开发环境
-
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，设置数据库和 API 密钥
-```
-
-#### 2. 数据库初始化
-```bash
-# 初始化数据库（首次部署）
-flask db init
-flask db migrate -m "Initial migration"
-flask db upgrade
-
-# 创建管理员账号
-python create_admin.py
-```
-
-#### 3. 启动应用
-```bash
-# 开发模式
-python run.py
-
-# 或使用 Flask CLI
-flask run --host=0.0.0.0 --port=5002
-```
-
-#### 4. 访问应用
-- 前端界面：http://localhost:5002
-- 默认管理员：首次运行 `create_admin.py` 时创建
-
-### 方式三：Linux 生产环境
-
-```bash
-# 使用快速部署脚本（Ubuntu/Debian/CentOS）
-./scripts/deploy-linux.sh
-```
-
-脚本会自动安装依赖、配置数据库、Nginx 并启动服务。
 
 ## 开发指南
 
@@ -241,89 +280,6 @@ flask db upgrade
 # 回滚迁移
 flask db downgrade
 ```
-
-## 部署
-
-详细的部署指南：
-
-- **[生产环境部署](docs/PRODUCTION_DEPLOYMENT.md)** - Docker Compose 生产环境部署（推荐）
-- **[通用部署文档](docs/DEPLOYMENT.md)** - 部署文档
-
-### 生产环境部署（推荐）
-
-使用 Docker Compose 部署到生产环境：
-
-```bash
-# 一键部署
-./scripts/deploy-production.sh
-
-# 或手动部署
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-**生产环境特性：**
-- PostgreSQL 数据库（包含性能优化配置）
-- Redis 缓存和会话存储
-- Nginx 反向代理（支持 HTTPS）
-- Gunicorn 生产服务器
-- 自动健康检查和重启
-- 数据库备份脚本
-- 完整的监控日志
-
-### 快速部署
-
-#### Docker 部署（推荐）
-```bash
-# 使用快速启动脚本
-./scripts/docker-start.sh
-
-# 或手动启动
-docker-compose up -d
-```
-
-**Docker 部署优势：**
-- 一键部署，包含 PostgreSQL、Redis、Nginx
-- 环境隔离，避免依赖冲突
-- 易于迁移和扩展
-- 自动健康检查和自动重启
-
-#### Linux 部署
-```bash
-# 使用快速部署脚本（Ubuntu/Debian/CentOS）
-./scripts/deploy-linux.sh
-```
-
-**Linux 部署优势：**
-- 性能最优，适合生产环境
-- 使用 Gunicorn + Nginx
-- 完整的系统级监控和日志
-- 支持自动备份和故障恢复
-
-#### Windows 部署
-```bash
-# 使用快速部署脚本
-scripts\deploy-windows.bat
-```
-
-**Windows 支持的方式：**
-- WSL2（推荐 Linux 子系统）
-- IIS + FastCGI
-- Windows 服务（NSSM）
-- Docker Desktop
-
-### 生产环境配置
-
-生产环境需要特别注意以下配置：
-
-1. **数据库**：使用 PostgreSQL 替代 SQLite
-2. **密钥安全**：设置强密码和 SECRET_KEY
-3. **HTTPS**：配置 SSL/TLS 证书
-4. **文件权限**：正确的目录和文件权限
-5. **日志轮转**：配置日志自动清理
-6. **自动备份**：定期备份数据库和文件
-7. **监控告警**：配置系统监控
-
-详细配置和故障排查请参考 [部署文档](docs/DEPLOYMENT.md)。
 
 ## 贡献指南
 
@@ -389,10 +345,6 @@ AI 配置在管理员后台进行设置，无需修改 `.env` 文件：
 3. 配置 AI 提供商（DeepSeek / OpenAI）
 4. 填写 API Key 和 Base URL
 5. 保存配置即可使用
-
-**支持的 AI 提供商：**
-- DeepSeek API（推荐）
-- OpenAI API（GPT 系列）
 
 ### Q: 如何修改上传文件大小限制？
 上传文件大小限制在管理员后台进行设置，或者编辑 `.env` 文件：

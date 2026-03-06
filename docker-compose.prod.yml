@@ -236,38 +236,18 @@ services:
 volumes:
   postgres_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/postgres
 
   redis_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/redis
 
   uploads_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/uploads
 
   logs_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/logs
 
   nginx_logs:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/nginx
 
 # 网络定义
 networks:

@@ -1,9 +1,18 @@
+# ========================================
+# 开发环境 Docker Compose 配置
+# ========================================
+# 使用方法：
+#   1. cp .env.example .env
+#   2. 编辑 .env 文件配置环境变量
+#   3. docker-compose up -d
+
 version: '3.8'
 
 services:
+  # PostgreSQL 数据库
   db:
     image: postgres:14-alpine
-    container_name: exam-postgres
+    container_name: exam-postgres-dev
     environment:
       POSTGRES_DB: examdb
       POSTGRES_USER: examuser
@@ -19,10 +28,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # Redis 缓存
   redis:
     image: redis:7-alpine
-    container_name: exam-redis
+    container_name: exam-redis-dev
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -34,20 +45,56 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # Flask Web 应用（开发模式）
   web:
-    build: .
-    container_name: exam-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=development
+    image: exam-system:dev
+    container_name: exam-web-dev
+    command: >
+      flask run
+      --host=0.0.0.0
+      --port=5002
+      --debug
     ports:
       - "${FLASK_PORT:-5002}:5002"
     environment:
-      FLASK_ENV: production
+      # Flask 配置
+      FLASK_APP: run.py
+      FLASK_ENV: development
+      FLASK_DEBUG: "true"
+
+      # 数据库配置
       DATABASE_URL: postgresql://examuser:${DB_PASSWORD:-exam_password_123456}@db:5432/examdb
-      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+
+      # 安全配置
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-do-not-use-in-production}
+
+      # AI API 配置
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+
+      # Redis 配置
       REDIS_URL: redis://redis:6379/0
+
+      # 文件上传配置
+      MAX_CONTENT_LENGTH: 52428800
+      UPLOAD_FOLDER: /app/uploads
+
+      # 日志配置
+      LOG_LEVEL: DEBUG
     volumes:
+      # 代码热重载
+      - .:/app
+      - /app/__pycache__
+      - /app/.pytest_cache
       - ./uploads:/app/uploads
       - ./logs:/app/logs
     depends_on:
@@ -59,28 +106,11 @@ services:
       - exam-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/"]
+      test: ["CMD", "curl", "-f", "http://localhost:5002/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-
-  nginx:
-    image: nginx:alpine
-    container_name: exam-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./nginx/logs:/var/log/nginx
-    depends_on:
-      web:
-        condition: service_healthy
-    networks:
-      - exam-network
-    restart: unless-stopped
+      start_period: 40s
 
 volumes:
   postgres_data:
