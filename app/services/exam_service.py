@@ -214,36 +214,41 @@ class ExamService(BaseService[Exam]):
                     subject_id: Optional[int] = None,
                     level_id: Optional[int] = None,
                     is_active: Optional[bool] = None,
+                    is_temporary: Optional[bool] = None,
                     skip: int = 0, limit: int = 100) -> List[Exam]:
         """搜索考试
-        
+
         Args:
             title: 考试标题（模糊搜索）
             subject_id: 科目ID
             level_id: 难度级别ID
             is_active: 是否活跃
+            is_temporary: 是否为临时试卷（None=全部，False=真题，True=临时）
             skip: 跳过的记录数
             limit: 返回的最大记录数
-            
+
         Returns:
             考试列表
         """
         query = Exam.query
-        
+
         if title:
             query = query.filter(Exam.title.ilike(f"%{title}%"))
-        
+
         if subject_id is not None:
             query = query.filter_by(subject_id=subject_id)
-        
+
         if level_id is not None:
             query = query.filter_by(level_id=level_id)
-        
+
         if is_active is not None:
             query = query.filter_by(is_active=is_active)
-        
+
+        if is_temporary is not None:
+            query = query.filter_by(is_temporary=is_temporary)
+
         query = query.order_by(Exam.created_at.desc())
-        
+
         return query.offset(skip).limit(limit).all()
     
     def get_exam_status(self, exam_id: int) -> Dict[str, Any]:
@@ -276,11 +281,11 @@ class ExamService(BaseService[Exam]):
             'has_started': start_time <= now,
             'has_ended': end_time < now
         }
-        
+
         if status['is_ongoing']:
-            status['time_remaining'] = exam.end_time - now
+            status['time_remaining'] = end_time - now
         elif status['is_upcoming']:
-            status['time_remaining'] = exam.start_time - now
+            status['time_remaining'] = start_time - now
         
         return status
     
@@ -300,27 +305,33 @@ class ExamService(BaseService[Exam]):
         
         if not exam.is_active:
             return {'can_start': False, 'reason': '考试未启用'}
-        
-        now = datetime.utcnow()
-        if now < exam.start_time:
-            return {'can_start': False, 'reason': '考试尚未开始'}
-        
-        if now > exam.end_time:
-            return {'can_start': False, 'reason': '考试已结束'}
-        
-        # 检查用户尝试次数（只有在max_attempts大于0时才检查）
-        if user_id and exam.max_attempts and exam.max_attempts > 0:
-            from app.models import Submission
-            attempt_count = Submission.query.filter_by(
-                exam_id=exam_id,
-                user_id=user_id
-            ).filter(Submission.status.in_(['submitted', 'graded'])).count()
 
-            if attempt_count >= exam.max_attempts:
-                return {
-                    'can_start': False,
-                    'reason': f'已达到最大尝试次数（{exam.max_attempts}次）'
-                }
+        now = datetime.utcnow()
+
+        # 处理 None 的时间值
+        start_time = exam.start_time if exam.start_time else datetime.min
+        end_time = exam.end_time if exam.end_time else datetime.max
+
+        if now < start_time:
+            return {'can_start': False, 'reason': '考试尚未开始'}
+
+        if now > end_time:
+            return {'can_start': False, 'reason': '考试已结束'}
+
+        # 注释掉尝试次数检查逻辑
+        # # 检查用户尝试次数（只有在max_attempts大于0时才检查）
+        # if user_id and exam.max_attempts and exam.max_attempts > 0:
+        #     from app.models import Submission
+        #     attempt_count = Submission.query.filter_by(
+        #         exam_id=exam_id,
+        #         user_id=user_id
+        #     ).filter(Submission.status.in_(['submitted', 'graded'])).count()
+
+        #     if attempt_count >= exam.max_attempts:
+        #         return {
+        #             'can_start': False,
+        #             'reason': f'已达到最大尝试次数（{exam.max_attempts}次）'
+        #         }
         
         return {'can_start': True, 'reason': ''}
     
@@ -362,10 +373,9 @@ class ExamService(BaseService[Exam]):
             pass_rate = len(passed_submissions) / len(completed_submissions) * 100
         else:
             pass_rate = 0
-        
+
         # 获取题目统计
-        from app.models import Question
-        questions = Question.query.filter_by(exam_id=exam_id).all()
+        questions = exam.get_all_questions()
         question_count = len(questions)
         # 安全计算总分，跳过非数值类型的points
         total_score = sum(q.points if isinstance(q.points, (int, float)) else 0 for q in questions)

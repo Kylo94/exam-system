@@ -10,6 +10,8 @@ from .submission import Submission
 from .answer import Answer
 from .user import User
 from .ai_config import AIConfig
+from .teacher_bind_request import TeacherBindRequest
+from .exam_question import ExamQuestion
 
 __all__ = [
     'BaseModel',
@@ -22,4 +24,6 @@ __all__ = [
     'Answer',
     'User',
     'AIConfig',
+    'TeacherBindRequest',
+    'ExamQuestion',
 ]

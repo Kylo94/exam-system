@@ -24,13 +24,21 @@
         <div class="card mb-4">
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label">题目类型</label>
+                        <select class="form-select" id="questionTypeFilter">
+                            <option value="">全部题目</option>
+                            <option value="temp">临时题目</option>
+                            <option value="exam">试卷题目</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label">试卷筛选</label>
                         <select class="form-select" id="examFilter">
                             <option value="">全部试卷</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">题型筛选</label>
                         <select class="form-select" id="typeFilter">
                             <option value="">全部题型</option>
@@ -45,9 +53,12 @@
                         <label class="form-label">关键词搜索</label>
                         <input type="text" class="form-control" id="searchInput" placeholder="输入关键词搜索题目内容">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" onclick="loadQuestions()">
+                    <div class="col-md-2 d-flex align-items-end gap-2">
+                        <button class="btn btn-primary flex-grow-1" onclick="loadQuestions()">
                             <i class="bi bi-search me-1"></i>搜索
+                        </button>
+                        <button class="btn btn-danger" onclick="batchDelete()" title="批量删除" id="batchDeleteBtn" disabled>
+                            <i class="bi bi-trash"></i>
                         </button>
                     </div>
                 </div>
@@ -76,6 +87,7 @@
                                 <th>题目内容</th>
                                 <th width="100">题型</th>
                                 <th width="80">分值</th>
+                                <th width="80">类型</th>
                                 <th width="150">试卷</th>
                                 <th width="120">知识点</th>
                                 <th width="150">创建时间</th>
@@ -438,7 +450,7 @@
             document.getElementById('viewToggle').addEventListener('change', function() {
                 const tableView = document.getElementById('tableView');
                 const cardView = document.getElementById('cardView');
-                
+
                 if (this.checked) {
                     tableView.classList.remove('d-none');
                     cardView.classList.add('d-none');
@@ -447,18 +459,21 @@
                     cardView.classList.remove('d-none');
                 }
             });
-            
+
             // 全选
             document.getElementById('selectAll').addEventListener('change', function() {
                 const checkboxes = document.querySelectorAll('.question-checkbox');
                 checkboxes.forEach(cb => cb.checked = this.checked);
-                
+
                 selectedQuestions.clear();
                 if (this.checked) {
                     checkboxes.forEach(cb => selectedQuestions.add(parseInt(cb.value)));
                 }
+
+                // 更新批量删除按钮状态
+                updateBatchDeleteButton();
             });
-            
+
             // 搜索框回车事件
             document.getElementById('searchInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
@@ -521,12 +536,22 @@
         function loadQuestions(page = 1) {
             currentPage = page;
             selectedQuestions.clear();
-            
+            updateBatchDeleteButton();
+
+            const questionType = document.getElementById('questionTypeFilter').value;
             const examId = document.getElementById('examFilter').value;
             const type = document.getElementById('typeFilter').value;
             const content = document.getElementById('searchInput').value;
-            
+
             let url = `/admin/api/questions?page=${page}&per_page=${pageSize}`;
+
+            // 添加题目类型筛选
+            if (questionType === 'temp') {
+                url += '&is_temporary=true';
+            } else if (questionType === 'exam') {
+                url += '&is_temporary=false';
+            }
+
             if (examId) url += `&exam_id=${examId}`;
             if (type) url += `&type=${type}`;
             if (content) url += `&content=${encodeURIComponent(content)}`;
@@ -538,7 +563,7 @@
                     if (data.success && data.data && data.data.items) {
                         const questions = data.data.items;
                         const pagination = data.data.pagination;
-                        
+
                         renderQuestions(questions);
                         renderPagination(pagination);
                     } else {
@@ -557,16 +582,16 @@
             const emptyState = document.getElementById('emptyState');
             const tableView = document.getElementById('tableView');
             const cardView = document.getElementById('cardView');
-            
+
             if (!questions || questions.length === 0) {
                 tbody.innerHTML = '';
                 cardsContainer.innerHTML = '';
                 emptyState.classList.remove('d-none');
                 return;
             }
-            
+
             emptyState.classList.add('d-none');
-            
+
             // 表格视图
             const tableHtml = questions.map(q => {
                 const examTitle = q.exam ? q.exam.title : '未关联试卷';
@@ -575,6 +600,16 @@
                 // 去除HTML标签的预览
                 const plainContent = q.content ? q.content.replace(/<[^>]*>/g, '') : '';
                 const plainExplanation = q.explanation ? q.explanation.replace(/<[^>]*>/g, '') : '';
+
+                // 判断题目类型：临时题目还是试卷题目
+                let questionTypeBadge = '<span class="badge bg-secondary">-</span>';
+                if (q.exam && q.exam.is_temporary) {
+                    questionTypeBadge = '<span class="badge bg-warning">临时题目</span>';
+                } else if (q.exam) {
+                    questionTypeBadge = '<span class="badge bg-primary">试卷题目</span>';
+                } else {
+                    questionTypeBadge = '<span class="badge bg-secondary">未关联</span>';
+                }
 
                 return `
                     <tr>
@@ -590,6 +625,7 @@
                             <span class="badge ${badgeColor}">${typeLabel}</span>
                         </td>
                         <td>${q.points || q.score || 0}</td>
+                        <td>${questionTypeBadge}</td>
                         <td>
                             ${q.exam ? `<a href="/admin/exams/${q.exam.id}/edit" class="text-decoration-none">${examTitle}</a>` : '<span class="text-muted">' + examTitle + '</span>'}
                         </td>
@@ -624,12 +660,25 @@
                 const plainContent = q.content ? q.content.replace(/<[^>]*>/g, '') : '';
                 const plainExplanation = q.explanation ? q.explanation.replace(/<[^>]*>/g, '') : '';
 
+                // 判断题目类型：临时题目还是试卷题目
+                let questionTypeBadge = '<span class="badge bg-secondary">-</span>';
+                if (q.exam && q.exam.is_temporary) {
+                    questionTypeBadge = '<span class="badge bg-warning">临时题目</span>';
+                } else if (q.exam) {
+                    questionTypeBadge = '<span class="badge bg-primary">试卷题目</span>';
+                } else {
+                    questionTypeBadge = '<span class="badge bg-secondary">未关联</span>';
+                }
+
                 return `
                     <div class="col-md-6 col-lg-4 mb-3">
                         <div class="card h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <span class="badge ${badgeColor}">${typeLabel}</span>
+                                    <div>
+                                        ${questionTypeBadge}
+                                        <span class="badge ${badgeColor} ms-1">${typeLabel}</span>
+                                    </div>
                                     <small class="text-muted">${q.points || q.score || 0}分</small>
                                 </div>
                                 <h6 class="card-title">${plainContent.substring(0, 60)}${plainContent.length > 60 ? '...' : ''}</h6>
@@ -665,8 +714,32 @@
                     } else {
                         selectedQuestions.delete(parseInt(this.value));
                     }
+                    // 更新全选框状态
+                    updateSelectAllCheckbox();
+                    // 更新批量删除按钮状态
+                    updateBatchDeleteButton();
                 });
             });
+        }
+
+        // 更新批量删除按钮状态
+        function updateBatchDeleteButton() {
+            const btn = document.getElementById('batchDeleteBtn');
+            if (btn) {
+                btn.disabled = selectedQuestions.size === 0;
+            }
+        }
+
+        // 更新全选框状态
+        function updateSelectAllCheckbox() {
+            const selectAll = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.question-checkbox');
+            if (checkboxes.length === 0) {
+                selectAll.checked = false;
+                return;
+            }
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            selectAll.checked = allChecked;
         }
         
         // 渲染分页
@@ -1498,26 +1571,33 @@
                 alert('请先选择要删除的题目！');
                 return;
             }
-            
+
             document.getElementById('deleteCount').textContent = checked.length;
             bootstrap.Modal.getOrCreateInstance(document.getElementById('batchDeleteModal')).show();
         }
-        
+
         // 确认批量删除
         function confirmBatchDelete() {
             const ids = Array.from(selectedQuestions);
 
-            Promise.all(ids.map(id =>
-                fetch(`/admin/api/questions/${id}`, { method: 'DELETE' })
-                    .then(response => response.json())
-            ))
-            .then(results => {
+            fetch('/admin/api/questions/batch-delete', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question_ids: ids })
+            })
+            .then(response => response.json())
+            .then(data => {
                 bootstrap.Modal.getInstance(document.getElementById('batchDeleteModal')).hide();
-                alert(`成功删除 ${results.filter(r => r.success).length} 个题目！`);
-                loadQuestions(currentPage);
+                if (data.success) {
+                    alert(data.message || `成功删除 ${data.data.deleted_count} 个题目！`);
+                    loadQuestions(currentPage);
+                } else {
+                    alert('批量删除失败：' + (data.message || '未知错误'));
+                }
             })
             .catch(error => {
                 console.error('批量删除失败:', error);
+                bootstrap.Modal.getInstance(document.getElementById('batchDeleteModal')).hide();
                 alert('批量删除失败，请稍后重试');
             });
         }

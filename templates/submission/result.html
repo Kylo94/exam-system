@@ -353,55 +353,53 @@
                                         <span class="fw-bold">{{ option.id }}.</span> {{ option.text }}
                                     </div>
                                     <div class="ms-3">
-                                    {% if answer.question.type in ['single_choice', 'multiple_choice', 'true_false'] %}
-                                    {% if answer.question.type in ['single_choice', 'multiple_choice', 'true_false'] %}
-                                        {# 处理正确答案 #}
-                                        {% if answer.question.type == 'multiple_choice' %}
-                                            {# 多选题的correct_answer可能是JSON数组或逗号分隔 #}
-                                            {% if answer.question.correct_answer.startswith('[') %}
-                                                {% set correct_answers = answer.question.correct_answer.replace('[', '').replace(']', '').replace('"', '').replace("'", '').split(',') %}
-                                            {% else %}
-                                                {% set correct_answers = answer.question.correct_answer.split(',') %}
-                                            {% endif %}
-                                            {% set is_correct = option.id in correct_answers %}
+                                    {# 处理正确答案 #}
+                                    {% if answer.question.type == 'multiple_choice' %}
+                                        {# 多选题的correct_answer可能是JSON数组或逗号分隔 #}
+                                        {% if answer.question.correct_answer.startswith('[') %}
+                                            {% set correct_answers = answer.question.correct_answer.replace('[', '').replace(']', '').replace('"', '').replace("'", '').split(',') %}
                                         {% else %}
-                                            {% set is_correct = option.id == answer.question.correct_answer %}
+                                            {% set correct_answers = answer.question.correct_answer.split(',') %}
                                         {% endif %}
-
-                                        {# 处理用户答案 #}
-                                        {% set user_answers = answer.user_answer.split(',') if answer.user_answer else [] %}
-                                        {% set is_selected = option.id in user_answers %}
-
-                                        {% if is_correct %}
-                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>正确答案</span>
-                                        {% endif %}
-                                        {% if is_selected and not is_correct %}
-                                        <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>你的选择</span>
-                                        {% elif is_selected and is_correct %}
-                                        <span class="badge bg-primary"><i class="bi bi-check-circle me-1"></i>正确选择</span>
-                                        {% endif %}
+                                        {% set is_correct = option.id in correct_answers %}
+                                    {% else %}
+                                        {% set is_correct = option.id == answer.question.correct_answer %}
                                     {% endif %}
-                                </div>
-                                    {% if option.get('has_image') %}
-                                    {% set option_image_path = None %}
-                                    {# 从metadata中获取选项图片路径 #}
-                                    {% if answer.question.question_metadata and answer.question.question_metadata.get('options_images') %}
-                                        {% set options_images = answer.question.question_metadata.options_images %}
-                                        {% if option.id in options_images %}
-                                            {% set option_image_info = options_images[option.id] %}
-                                            {% if option_image_info.get('image_path') %}
-                                                {% set option_image_path = option_image_info.image_path %}
-                                            {% endif %}
-                                        {% endif %}
+
+                                    {# 处理用户答案 #}
+                                    {% set user_answers = answer.user_answer.split(',') if answer.user_answer else [] %}
+                                    {% set is_selected = option.id in user_answers %}
+
+                                    {% if is_correct %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>正确答案</span>
                                     {% endif %}
-                                    {% if option_image_path %}
-                                    <div class="mt-2">
-                                        <img src="{{ url_for('upload.uploaded_file', filename=option_image_path) }}"
-                                             class="img-fluid rounded"
-                                             alt="选项{{ option.id }}图片"
-                                             style="max-height: 150px;">
+                                    {% if is_selected and not is_correct %}
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>你的选择</span>
+                                    {% elif is_selected and is_correct %}
+                                    <span class="badge bg-primary"><i class="bi bi-check-circle me-1"></i>正确选择</span>
+                                    {% endif %}
                                     </div>
+                                </div>
+                                {% if option.get('has_image') %}
+                                {% set option_image_path = None %}
+                                {# 从metadata中获取选项图片路径 #}
+                                {% if answer.question.question_metadata and answer.question.question_metadata.get('options_images') %}
+                                    {% set options_images = answer.question.question_metadata.options_images %}
+                                    {% if option.id in options_images %}
+                                        {% set option_image_info = options_images[option.id] %}
+                                        {% if option_image_info.get('image_path') %}
+                                            {% set option_image_path = option_image_info.image_path %}
+                                        {% endif %}
                                     {% endif %}
+                                {% endif %}
+                                {% if option_image_path %}
+                                <div class="mt-2">
+                                    <img src="{{ url_for('upload.uploaded_file', filename=option_image_path) }}"
+                                         class="img-fluid rounded"
+                                         alt="选项{{ option.id }}图片"
+                                         style="max-height: 150px;">
+                                </div>
+                                {% endif %}
                                 {% endif %}
                             </div>
                             {% endfor %}

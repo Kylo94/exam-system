@@ -179,12 +179,20 @@ def start_exam(exam_id):
         # 检查是否可以开始考试
         user_id = current_user.id if current_user.is_authenticated else 1
         can_start = exam_service.can_start_exam(exam_id, user_id)
-        
+
         if not can_start['can_start']:
-            return render_template('exam/cannot_start.html', 
-                                   exam=exam, 
+            # 如果是POST请求，返回JSON错误
+            if request.method == 'POST':
+                from flask import jsonify
+                return jsonify({
+                    'success': False,
+                    'message': can_start.get('reason', '无法开始考试')
+                }), 400
+            # GET请求显示错误页面
+            return render_template('exam/cannot_start.html',
+                                   exam=exam,
                                    reason=can_start.get('reason', '无法开始考试'))
-        
+
         # 如果是POST请求，创建提交记录并跳转到答题页面
         if request.method == 'POST':
             submission_service = SubmissionService(db)
@@ -192,7 +200,7 @@ def start_exam(exam_id):
                 exam_id=exam_id,
                 user_id=user_id
             )
-            
+
             return redirect(url_for('main.take_exam', submission_id=submission.id))
         
         return render_template('exam/start.html', exam=exam)
@@ -289,9 +297,9 @@ def submission_result(submission_id):
         exam = exam_service.get_by_id(submission.exam_id)
         if not exam:
             return render_template('errors/404.html', message='考试不存在'), 404
-        
+
         # 获取考试的所有题目
-        all_questions = Question.query.filter_by(exam_id=submission.exam_id).order_by(Question.order_index).all()
+        all_questions = exam.get_all_questions()
         
         # 获取已提交的答案
         existing_answers = Answer.query.filter_by(submission_id=submission_id).all()

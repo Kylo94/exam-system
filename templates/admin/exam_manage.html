@@ -24,13 +24,21 @@
         <div class="card mb-4">
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label">试卷类型</label>
+                        <select class="form-select" id="filterExamType" onchange="loadExams()">
+                            <option value="">全部类型</option>
+                            <option value="false">真题试卷</option>
+                            <option value="true">临时试卷</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label">科目</label>
                         <select class="form-select" id="filterSubject" onchange="loadExams()">
                             <option value="">全部科目</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">等级</label>
                         <select class="form-select" id="filterLevel" onchange="loadExams()" disabled>
                             <option value="">全部等级</option>
@@ -61,6 +69,7 @@
                                 </th>
                                 <th>ID</th>
                                 <th>标题</th>
+                                <th>类型</th>
                                 <th>科目</th>
                                 <th>等级</th>
                                 <th>题目数</th>
@@ -217,11 +226,13 @@
 
         // 加载试卷列表
         function loadExams(page = 1) {
+            const examType = document.getElementById('filterExamType').value;
             const subjectId = document.getElementById('filterSubject').value;
             const levelId = document.getElementById('filterLevel').value;
             const search = document.getElementById('filterSearch').value;
 
             let url = `/admin/api/exams?page=${page}&per_page=10`;
+            if (examType) url += `&exam_type=${examType}`;
             if (subjectId) url += `&subject_id=${subjectId}`;
             if (levelId) url += `&level_id=${levelId}`;
             if (search) url += `&search=${encodeURIComponent(search)}`;
@@ -254,7 +265,13 @@
         function renderExams(exams) {
             console.log('渲染试卷列表，试卷数据:', exams);
             const tbody = document.getElementById('examsBody');
-            tbody.innerHTML = exams.map(exam => `
+            tbody.innerHTML = exams.map(exam => {
+                // 试卷类型标签
+                const typeBadge = exam.is_temporary
+                    ? '<span class="badge bg-warning">临时</span>'
+                    : '<span class="badge bg-primary">真题</span>';
+
+                return `
                 <tr data-exam-id="${exam.id}">
                     <td>
                         <input type="checkbox" class="form-check-input exam-checkbox" value="${exam.id}" onchange="updateSelectedCount()">
@@ -263,6 +280,7 @@
                     <td>
                         <strong>${exam.title}</strong>
                     </td>
+                    <td>${typeBadge}</td>
                     <td>${exam.subject ? exam.subject.name : '未知'}</td>
                     <td>${exam.level ? exam.level.name : '未知'}</td>
                     <td><span class="badge bg-info">${exam.question_count || 0}</span></td>
@@ -281,8 +299,8 @@
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
             updateSelectedCount();
         }
 

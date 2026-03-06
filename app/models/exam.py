@@ -56,6 +56,13 @@ class Exam(BaseModel):
         nullable=True,
         doc='原始文件路径'
     )
+    is_temporary = db.Column(
+        db.Boolean,
+        default=False,
+        nullable=False,
+        index=True,
+        doc='是否为临时练习试卷（真题试卷为False，临时试卷为True）'
+    )
     description = db.Column(
         db.Text,
         nullable=True,
@@ -114,7 +121,14 @@ class Exam(BaseModel):
         lazy='dynamic',
         cascade='all, delete-orphan',
         order_by='Question.order_index',
-        doc='关联的题目'
+        doc='关联的题目（旧的一对多关系）'
+    )
+    # 新增：通过关联表获取的题目列表（用于临时试卷引用题库题目）
+    exam_questions = db.relationship(
+        'ExamQuestion',
+        back_populates='exam',
+        cascade='all, delete-orphan',
+        doc='考试-题目关联记录'
     )
     submissions = db.relationship(
         'Submission',
@@ -131,6 +145,7 @@ class Exam(BaseModel):
         level_id: Optional[int] = None,
         total_points: int = 100,
         file_path: Optional[str] = None,
+        is_temporary: bool = False,
         description: Optional[str] = None,
         is_active: bool = True,
         duration_minutes: Optional[int] = None,
@@ -148,6 +163,7 @@ class Exam(BaseModel):
             level_id: 等级ID（可选）
             total_points: 总分，默认100
             file_path: 原始文件路径（可选）
+            is_temporary: 是否为临时试卷，默认False
             description: 考试描述（可选）
             is_active: 是否启用，默认True
             duration_minutes: 考试时长（分钟）（可选）
@@ -161,6 +177,7 @@ class Exam(BaseModel):
         self.level_id = level_id
         self.total_points = total_points
         self.file_path = file_path
+        self.is_temporary = is_temporary
         self.description = description
         self.is_active = is_active
         self.duration_minutes = duration_minutes
@@ -226,6 +243,26 @@ class Exam(BaseModel):
         self.has_images = any(question.has_image for question in self.questions.all())
         self.updated_at = datetime.now(timezone.utc)
         db.session.commit()
+
+    def get_all_questions(self):
+        """获取试卷的所有题目
+
+        包括：
+        1. 直接关联的题目（旧方式，exam_id不为None）
+        2. 通过关联表关联的题目（新方式，用于临时试卷）
+
+        Returns:
+            题目列表，按order_index排序
+        """
+        from app.models.exam_question import ExamQuestion
+
+        # 如果是通过关联表关联的题目（临时试卷）
+        exam_questions = ExamQuestion.query.filter_by(exam_id=self.id).order_by(ExamQuestion.order_index).all()
+        if exam_questions:
+            return [eq.question for eq in exam_questions]
+
+        # 否则使用旧的一对多关系
+        return self.questions.all()
     
     def get_subject_name(self) -> Optional[str]:
         """
@@ -282,7 +319,7 @@ class Exam(BaseModel):
         data['level_name'] = self.get_level_name()
 
         if include_questions:
-            data['questions'] = [q.to_dict() for q in self.questions.all()]
+            data['questions'] = [q.to_dict() for q in self.get_all_questions()]
 
         # 添加统计信息
         data['average_score'] = self.get_average_score()

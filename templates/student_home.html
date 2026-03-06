@@ -204,9 +204,9 @@
                 });
         }
 
-        // 加载试卷列表
+        // 加载试卷列表（只加载真题试卷，排除临时练习试卷）
         function loadExams(subjectId, levelId) {
-            fetch(`/api/exams?subject_id=${subjectId}&level_id=${levelId}&per_page=100`)
+            fetch(`/api/exams?subject_id=${subjectId}&level_id=${levelId}&is_temporary=false&per_page=100`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -283,7 +283,7 @@
             if (!confirm('确定要开始考试吗？')) {
                 return;
             }
-            
+
             // 先创建提交记录，然后跳转到答题页面
             fetch(`/exams/${examId}/start`, {
                 method: 'POST',
@@ -291,11 +291,21 @@
                     'Content-Type': 'application/json'
                 }
             })
-            .then(response => {
+            .then(async response => {
                 if (response.redirected) {
                     window.location.href = response.url;
+                    return null;
+                } else if (response.ok) {
+                    return await response.json();
                 } else {
-                    return response.json();
+                    // 处理错误响应
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || '开始考试失败');
+                    } else {
+                        throw new Error('开始考试失败，请稍后重试');
+                    }
                 }
             })
             .then(data => {
@@ -305,7 +315,7 @@
             })
             .catch(error => {
                 console.error('开始考试失败:', error);
-                showAlert('开始考试失败', 'danger');
+                showAlert(error.message || '开始考试失败', 'danger');
             });
         }
 

@@ -82,25 +82,28 @@
         
         <!-- 快速操作 -->
         <div class="row g-4">
-            <div class="col-md-6">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>快速操作</h5>
                     </div>
                     <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('teacher.my_students_page') }}" class="btn btn-primary">
-                                <i class="bi bi-people me-2"></i>查看我的学生
-                            </a>
-                            <a href="{{ url_for('main.exam_select_page') }}" class="btn btn-success">
-                                <i class="bi bi-journal-check me-2"></i>开始真题测试
-                            </a>
-                            <a href="/my-submissions" class="btn btn-info">
-                                <i class="bi bi-clock-history me-2"></i>查看考试记录
-                            </a>
-                            <a href="{{ url_for('main.practice_page') }}" class="btn btn-warning">
-                                <i class="bi bi-pencil-square me-2"></i>专项刷题练习
-                            </a>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="{{ url_for('teacher.my_students_page') }}" class="btn btn-primary w-100 mb-2">
+                                    <i class="bi bi-people me-2"></i>查看我的学生
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ url_for('teacher.student_submissions_page') }}" class="btn btn-info w-100 mb-2">
+                                    <i class="bi bi-list-check me-2"></i>学生提交情况
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{{ url_for('teacher.bind_requests_page') }}" class="btn btn-success w-100 mb-2">
+                                    <i class="bi bi-person-check me-2"></i>绑定申请管理
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

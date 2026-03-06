@@ -1,0 +1,238 @@
+{% extends "auth/profile_base.html" %}
+
+{% set role_name = "学生" %}
+{% set dashboard_url = url_for('main.index') %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            {{ user_info_card() }}
+
+            {% set role_specific_status %}
+            <hr>
+            <div class="mb-2">
+                <span>我的教师:</span>
+                <div id="teacherInfo">
+                    {% if user.teacher %}
+                    <span class="badge bg-info">
+                        <i class="bi bi-person-badge me-1"></i>{{ user.teacher.username }}
+                    </span>
+                    <small class="text-muted d-block">ID: {{ user.teacher.id }}</small>
+                    {% else %}
+                    <span class="badge bg-secondary">未绑定</span>
+                    <small class="text-muted d-block">可在下方绑定教师</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endset %}
+            {{ account_status_card(role_specific_status) }}
+        </div>
+
+        <div class="col-md-9">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>个人资料</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-4" id="profileTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab"
+                                    data-bs-target="#basic" type="button" role="tab">
+                                <i class="bi bi-info-circle me-1"></i>基本信息
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="password-tab" data-bs-toggle="tab"
+                                    data-bs-target="#password" type="button" role="tab">
+                                <i class="bi bi-key me-1"></i>修改密码
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="preferences-tab" data-bs-toggle="tab"
+                                    data-bs-target="#preferences" type="button" role="tab">
+                                <i class="bi bi-gear me-1"></i>偏好设置
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="profileTabContent">
+                        {% set role_specific_basic_info %}
+                        <div class="mb-3" id="teacherBindSection">
+                            <label for="bindTeacherId" class="form-label">申请绑定教师</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                                <input type="number" class="form-control" id="bindTeacherId"
+                                       placeholder="输入教师ID"
+                                       value="{{ user.teacher_id if user.teacher_id else '' }}">
+                                <button class="btn btn-outline-primary" type="button" id="verifyTeacherBtn">
+                                    验证
+                                </button>
+                                <button class="btn btn-primary" type="button" id="requestBindBtn" disabled>
+                                    申请绑定
+                                </button>
+                            </div>
+                            <div class="form-text" id="teacherBindFeedback">
+                                {% if user.teacher %}
+                                已绑定教师：{{ user.teacher.username }}（ID: {{ user.teacher.id }}）
+                                {% else %}
+                                输入教师ID申请绑定，教师审核通过后可查看您的成绩
+                                {% endif %}
+                            </div>
+                            <div class="invalid-feedback" id="teacherBindError"></div>
+                        </div>
+                        {% endset %}
+                        {{ basic_info_tab(role_specific_basic_info) }}
+                        {{ password_tab() }}
+                        {{ preferences_tab() }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ modals() }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('学生页面脚本已加载'); // 调试日志
+
+        // 学生专属功能：验证教师ID和申请绑定
+        let verifiedTeacherId = null;
+        let verifiedTeacherName = null;
+
+        const verifyTeacherBtn = document.getElementById('verifyTeacherBtn');
+        console.log('验证教师ID按钮:', verifyTeacherBtn); // 调试日志
+
+        if (verifyTeacherBtn) {
+            verifyTeacherBtn.addEventListener('click', async function() {
+                console.log('点击验证教师ID按钮'); // 调试日志
+                const teacherId = document.getElementById('bindTeacherId').value.trim();
+                const feedback = document.getElementById('teacherBindFeedback');
+                const error = document.getElementById('teacherBindError');
+                const requestBtn = document.getElementById('requestBindBtn');
+
+                if (!teacherId) {
+                    if (feedback) feedback.style.display = 'none';
+                    if (error) {
+                        error.textContent = '请输入教师ID';
+                        error.style.display = 'block';
+                    }
+                    if (requestBtn) requestBtn.disabled = true;
+                    return;
+                }
+
+                const id = parseInt(teacherId);
+                if (isNaN(id) || id <= 0) {
+                    if (feedback) feedback.style.display = 'none';
+                    if (error) {
+                        error.textContent = '请输入有效的教师ID';
+                        error.style.display = 'block';
+                    }
+                    if (requestBtn) requestBtn.disabled = true;
+                    return;
+                }
+
+                const originalText = this.textContent;
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+                try {
+                    const response = await fetch(`/auth/api/verify-teacher/${id}`);
+                    const responseData = await response.json();
+                    console.log('验证教师响应:', response.status, responseData); // 调试日志
+
+                    // 处理api_response装饰器包装的响应
+                    const data = responseData.data || responseData;
+
+                    if (response.ok && responseData.success && data.valid) {
+                        if (feedback) {
+                            feedback.textContent = `验证成功：${data.teacher_name}`;
+                            feedback.style.display = 'block';
+                            feedback.classList.add('text-success');
+                        }
+                        if (error) error.style.display = 'none';
+
+                        verifiedTeacherId = id;
+                        verifiedTeacherName = data.teacher_name;
+                        if (requestBtn) requestBtn.disabled = false;
+                    } else {
+                        if (feedback) feedback.style.display = 'none';
+                        if (error) {
+                            error.textContent = responseData.message || '教师ID无效';
+                            error.style.display = 'block';
+                        }
+                        if (requestBtn) requestBtn.disabled = true;
+                        verifiedTeacherId = null;
+                        verifiedTeacherName = null;
+                    }
+                } catch (error) {
+                    console.error('验证教师失败:', error);
+                    if (feedback) feedback.style.display = 'none';
+                    if (error) {
+                        error.textContent = '网络错误，请重试';
+                        error.style.display = 'block';
+                    }
+                    if (requestBtn) requestBtn.disabled = true;
+                } finally {
+                    this.disabled = false;
+                    this.textContent = originalText;
+                }
+            });
+        }
+
+        const requestBindBtn = document.getElementById('requestBindBtn');
+        console.log('申请绑定按钮:', requestBindBtn); // 调试日志
+
+        if (requestBindBtn) {
+            requestBindBtn.addEventListener('click', async function() {
+                if (!verifiedTeacherId) return;
+
+                const originalText = requestBindBtn.textContent;
+                requestBindBtn.disabled = true;
+                requestBindBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+                try {
+                    const response = await fetch("/auth/api/teacher-bind-request", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            teacher_id: verifiedTeacherId
+                        })
+                    });
+
+                    const responseData = await response.json();
+                    console.log('申请绑定响应:', response.status, responseData); // 调试日志
+
+                    if (response.ok && responseData.success) {
+                        const data = responseData.data || {};
+                        showAlert(data.message || `已向${verifiedTeacherName}发送绑定申请，请等待审核`, 'success');
+
+                        const teacherBindFeedback = document.getElementById('teacherBindFeedback');
+                        if (teacherBindFeedback) {
+                            teacherBindFeedback.textContent = '已发送绑定申请，等待教师审核...';
+                            teacherBindFeedback.classList.remove('text-success');
+                        }
+                        requestBindBtn.disabled = true;
+                        requestBindBtn.textContent = '已申请';
+                    } else {
+                        showAlert(responseData.message || '申请失败', 'danger');
+                        requestBindBtn.disabled = false;
+                        requestBindBtn.textContent = originalText;
+                    }
+                } catch (error) {
+                    console.error('申请绑定失败:', error);
+                    showAlert('网络错误，请重试', 'danger');
+                    requestBindBtn.disabled = false;
+                    requestBindBtn.textContent = originalText;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -176,53 +176,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- 最近提交 -->
-        <div class="row mt-5">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>最近提交</h5>
-                    </div>
-                    <div class="card-body">
-                        {% if stats.recent_submissions %}
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>用户</th>
-                                        <th>试卷</th>
-                                        <th>分数</th>
-                                        <th>状态</th>
-                                        <th>提交时间</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for submission in stats.recent_submissions %}
-                                    <tr>
-                                        <td>{{ submission.id }}</td>
-                                        <td>{{ submission.user.username if submission.user else '匿名' }}</td>
-                                        <td>{{ submission.exam.title if submission.exam else '未知' }}</td>
-                                        <td>{{ submission.score|round(2) if submission.score else '未评分' }}</td>
-                                        <td>
-                                            <span class="badge bg-{{ 'success' if submission.status == 'completed' else 'warning' if submission.status == 'pending' else 'secondary' }}">
-                                                {{ submission.status }}
-                                            </span>
-                                        </td>
-                                        <td>{{ submission.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <p class="text-muted text-center mb-0">暂无提交记录</p>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
     </main>
     
     {% include "partials/footer.html" %}

@@ -196,3 +196,30 @@ def get_active_levels():
             'success': False,
             'message': str(e)
         }), 400
+
+
+@levels_bp.route('/levels/by-subject/<int:subject_id>', methods=['GET'])
+def get_levels_by_subject(subject_id):
+    """根据科目获取难度级别列表"""
+    try:
+        from app.models import Level
+        levels = Level.get_by_subject(subject_id)
+
+        items = [{
+            'id': level.id,
+            'name': level.name,
+            'order_index': level.order_index,
+            'description': level.description,
+            'is_active': level.is_active
+        } for level in levels]
+
+        return jsonify({
+            'success': True,
+            'data': items
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 400

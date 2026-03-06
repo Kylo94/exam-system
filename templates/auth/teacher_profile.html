@@ -1,0 +1,92 @@
+{% extends "auth/profile_base.html" %}
+
+{% set role_name = "教师" %}
+{% set dashboard_url = url_for('teacher.dashboard') %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            {{ user_info_card() }}
+
+            {% set role_specific_status %}
+            <hr>
+            <div class="mb-2">
+                <span>教师ID:</span>
+                <div class="input-group input-group-sm mt-1">
+                    <input type="text" class="form-control" value="{{ user.id }}" readonly id="teacherIdDisplay">
+                    <button class="btn btn-outline-secondary" type="button" id="copyTeacherIdBtn">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+                <small class="text-muted">学生填写此ID即可与您绑定</small>
+            </div>
+            {% endset %}
+            {{ account_status_card(role_specific_status) }}
+        </div>
+
+        <div class="col-md-9">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>个人资料</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-4" id="profileTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab"
+                                    data-bs-target="#basic" type="button" role="tab">
+                                <i class="bi bi-info-circle me-1"></i>基本信息
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="password-tab" data-bs-toggle="tab"
+                                    data-bs-target="#password" type="button" role="tab">
+                                <i class="bi bi-key me-1"></i>修改密码
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="preferences-tab" data-bs-toggle="tab"
+                                    data-bs-target="#preferences" type="button" role="tab">
+                                <i class="bi bi-gear me-1"></i>偏好设置
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="profileTabContent">
+                        {% set role_specific_basic_info %}
+                        <!-- 教师专用信息区域预留 -->
+                        {% endset %}
+                        {{ basic_info_tab(role_specific_basic_info) }}
+                        {{ password_tab() }}
+                        {{ preferences_tab() }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ modals() }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 教师专属功能：复制教师ID
+        const copyTeacherIdBtn = document.getElementById('copyTeacherIdBtn');
+        if (copyTeacherIdBtn) {
+            copyTeacherIdBtn.addEventListener('click', function() {
+                const teacherId = document.getElementById('teacherIdDisplay');
+                if (!teacherId) return;
+
+                navigator.clipboard.writeText(teacherId.value).then(() => {
+                    showAlert('教师ID已复制到剪贴板', 'success');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    showAlert('复制失败，请手动复制', 'warning');
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -153,16 +153,27 @@ class SubmissionService(BaseService[Submission]):
         from .question_service import QuestionService
         question_service = QuestionService(self.db)
         
+        # 获取考试的所有题目（包括通过关联表关联的）
+        exam_questions = exam.get_all_questions()
+        exam_question_ids = {q.id for q in exam_questions}
+
         # 处理每个答案
         for question_id, user_answer in answers.items():
-            # 验证问题属于该考试
-            question = question_service.get_by_id(question_id)
-            if not question or question.exam_id != submission.exam_id:
+            # 将question_id转换为整数（前端传递的可能为字符串）
+            try:
+                question_id = int(question_id)
+            except (ValueError, TypeError):
                 continue
-            
+
+            # 验证问题属于该考试
+            # 对于临时试卷，题目通过关联表关联，question.exam_id 可能不等于 submission.exam_id
+            # 所以需要检查题目是否在考试的题目列表中
+            if question_id not in exam_question_ids:
+                continue
+
             # 验证答案
             result = question_service.validate_answer(question_id, user_answer)
-            
+
             # 记录答案
             answer = Answer(
                 submission_id=submission_id,
@@ -172,7 +183,7 @@ class SubmissionService(BaseService[Submission]):
                 score=result['score']
             )
             self.db.session.add(answer)
-            
+
             total_score += result['question_score']
             obtained_score += result['score']
         

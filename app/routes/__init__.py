@@ -14,6 +14,7 @@ from .admin import admin_bp
 from .teacher import teacher_bp, teacher_api_bp
 from .ai_configs import ai_configs_bp
 from .document_parser import document_parser_bp
+from .student import student_bp
 
 __all__ = [
     'main_bp',
@@ -31,4 +32,5 @@ __all__ = [
     'teacher_api_bp',
     'ai_configs_bp',
     'document_parser_bp',
+    'student_bp',
 ]

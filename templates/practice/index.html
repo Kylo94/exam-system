@@ -22,27 +22,38 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">科目</label>
                         <select class="form-select" id="filterSubject">
                             <option value="">请选择科目</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">难度</label>
                         <select class="form-select" id="filterLevel" disabled>
                             <option value="">请先选择科目</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label">考点</label>
                         <select class="form-select" id="filterKnowledgePoint" disabled>
-                            <option value="">请先选择科目和难度</option>
+                            <option value="">请先选择难度</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">题目数量</label>
+                        <select class="form-select" id="questionCountSelect" disabled>
+                            <option value="5">5题</option>
+                            <option value="10" selected>10题</option>
+                            <option value="15">15题</option>
+                            <option value="20">20题</option>
+                            <option value="30">30题</option>
+                            <option value="all">全部</option>
                         </select>
                     </div>
                 </div>
                 <div class="mt-3">
-                    <button class="btn btn-primary" id="startPractice">
+                    <button class="btn btn-primary" id="startPractice" disabled>
                         <i class="bi bi-play-fill me-1"></i>开始刷题
                     </button>
                     <button class="btn btn-secondary ms-2" id="resetFilter">
@@ -51,39 +62,31 @@
                 </div>
             </div>
         </div>
-
-        <!-- 题目列表 -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">题目列表</h5>
-                <span class="badge bg-secondary" id="questionCount">共 0 题</span>
-            </div>
-            <div class="card-body">
-                <div id="questionsContainer" class="list-group">
-                    <p class="text-muted text-center py-4">请选择科目、难度和考点开始刷题</p>
-                </div>
-            </div>
-        </div>
     </main>
 
     {% include "partials/footer.html" %}
     {% include "partials/scripts.html" %}
 
+    {% block js %}
     <script>
-        let questions = [];
-        let currentQuestionIndex = 0;
-
         // 加载科目列表
         async function loadSubjects() {
+            console.log('loadSubjects 被调用');
             try {
                 const response = await fetch('/api/subjects');
+                console.log('subjects API响应状态:', response.status);
                 const result = await response.json();
-                if (result.success && result.data && result.data.items) {
+                console.log('subjects API响应数据:', result);
+
+                if (result.success && result.data && Array.isArray(result.data)) {
                     const select = document.getElementById('filterSubject');
                     select.innerHTML = '<option value="">请选择科目</option>';
-                    result.data.items.forEach(subject => {
+                    result.data.forEach(subject => {
                         select.innerHTML += `<option value="${subject.id}">${subject.name}</option>`;
                     });
+                    console.log('科目加载完成，共', result.data.length, '个科目');
+                } else {
+                    console.log('科目响应格式不符合预期');
                 }
             } catch (error) {
                 console.error('加载科目失败:', error);
@@ -92,12 +95,17 @@
 
         // 科目改变时加载难度列表
         async function onSubjectChange() {
+            console.log('onSubjectChange 被调用');
             const subjectId = document.getElementById('filterSubject').value;
+            console.log('选择的科目ID:', subjectId);
             const levelSelect = document.getElementById('filterLevel');
             const kpSelect = document.getElementById('filterKnowledgePoint');
+            const countSelect = document.getElementById('questionCountSelect');
 
             levelSelect.innerHTML = '<option value="">请选择难度</option>';
             kpSelect.innerHTML = '<option value="">请先选择难度</option>';
+            countSelect.disabled = true;
+            document.getElementById('startPractice').disabled = true;
 
             if (!subjectId) {
                 levelSelect.disabled = true;
@@ -106,14 +114,18 @@
             }
 
             try {
-                const response = await fetch(`/api/levels?subject_id=${subjectId}`);
+                const response = await fetch(`/api/levels/by-subject/${subjectId}`);
                 const result = await response.json();
-                if (result.success && result.data && result.data.items) {
+                console.log('难度API响应:', result);
+                if (result.success && result.data && Array.isArray(result.data)) {
                     levelSelect.innerHTML = '<option value="">请选择难度</option>';
-                    result.data.items.forEach(level => {
+                    result.data.forEach(level => {
                         levelSelect.innerHTML += `<option value="${level.id}">${level.name}</option>`;
                     });
                     levelSelect.disabled = false;
+                    console.log('难度加载完成，共', result.data.length, '个难度');
+                } else {
+                    console.log('难度响应格式不符合预期');
                 }
             } catch (error) {
                 console.error('加载难度失败:', error);
@@ -124,11 +136,16 @@
 
         // 难度改变时加载考点列表
         async function onLevelChange() {
+            console.log('onLevelChange 被调用');
             const subjectId = document.getElementById('filterSubject').value;
             const levelId = document.getElementById('filterLevel').value;
+            console.log('科目ID:', subjectId, '难度ID:', levelId);
             const kpSelect = document.getElementById('filterKnowledgePoint');
+            const countSelect = document.getElementById('questionCountSelect');
 
             kpSelect.innerHTML = '<option value="">请选择考点</option>';
+            countSelect.disabled = true;
+            document.getElementById('startPractice').disabled = true;
 
             if (!levelId) {
                 kpSelect.disabled = true;
@@ -138,71 +155,85 @@
             try {
                 const response = await fetch(`/api/knowledge-points/by-subject-level/${subjectId}/${levelId}`);
                 const result = await response.json();
-                if (result.success && result.data) {
+                console.log('考点API响应:', result);
+                if (result.success && result.data && Array.isArray(result.data)) {
                     kpSelect.innerHTML = '<option value="">请选择考点</option>';
                     result.data.forEach(kp => {
                         kpSelect.innerHTML += `<option value="${kp.id}">${kp.name}</option>`;
                     });
                     kpSelect.disabled = false;
+                    countSelect.disabled = false;
+                    console.log('考点加载完成，共', result.data.length, '个考点');
                 } else {
                     kpSelect.innerHTML = '<option value="">该科目难度下暂无考点</option>';
+                    console.log('考点响应格式不符合预期');
                 }
             } catch (error) {
                 console.error('加载考点失败:', error);
             }
         }
 
-        // 开始刷题
+        // 考点改变时启用开始按钮
+        function onKnowledgePointChange() {
+            const kpSelect = document.getElementById('filterKnowledgePoint');
+            const startBtn = document.getElementById('startPractice');
+
+            if (kpSelect.value) {
+                startBtn.disabled = false;
+            } else {
+                startBtn.disabled = true;
+            }
+        }
+
+        // 开始刷题 - 创建临时试卷
         async function startPractice() {
             const subjectId = document.getElementById('filterSubject').value;
             const levelId = document.getElementById('filterLevel').value;
             const knowledgePointId = document.getElementById('filterKnowledgePoint').value;
+            const questionCount = document.getElementById('questionCountSelect').value;
 
             if (!subjectId || !levelId || !knowledgePointId) {
                 alert('请选择科目、难度和考点');
                 return;
             }
 
-            try {
-                const response = await fetch(`/api/questions/practice?subject_id=${subjectId}&level_id=${levelId}&knowledge_point_id=${knowledgePointId}`);
-                const result = await response.json();
+            // 显示加载提示
+            const startBtn = document.getElementById('startPractice');
+            const originalText = startBtn.innerHTML;
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="bi bi-spinner me-1"></i>创建中...';
 
-                if (result.success && result.data && result.data.questions) {
-                    questions = result.data.questions;
-                    renderQuestions();
+            try {
+                const response = await fetch('/student/practice/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        subject_id: parseInt(subjectId),
+                        level_id: parseInt(levelId),
+                        knowledge_point_id: parseInt(knowledgePointId),
+                        question_count: questionCount === 'all' ? null : parseInt(questionCount)
+                    })
+                });
+
+                const result = await response.json();
+                console.log('创建练习试卷响应:', result);
+
+                if (result.success && result.data && result.data.exam_id) {
+                    // 跳转到考试页面
+                    window.location.href = `/exams/${result.data.exam_id}/start`;
                 } else {
-                    alert('没有找到符合条件的题目');
+                    alert(result.message || '创建练习试卷失败');
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = originalText;
                 }
             } catch (error) {
-                console.error('获取题目失败:', error);
-                alert('获取题目失败');
+                console.error('创建练习试卷失败:', error);
+                alert('创建练习试卷失败');
+                startBtn.disabled = false;
+                startBtn.innerHTML = originalText;
             }
-        }
-
-        // 渲染题目列表
-        function renderQuestions() {
-            const container = document.getElementById('questionsContainer');
-            const countBadge = document.getElementById('questionCount');
-
-            countBadge.textContent = `共 ${questions.length} 题`;
-
-            if (questions.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center py-4">没有找到符合条件的题目</p>';
-                return;
-            }
-
-            container.innerHTML = questions.map((q, index) => `
-                <div class="list-group-item" id="question-${index}">
-                    <div class="d-flex w-100 justify-content-between align-items-start">
-                        <h6 class="mb-1">${index + 1}. ${q.content.substring(0, 100)}${q.content.length > 100 ? '...' : ''}</h6>
-                        <small class="text-muted">${q.points}分</small>
-                    </div>
-                    <div class="mt-2">
-                        <span class="badge bg-secondary">${q.type}</span>
-                        <span class="badge bg-info">${q.knowledge_point_name || '无考点'}</span>
-                    </div>
-                </div>
-            `).join('');
         }
 
         // 重置筛选
@@ -212,9 +243,8 @@
             document.getElementById('filterLevel').disabled = true;
             document.getElementById('filterKnowledgePoint').value = '';
             document.getElementById('filterKnowledgePoint').disabled = true;
-            questions = [];
-            document.getElementById('questionsContainer').innerHTML = '<p class="text-muted text-center py-4">请选择科目、难度和考点开始刷题</p>';
-            document.getElementById('questionCount').textContent = '共 0 题';
+            document.getElementById('questionCountSelect').disabled = true;
+            document.getElementById('startPractice').disabled = true;
         }
 
         // 事件绑定
@@ -222,9 +252,11 @@
             loadSubjects();
             document.getElementById('filterSubject').addEventListener('change', onSubjectChange);
             document.getElementById('filterLevel').addEventListener('change', onLevelChange);
+            document.getElementById('filterKnowledgePoint').addEventListener('change', onKnowledgePointChange);
             document.getElementById('startPractice').addEventListener('click', startPractice);
             document.getElementById('resetFilter').addEventListener('click', resetFilter);
         });
     </script>
+    {% endblock %}
 </body>
 </html>

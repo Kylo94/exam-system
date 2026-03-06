@@ -916,6 +916,7 @@ def get_exams():
         per_page: 每页数量（可选，默认20）
         subject_id: 按科目ID过滤（可选）
         level_id: 按等级ID过滤（可选）
+        is_temporary: 按试卷类型过滤（可选，true/false）
         search: 搜索关键词（可选）
 
     Returns:
@@ -925,6 +926,7 @@ def get_exams():
     per_page = request.args.get('per_page', 20, type=int)
     subject_id = request.args.get('subject_id', None)
     level_id = request.args.get('level_id', None)
+    is_temporary = request.args.get('is_temporary', None)
     search = request.args.get('search', '').strip()
 
     # 构建查询，使用 joinedload 预加载关联对象
@@ -940,6 +942,9 @@ def get_exams():
 
     if level_id:
         query = query.filter_by(level_id=level_id)
+
+    if is_temporary is not None:
+        query = query.filter_by(is_temporary=is_temporary.lower() == 'true')
 
     if search:
         query = query.filter(Exam.title.ilike(f'%{search}%'))
@@ -1224,19 +1229,27 @@ def get_questions():
         type: 按题型过滤（可选）
         search: 搜索关键词（可选，搜索题目内容和考点）
         knowledge_point_id: 按分配的知识点ID过滤（可选）
+        is_temporary: 按是否为临时题目过滤（可选，true/false）
+                      临时题目：关联的试卷is_temporary=true
+                      试卷题目：exam_id为空或关联的试卷is_temporary=false
 
     Returns:
         题目列表
     """
+    from sqlalchemy.orm import joinedload
+
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     exam_id = request.args.get('exam_id', None)
     question_type = request.args.get('type', None)
     search = request.args.get('search', '').strip()
     knowledge_point_id = request.args.get('knowledge_point_id', None)
+    is_temporary = request.args.get('is_temporary', None)
 
-    # 构建查询
-    query = Question.query
+    # 构建查询，使用 joinedload 预加载关联对象
+    query = Question.query.options(
+        joinedload(Question.exam)
+    )
 
     if exam_id:
         query = query.filter_by(exam_id=exam_id)
@@ -1246,6 +1259,23 @@ def get_questions():
 
     if knowledge_point_id:
         query = query.filter_by(knowledge_point_id=int(knowledge_point_id))
+
+    if is_temporary is not None:
+        # 过滤临时题目或试卷题目
+        # 临时题目：关联的试卷 is_temporary=true
+        # 试卷题目：exam_id为空 或 关联的试卷 is_temporary=false
+        if is_temporary.lower() == 'true':
+            # 只显示临时题目（关联的试卷是临时试卷）
+            from app.models.exam import Exam
+            query = query.join(Exam, Question.exam_id == Exam.id).filter(Exam.is_temporary == True)
+        else:
+            # 只显示非临时题目（exam_id为空 或 关联的试卷不是临时试卷）
+            # 使用 OR 条件：exam_id IS NULL OR exam关联的试卷 is_temporary=false
+            from sqlalchemy import or_
+            from app.models.exam import Exam
+            query = query.outerjoin(Exam, Question.exam_id == Exam.id).filter(
+                or_(Question.exam_id == None, Exam.is_temporary == False)
+            )
 
     if search:
         # 搜索题目内容
@@ -1416,6 +1446,9 @@ def update_question(question_id):
     if 'image_data' in data:
         question.image_data = data.get('image_data')
 
+    if 'knowledge_point_id' in data:
+        question.knowledge_point_id = data.get('knowledge_point_id')
+
     try:
         db.session.commit()
         return success_response(data=question.to_dict(), message="题目更新成功")
@@ -1450,6 +1483,47 @@ def delete_question(question_id):
         return error_response(f'删除题目失败: {str(e)}', 500)
 
 
+@admin_bp.route('/api/questions/batch-delete', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def batch_delete_questions():
+    """批量删除题目API
+
+    Request JSON:
+        question_ids: 题目ID列表
+
+    Returns:
+        删除成功信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    question_ids = data.get('question_ids', [])
+    if not question_ids or not isinstance(question_ids, list):
+        return error_response('请提供有效的题目ID列表', 400)
+
+    # 查询要删除的题目
+    questions = Question.query.filter(Question.id.in_(question_ids)).all()
+    if not questions:
+        return error_response('未找到要删除的题目', 404)
+
+    deleted_count = 0
+    try:
+        for question in questions:
+            db.session.delete(question)
+            deleted_count += 1
+        db.session.commit()
+        return success_response(
+            data={'deleted_count': deleted_count},
+            message=f'成功删除 {deleted_count} 个题目'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'批量删除题目失败: {str(e)}', 500)
+
+
 @admin_bp.route('/api/exams/<int:exam_id>/questions', methods=['GET'])
 @login_required
 @admin_required
@@ -1467,7 +1541,8 @@ def get_exam_questions(exam_id):
     if not exam:
         return error_response('试卷不存在', 404)
 
-    questions = Question.query.filter_by(exam_id=exam_id).order_by(Question.order_index).all()
+    # 使用 Exam.get_all_questions() 获取所有题目
+    questions = exam.get_all_questions()
 
     return success_response(data=[question.to_dict() for question in questions])
 
@@ -1688,6 +1763,47 @@ def delete_submission(submission_id):
     except Exception as e:
         db.session.rollback()
         return error_response(f'删除提交失败: {str(e)}', 500)
+
+
+@admin_bp.route('/api/submissions/batch-delete', methods=['DELETE'])
+@login_required
+@admin_required
+@api_response
+def batch_delete_submissions():
+    """批量删除提交API
+
+    Request JSON:
+        submission_ids: 提交ID列表
+
+    Returns:
+        删除成功信息
+    """
+    data = request.get_json()
+    if not data:
+        return error_response('请求数据不能为空', 400)
+
+    submission_ids = data.get('submission_ids', [])
+    if not submission_ids or not isinstance(submission_ids, list):
+        return error_response('请提供有效的提交ID列表', 400)
+
+    # 查询要删除的提交
+    submissions = Submission.query.filter(Submission.id.in_(submission_ids)).all()
+    if not submissions:
+        return error_response('未找到要删除的提交', 404)
+
+    deleted_count = 0
+    try:
+        for submission in submissions:
+            db.session.delete(submission)
+            deleted_count += 1
+        db.session.commit()
+        return success_response(
+            data={'deleted_count': deleted_count},
+            message=f'成功删除 {deleted_count} 个提交'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'批量删除提交失败: {str(e)}', 500)
 
 
 @admin_bp.route('/api/stats', methods=['GET'])

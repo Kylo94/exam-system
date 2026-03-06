@@ -1,50 +1,94 @@
-<footer class="bg-light border-top py-4 mt-5">
+<footer class="bg-dark text-white py-5 mt-5">
     <div class="container">
-        <div class="row">
-            <div class="col-md-4 mb-3">
-                <h5 class="text-primary">{{ app_name }}</h5>
-                <p class="text-muted small">
-                    基于Flask的模块化在线答题系统<br>
-                    支持Word文档解析、AI智能判卷
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-journal-check fs-2 text-primary me-2"></i>
+                    <h4 class="h5 mb-0">{{ app_name }}</h4>
+                </div>
+                <p class="text-white-50 small">
+                    专业的在线答题系统，支持智能试卷解析、自动判卷、成绩统计分析等功能。
+                    为教师和学生提供完整的在线考试解决方案。
                 </p>
+                <div class="d-flex gap-2 mt-3">
+                    <a href="#" class="btn btn-sm btn-outline-light rounded-circle" title="GitHub">
+                        <i class="bi bi-github"></i>
+                    </a>
+                    <a href="#" class="btn btn-sm btn-outline-light rounded-circle" title="文档">
+                        <i class="bi bi-file-text"></i>
+                    </a>
+                    <a href="#" class="btn btn-sm btn-outline-light rounded-circle" title="帮助">
+                        <i class="bi bi-question-circle"></i>
+                    </a>
+                </div>
             </div>
-            
-            <div class="col-md-4 mb-3">
-                <h5 class="text-primary">功能特性</h5>
+
+            <div class="col-lg-4 col-md-6">
+                <h6 class="text-uppercase fw-bold mb-3">核心功能</h6>
                 <ul class="list-unstyled small">
-                    <li><i class="bi bi-check-circle text-success me-1"></i> Word文档上传解析</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i> 多题型自动判卷</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i> AI智能解析支持</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i> 成绩统计分析</li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <span class="text-white-50">Word文档智能解析</span>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <span class="text-white-50">多题型自动判卷</span>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <span class="text-white-50">AI智能辅助评分</span>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <span class="text-white-50">成绩统计分析</span>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        <span class="text-white-50">多维度数据报告</span>
+                    </li>
                 </ul>
             </div>
-            
-            <div class="col-md-4 mb-3">
-                <h5 class="text-primary">技术栈</h5>
-                <ul class="list-unstyled small">
-                    <li><span class="badge bg-secondary me-1">Flask</span> Python Web框架</li>
-                    <li><span class="badge bg-secondary me-1">SQLAlchemy</span> ORM数据库</li>
-                    <li><span class="badge bg-secondary me-1">Bootstrap 5</span> 前端框架</li>
-                    <li><span class="badge bg-secondary me-1">DeepSeek API</span> AI集成</li>
-                </ul>
+
+            <div class="col-lg-3 col-md-6">
+                <h6 class="text-uppercase fw-bold mb-3">技术支持</h6>
+                <p class="text-white-50 small mb-3">
+                    如遇问题或需要技术支持，请通过以下方式联系我们。
+                </p>
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-envelope-fill text-primary me-2"></i>
+                    <small class="text-white-50">support@example.com</small>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-telephone-fill text-primary me-2"></i>
+                    <small class="text-white-50">400-123-4567</small>
+                </div>
+                <div class="mt-3">
+                    <span class="badge bg-primary me-1">Flask</span>
+                    <span class="badge bg-success me-1">Bootstrap 5</span>
+                    <span class="badge bg-info me-1">DeepSeek AI</span>
+                </div>
             </div>
         </div>
-        
-        <hr>
-        
-        <div class="row">
+
+        <hr class="border-secondary my-4">
+
+        <div class="row align-items-center">
             <div class="col-md-6">
-                <p class="small text-muted">
-                    &copy; {{ now.year }} {{ app_name }}. 保留所有权利。
+                <p class="small text-white-50 mb-0">
+                    &copy; {{ now.year }} {{ app_name }}. All Rights Reserved.
                 </p>
             </div>
-            <div class="col-md-6 text-md-end">
-                <p class="small text-muted">
-                    <i class="bi bi-github me-1"></i>
-                    <a href="https://github.com" class="text-muted">GitHub仓库</a>
-                    &nbsp;|&nbsp;
-                    <i class="bi bi-file-text me-1"></i>
-                    <a href="/api/health" class="text-muted">系统状态</a>
+            <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                <p class="small text-white-50 mb-0">
+                    <a href="/api/health" class="text-white-50 text-decoration-none me-3">
+                        <i class="bi bi-activity me-1"></i>系统状态
+                    </a>
+                    <a href="/privacy" class="text-white-50 text-decoration-none me-3">
+                        <i class="bi bi-shield-lock me-1"></i>隐私政策
+                    </a>
+                    <a href="/terms" class="text-white-50 text-decoration-none">
+                        <i class="bi bi-file-earmark-text me-1"></i>使用条款
+                    </a>
                 </p>
             </div>
         </div>

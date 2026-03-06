@@ -30,6 +30,7 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
+                                <th width="50"><input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()"></th>
                                 <th>ID</th>
                                 <th>用户</th>
                                 <th>试卷</th>
@@ -42,24 +43,26 @@
                         <tbody>
                             {% for submission in submissions %}
                             <tr>
+                                <td><input type="checkbox" class="form-check-input submission-checkbox" value="{{ submission.id }}"></td>
                                 <td>{{ submission.id }}</td>
                                 <td>{{ submission.user.username if submission.user else '匿名' }}</td>
                                 <td>{{ submission.exam.title if submission.exam else '未知' }}</td>
                                 <td>
-                                    {% if submission.score %}
-                                    <span class="badge bg-{{ 'success' if submission.score >= 60 else 'danger' }}">
-                                        {{ submission.score|round(2) }}
+                                    {% if submission.obtained_score is not none %}
+                                    <span class="badge bg-{{ 'success' if submission.obtained_score >= 60 else 'danger' }}">
+                                        {{ submission.obtained_score|round(2) }}
                                     </span>
                                     {% else %}
                                     <span class="badge bg-secondary">未评分</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge bg-{{ 'success' if submission.status == 'completed' else 'warning' if submission.status == 'pending' else 'secondary' }}">
-                                        {{ submission.status }}
+                                    {% set status_map = {'in_progress': '进行中', 'submitted': '已提交', 'graded': '已评分', 'archived': '已归档'} %}
+                                    <span class="badge bg-{{ 'success' if submission.status == 'submitted' or submission.status == 'graded' else 'warning' if submission.status == 'in_progress' else 'secondary' }}">
+                                        {{ status_map.get(submission.status, submission.status) }}
                                     </span>
                                 </td>
-                                <td>{{ submission.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ submission.submit_time.strftime('%Y-%m-%d %H:%M') if submission.submit_time else '未知' }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ url_for('main.submission_result', submission_id=submission.id) }}" class="btn btn-outline-primary">
@@ -75,6 +78,14 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- 批量操作按钮 -->
+                <div class="mt-3" id="batchActions" style="display: none;">
+                    <button class="btn btn-danger" onclick="batchDeleteSubmissions()">
+                        <i class="bi bi-trash"></i> 批量删除选中的提交
+                    </button>
+                    <span class="ms-2 text-muted" id="selectedCount">已选择 0 项</span>
+                </div>
                 {% else %}
                 <p class="text-muted text-center mb-0">暂无提交数据</p>
                 {% endif %}
@@ -86,6 +97,75 @@
     {% include "partials/scripts.html" %}
 
     <script>
+    // 全选/取消全选
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.submission-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectAll.checked;
+        });
+        updateBatchActions();
+    }
+
+    // 更新批量操作按钮显示
+    function updateBatchActions() {
+        const checkboxes = document.querySelectorAll('.submission-checkbox:checked');
+        const batchActions = document.getElementById('batchActions');
+        const selectedCount = document.getElementById('selectedCount');
+
+        if (checkboxes.length > 0) {
+            batchActions.style.display = 'block';
+            selectedCount.textContent = `已选择 ${checkboxes.length} 项`;
+        } else {
+            batchActions.style.display = 'none';
+        }
+    }
+
+    // 监听复选框变化
+    document.querySelectorAll('.submission-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateBatchActions);
+    });
+
+    // 批量删除提交
+    async function batchDeleteSubmissions() {
+        const checkboxes = document.querySelectorAll('.submission-checkbox:checked');
+        const submissionIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        if (submissionIds.length === 0) {
+            alert('请先选择要删除的提交记录');
+            return;
+        }
+
+        if (!confirm(`确定要删除选中的 ${submissionIds.length} 条提交记录吗？此操作不可恢复！`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/admin/api/submissions/batch-delete', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    submission_ids: submissionIds
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                alert(`成功删除 ${submissionIds.length} 条提交记录`);
+                window.location.reload();
+            } else {
+                alert('删除失败: ' + (data.error?.message || '未知错误'));
+            }
+        } catch (error) {
+            console.error('批量删除失败:', error);
+            alert('网络错误，请稍后重试');
+        }
+    }
+
+    // 单个删除提交
     async function deleteSubmission(submissionId) {
         if (!confirm('确定要删除这条提交记录吗？')) {
             return;

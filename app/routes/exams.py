@@ -27,28 +27,32 @@ class ExamResource(BaseResource):
                 filters = {}
                 if 'search' in params:
                     filters['title'] = params['search']
-                
+
                 if 'subject_id' in params:
                     try:
                         filters['subject_id'] = int(params['subject_id'])
                     except ValueError:
                         pass
-                
+
                 if 'level_id' in params:
                     try:
                         filters['level_id'] = int(params['level_id'])
                     except ValueError:
                         pass
-                
+
                 if 'is_active' in params:
                     filters['is_active'] = params['is_active'].lower() == 'true'
-                
+
+                if 'is_temporary' in params:
+                    filters['is_temporary'] = params['is_temporary'].lower() == 'true'
+
                 # 获取数据
                 exams = self.get_service().search_exams(
                     title=filters.get('title'),
                     subject_id=filters.get('subject_id'),
                     level_id=filters.get('level_id'),
                     is_active=filters.get('is_active'),
+                    is_temporary=filters.get('is_temporary'),
                     skip=params['skip'],
                     limit=params['limit']
                 )

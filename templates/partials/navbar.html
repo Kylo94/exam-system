@@ -13,18 +13,8 @@
             {% if current_user.is_authenticated %}
             <!-- 已登录用户导航 -->
             <ul class="navbar-nav me-auto">
-                <!-- 教师导航 -->
-                {% if current_user.is_teacher() %}
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('teacher.my_students_page') }}">
-                        <i class="bi bi-people me-1"></i>
-                        我的学生
-                    </a>
-                </li>
-                {% endif %}
-
-                <!-- 学生和教师通用导航 -->
-                {% if current_user.is_student() or current_user.is_teacher() %}
+                <!-- 学生导航 -->
+                {% if current_user.is_student() %}
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.exam_select_page') }}">
                         <i class="bi bi-journal-check me-1"></i>
@@ -41,6 +31,28 @@
                     <a class="nav-link" href="/my-submissions">
                         <i class="bi bi-clock-history me-1"></i>
                         我的记录
+                    </a>
+                </li>
+                {% endif %}
+
+                <!-- 教师导航 -->
+                {% if current_user.is_teacher() %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('teacher.my_students_page') }}">
+                        <i class="bi bi-people me-1"></i>
+                        我的学生
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('teacher.student_submissions_page') }}">
+                        <i class="bi bi-list-check me-1"></i>
+                        学生提交情况
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('teacher.bind_requests_page') }}">
+                        <i class="bi bi-person-check me-1"></i>
+                        绑定申请
                     </a>
                 </li>
                 {% endif %}

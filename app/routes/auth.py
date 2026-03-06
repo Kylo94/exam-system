@@ -8,11 +8,12 @@ from flask_login import login_user, logout_user, login_required, current_user
 
 from app.extensions import db
 from app.models.user import User
+from app.models.teacher_bind_request import TeacherBindRequest
 from app.utils.validators import (
     validate_string, validate_email, validate_password, validate_choice, batch_validate
 )
 from app.utils.response_utils import (
-    error_response, validation_error_response, api_response
+    error_response, validation_error_response, api_response, success_response
 )
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -53,8 +54,41 @@ def register_page():
 @auth_bp.route('/profile', methods=['GET'])
 @login_required
 def profile_page():
-    """个人资料页面"""
-    return render_template('auth/profile.html', user=current_user)
+    """个人资料页面（根据用户角色自动跳转）"""
+    if current_user.is_student():
+        return redirect(url_for('auth.student_profile'))
+    elif current_user.is_teacher():
+        return redirect(url_for('auth.teacher_profile'))
+    elif current_user.is_admin():
+        return redirect(url_for('auth.admin_profile'))
+    return redirect(url_for('main.dashboard'))
+
+
+@auth_bp.route('/profile/student', methods=['GET'])
+@login_required
+def student_profile():
+    """学生个人资料页面"""
+    if not current_user.is_student():
+        return redirect(url_for('auth.profile_page'))
+    return render_template('auth/student_profile.html', user=current_user)
+
+
+@auth_bp.route('/profile/teacher', methods=['GET'])
+@login_required
+def teacher_profile():
+    """教师个人资料页面"""
+    if not current_user.is_teacher():
+        return redirect(url_for('auth.profile_page'))
+    return render_template('auth/teacher_profile.html', user=current_user)
+
+
+@auth_bp.route('/profile/admin', methods=['GET'])
+@login_required
+def admin_profile():
+    """管理员个人资料页面"""
+    if not current_user.is_admin():
+        return redirect(url_for('auth.profile_page'))
+    return render_template('auth/admin_profile.html', user=current_user)
 
 
 @auth_bp.route('/forgot-password', methods=['GET'])
@@ -380,7 +414,9 @@ def change_password():
     try:
         current_user.set_password(new_password)
         db.session.commit()
-        return {'message': '密码修改成功'}, 200
+        # 修改密码成功后需要重新登录，强制登出用户
+        logout_user()
+        return success_response(message='密码修改成功，请重新登录', status_code=200)
     except Exception as e:
         db.session.rollback()
         return error_response(f'密码修改失败: {str(e)}', 500)
@@ -499,6 +535,96 @@ def bind_teacher():
             return error_response('绑定教师失败', 500)
     except Exception as e:
         return error_response(f'绑定教师失败: {str(e)}', 500)
+
+
+@auth_bp.route('/api/teacher-bind-request', methods=['POST'])
+@login_required
+@api_response
+def create_teacher_bind_request():
+    """创建教师绑定申请
+
+    Request JSON:
+        teacher_id: 教师ID
+        message: 申请消息（可选）
+
+    Returns:
+        申请结果
+    """
+    if not current_user.is_student():
+        return error_response('只有学生可以申请绑定教师', 403)
+
+    data = request.get_json()
+    if not data or 'teacher_id' not in data:
+        return error_response('缺少教师ID', 400)
+
+    teacher_id = data.get('teacher_id')
+    message = data.get('message', '')
+
+    # 验证教师
+    teacher = User.get_by_id(teacher_id)
+    if not teacher:
+        return error_response('教师ID不存在', 404)
+
+    if not teacher.is_teacher():
+        return error_response('指定的用户不是教师', 400)
+
+    # 检查是否已有待处理的申请
+    existing_request = TeacherBindRequest.check_existing_request(
+        current_user.id,
+        teacher_id,
+        status='pending'
+    )
+    if existing_request:
+        return error_response('已向该教师发送过绑定申请，请等待审核', 400)
+
+    # 检查是否已经绑定
+    if current_user.teacher_id == teacher_id:
+        return error_response('您已与该教师绑定，无需重复申请', 400)
+
+    # 创建申请
+    try:
+        bind_request = TeacherBindRequest(
+            student_id=current_user.id,
+            teacher_id=teacher_id,
+            message=message
+        )
+        db.session.add(bind_request)
+        db.session.commit()
+
+        return {
+            'message': f'已向教师{teacher.username}发送绑定申请',
+            'request_id': bind_request.id,
+            'teacher_name': teacher.username
+        }, 201
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'创建申请失败: {str(e)}', 500)
+
+
+@auth_bp.route('/api/teacher-bind-request/status', methods=['GET'])
+@login_required
+@api_response
+def get_bind_request_status():
+    """获取当前用户的绑定申请状态
+
+    Returns:
+        申请状态信息
+    """
+    if not current_user.is_student():
+        return error_response('只有学生可以查询绑定申请', 403)
+
+    # 获取最新的申请
+    pending_request = TeacherBindRequest.get_student_pending_request(current_user.id)
+
+    if not pending_request:
+        return {
+            'has_pending_request': False
+        }, 200
+
+    return {
+        'has_pending_request': True,
+        'request': pending_request.to_dict()
+    }, 200
 
 
 # ==================== 辅助函数 ====================

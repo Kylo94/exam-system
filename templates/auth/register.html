@@ -430,12 +430,15 @@
         
         try {
             const response = await fetch(`/auth/api/verify-teacher/${id}`);
-            const data = await response.json();
-            
-            if (response.ok && data.valid) {
+            const responseData = await response.json();
+
+            // 处理api_response装饰器包装的响应
+            const data = responseData.data || responseData;
+
+            if (response.ok && responseData.success && data.valid) {
                 showFieldSuccess('teacherId', `教师验证成功：${data.teacher_name}`);
             } else {
-                showFieldError('teacherId', data.message || '教师ID无效');
+                showFieldError('teacherId', responseData.message || '教师ID无效');
             }
         } catch (error) {
             console.error('验证教师失败:', error);
@@ -499,29 +502,33 @@
                 },
                 body: JSON.stringify(formData)
             });
-            
-            const data = await response.json();
-            
+
+            const responseData = await response.json();
+
             if (response.ok) {
                 // 注册成功
                 showAlert('注册成功，正在自动登录...', 'success');
-                
+
+                // 处理api_response装饰器包装的响应
+                const data = responseData.data || responseData;
+                const user = data.user || {};
+
                 // 根据用户角色决定跳转目标
-                const redirectUrl = data.user.is_student ? 
-                    "{{ url_for('main.index') }}" : 
+                const redirectUrl = user.is_student ?
+                    "{{ url_for('main.index') }}" :
                     "{{ url_for('main.dashboard') }}";
-                
+
                 // 延迟跳转
                 setTimeout(() => {
                     window.location.href = redirectUrl;
                 }, 2000);
             } else {
                 // 注册失败
-                showAlert(data.message || '注册失败', 'danger');
+                showAlert(responseData.message || '注册失败', 'danger');
                 
                 // 如果有字段错误，显示在对应字段
-                if (data.details && data.details.errors) {
-                    for (const [field, errors] of Object.entries(data.details.errors)) {
+                if (responseData.details && responseData.details.errors) {
+                    for (const [field, errors] of Object.entries(responseData.details.errors)) {
                         if (errors.length > 0) {
                             showFieldError(field, errors[0]);
                         }

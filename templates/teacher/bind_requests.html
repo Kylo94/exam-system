@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}绑定申请管理 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">
+            <i class="bi bi-person-check me-2"></i>绑定申请管理
+        </h1>
+    </div>
+
+    <!-- 状态筛选 -->
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-filter me-2"></i>筛选申请</h5>
+        </div>
+        <div class="card-body">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary active" data-status="pending" id="pendingBtn">
+                    待处理
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-status="approved" id="approvedBtn">
+                    已通过
+                </button>
+                <button type="button" class="btn btn-outline-primary" data-status="rejected" id="rejectedBtn">
+                    已拒绝
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 申请列表 -->
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>申请列表</h5>
+        </div>
+        <div class="card-body">
+            <div id="loadingSpinner" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <p class="mt-3 text-muted">加载数据中...</p>
+            </div>
+
+            <div id="requestsTable" class="d-none">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>学生姓名</th>
+                                <th>邮箱</th>
+                                <th>申请消息</th>
+                                <th>申请时间</th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="emptyState" class="text-center py-5 d-none">
+                <i class="bi bi-inbox fs-1 text-muted mb-3"></i>
+                <p class="text-muted">暂无申请记录</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 拒绝原因模态框 -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">拒绝申请</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="rejectReason" class="form-label">拒绝原因（可选）</label>
+                        <textarea class="form-control" id="rejectReason" rows="3"
+                                  placeholder="请输入拒绝原因..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmRejectBtn">确认拒绝</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentStatus = 'pending';
+    let currentRequestId = null;
+
+    // 加载申请列表
+    async function loadRequests(status) {
+        currentStatus = status;
+
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const requestsTable = document.getElementById('requestsTable');
+        const emptyState = document.getElementById('emptyState');
+        const tbody = document.getElementById('requestsBody');
+
+        loadingSpinner.classList.remove('d-none');
+        requestsTable.classList.add('d-none');
+        emptyState.classList.add('d-none');
+
+        try {
+            const response = await fetch(`/api/teacher/bind-requests?status=${status}`);
+            const result = await response.json();
+
+            loadingSpinner.classList.add('d-none');
+
+            if (!result || result.length === 0) {
+                emptyState.classList.remove('d-none');
+                return;
+            }
+
+            emptyState.classList.add('d-none');
+            requestsTable.classList.remove('d-none');
+            tbody.innerHTML = '';
+
+            result.forEach(req => {
+                const statusBadge = getStatusBadge(req.status);
+                const actionButtons = getActionButtons(req);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${req.student_name}</td>
+                    <td>${req.student_email}</td>
+                    <td>${req.message || '-'}</td>
+                    <td>${formatDate(req.created_at)}</td>
+                    <td>${statusBadge}</td>
+                    <td>${actionButtons}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 绑定操作按钮事件
+            document.querySelectorAll('.approve-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    approveRequest(parseInt(this.dataset.id));
+                });
+            });
+
+            document.querySelectorAll('.reject-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    showRejectModal(parseInt(this.dataset.id));
+                });
+            });
+
+        } catch (error) {
+            console.error('加载申请列表失败:', error);
+            loadingSpinner.classList.add('d-none');
+            alert('加载数据失败，请重试');
+        }
+    }
+
+    // 获取状态徽章
+    function getStatusBadge(status) {
+        const badges = {
+            'pending': '<span class="badge bg-warning">待处理</span>',
+            'approved': '<span class="badge bg-success">已通过</span>',
+            'rejected': '<span class="badge bg-danger">已拒绝</span>'
+        };
+        return badges[status] || '<span class="badge bg-secondary">未知</span>';
+    }
+
+    // 获取操作按钮
+    function getActionButtons(req) {
+        if (req.status === 'pending') {
+            return `
+                <button class="btn btn-sm btn-success approve-btn" data-id="${req.id}">
+                    <i class="bi bi-check-lg"></i> 通过
+                </button>
+                <button class="btn btn-sm btn-danger reject-btn" data-id="${req.id}">
+                    <i class="bi bi-x-lg"></i> 拒绝
+                </button>
+            `;
+        }
+        return '<span class="text-muted">已处理</span>';
+    }
+
+    // 格式化日期
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN');
+    }
+
+    // 批准申请
+    async function approveRequest(requestId) {
+        if (!confirm('确定要批准此申请吗？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/teacher/bind-requests/${requestId}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert(result.message || '已批准申请');
+                loadRequests(currentStatus);
+            } else {
+                alert(result.message || '操作失败');
+            }
+        } catch (error) {
+            console.error('批准申请失败:', error);
+            alert('操作失败，请重试');
+        }
+    }
+
+    // 显示拒绝模态框
+    function showRejectModal(requestId) {
+        currentRequestId = requestId;
+        document.getElementById('rejectReason').value = '';
+        const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+        modal.show();
+    }
+
+    // 确认拒绝
+    document.getElementById('confirmRejectBtn').addEventListener('click', async function() {
+        if (!currentRequestId) return;
+
+        const reason = document.getElementById('rejectReason').value.trim();
+
+        try {
+            const response = await fetch(`/api/teacher/bind-requests/${currentRequestId}/reject`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ reason: reason })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                alert(result.message || '已拒绝申请');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('rejectModal'));
+                modal.hide();
+                loadRequests(currentStatus);
+            } else {
+                alert(result.message || '操作失败');
+            }
+        } catch (error) {
+            console.error('拒绝申请失败:', error);
+            alert('操作失败，请重试');
+        }
+    });
+
+    // 状态筛选按钮
+    document.getElementById('pendingBtn').addEventListener('click', function() {
+        setActiveButton(this);
+        loadRequests('pending');
+    });
+
+    document.getElementById('approvedBtn').addEventListener('click', function() {
+        setActiveButton(this);
+        loadRequests('approved');
+    });
+
+    document.getElementById('rejectedBtn').addEventListener('click', function() {
+        setActiveButton(this);
+        loadRequests('rejected');
+    });
+
+    function setActiveButton(btn) {
+        document.querySelectorAll('.btn-group .btn').forEach(b => {
+            b.classList.remove('btn-primary', 'active');
+            b.classList.add('btn-outline-primary');
+        });
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary', 'active');
+    }
+
+    // 初始加载
+    loadRequests('pending');
+});
+</script>
+{% endblock %}

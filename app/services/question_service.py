@@ -17,27 +17,45 @@ class QuestionService(BaseService[Question]):
     
     def get_by_exam_id(self, exam_id: int) -> List[Question]:
         """根据考试ID获取问题
-        
+
         Args:
             exam_id: 考试ID
-            
+
         Returns:
             问题列表
         """
+        # 首先检查是否有通过关联表关联的题目
+        from app.models.exam_question import ExamQuestion
+        exam_questions = ExamQuestion.query.filter_by(exam_id=exam_id).order_by(ExamQuestion.order_index).all()
+
+        if exam_questions:
+            # 如果有关联表记录，返回关联的题目
+            return [eq.question for eq in exam_questions]
+
+        # 否则使用旧的一对多关系
         return Question.query.filter_by(exam_id=exam_id).order_by(Question.order_index).all()
     
     def get_by_type(self, exam_id: int, question_type: str) -> List[Question]:
         """根据考试ID和问题类型获取问题
-        
+
         Args:
             exam_id: 考试ID
             question_type: 问题类型
-            
+
         Returns:
             问题列表
         """
+        # 首先检查是否有通过关联表关联的题目
+        from app.models.exam_question import ExamQuestion
+        exam_questions = ExamQuestion.query.filter_by(exam_id=exam_id).order_by(ExamQuestion.order_index).all()
+
+        if exam_questions:
+            # 如果有关联表记录，过滤并返回关联的题目
+            return [eq.question for eq in exam_questions if eq.question.type == question_type]
+
+        # 否则使用旧的一对多关系
         return Question.query.filter_by(
-            exam_id=exam_id, 
+            exam_id=exam_id,
             type=question_type
         ).order_by(Question.order_index).all()
     

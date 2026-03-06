@@ -1,0 +1,60 @@
+{% extends "auth/profile_base.html" %}
+
+{% set role_name = "管理员" %}
+{% set dashboard_url = url_for('admin.dashboard') %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            {{ user_info_card() }}
+
+            {% set role_specific_status %}
+            <!-- 管理员专属状态信息预留 -->
+            {% endset %}
+            {{ account_status_card(role_specific_status) }}
+        </div>
+
+        <div class="col-md-9">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>个人资料</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-4" id="profileTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab"
+                                    data-bs-target="#basic" type="button" role="tab">
+                                <i class="bi bi-info-circle me-1"></i>基本信息
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="password-tab" data-bs-toggle="tab"
+                                    data-bs-target="#password" type="button" role="tab">
+                                <i class="bi bi-key me-1"></i>修改密码
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="preferences-tab" data-bs-toggle="tab"
+                                    data-bs-target="#preferences" type="button" role="tab">
+                                <i class="bi bi-gear me-1"></i>偏好设置
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="profileTabContent">
+                        {% set role_specific_basic_info %}
+                        <!-- 管理员专用信息区域预留 -->
+                        {% endset %}
+                        {{ basic_info_tab(role_specific_basic_info) }}
+                        {{ password_tab() }}
+                        {{ preferences_tab() }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ modals() }}
+{% endblock %}
