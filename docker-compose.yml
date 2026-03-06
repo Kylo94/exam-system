@@ -6,9 +6,9 @@ services:
     image: postgres:14-alpine
     container_name: exam-postgres
     environment:
-      POSTGRES_DB: examdb
-      POSTGRES_USER: examuser
-      POSTGRES_PASSWORD: exam_password_123456
+      POSTGRES_DB: ${POSTGRES_DB:-examdb}
+      POSTGRES_USER: ${POSTGRES_USER:-examuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-exam_password_123456}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -36,7 +36,7 @@ services:
       FLASK_DEBUG: "false"
 
       # 数据库配置
-      DATABASE_URL: postgresql://examuser:exam_password_123456@db:5432/examdb?sslmode=disable
+      DATABASE_URL: postgresql://${POSTGRES_USER:-examuser}:${POSTGRES_PASSWORD:-exam_password_123456}@db:5432/${POSTGRES_DB:-examdb}?sslmode=disable
 
       # 安全配置
       SECRET_KEY: dev-secret-key-for-local-use
