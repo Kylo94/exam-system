@@ -1,22 +1,14 @@
-# ========================================
-# 开发环境 Docker Compose 配置
-# ========================================
-# 使用方法：
-#   1. cp .env.example .env
-#   2. 编辑 .env 文件配置环境变量
-#   3. docker-compose up -d
-
 version: '3.8'
 
 services:
   # PostgreSQL 数据库
   db:
     image: postgres:14-alpine
-    container_name: exam-postgres-dev
+    container_name: exam-postgres
     environment:
       POSTGRES_DB: examdb
       POSTGRES_USER: examuser
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-exam_password_123456}
+      POSTGRES_PASSWORD: exam_password_123456
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -30,81 +22,47 @@ services:
       retries: 5
       start_period: 10s
 
-  # Redis 缓存
-  redis:
-    image: redis:7-alpine
-    container_name: exam-redis-dev
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - exam-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # Flask Web 应用（开发模式）
+  # Flask Web 应用
   web:
-    image: exam-system:dev
-    container_name: exam-web-dev
-    command: >
-      flask run
-      --host=0.0.0.0
-      --port=5002
-      --debug
+    build: .
+    image: exam-system:latest
+    container_name: exam-web
+    command: gunicorn --bind 0.0.0.0:5002 --workers 2 --threads 2 --worker-class sync --timeout 120 --access-logfile - --error-logfile - wsgi:app
     ports:
-      - "${FLASK_PORT:-5002}:5002"
+      - "5002:5002"
     environment:
       # Flask 配置
-      FLASK_APP: run.py
-      FLASK_ENV: development
-      FLASK_DEBUG: "true"
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
 
       # 数据库配置
-      DATABASE_URL: postgresql://examuser:${DB_PASSWORD:-exam_password_123456}@db:5432/examdb
+      DATABASE_URL: postgresql://examuser:exam_password_123456@db:5432/examdb?sslmode=disable
 
       # 安全配置
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-do-not-use-in-production}
-
-      # Redis 配置
-      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: dev-secret-key-for-local-use
 
       # 文件上传配置
       MAX_CONTENT_LENGTH: 52428800
       UPLOAD_FOLDER: /app/uploads
 
       # 日志配置
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: INFO
     volumes:
-      # 代码热重载
-      - .:/app
-      - /app/__pycache__
-      - /app/.pytest_cache
+      # 持久化上传文件
       - ./uploads:/app/uploads
+      # 持久化日志
       - ./logs:/app/logs
+      # 数据库迁移文件
+      - ./migrations:/app/migrations:ro
     depends_on:
       db:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - exam-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 volumes:
   postgres_data:
-    driver: local
-  redis_data:
     driver: local
 
 networks:
