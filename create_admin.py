@@ -14,7 +14,9 @@ from app.models import User
 
 def create_admin_user():
     """创建管理员用户"""
-    app = create_app('development')
+    # 使用环境变量或默认为 production
+    env = os.environ.get('FLASK_ENV', 'production')
+    app = create_app(env)
     
     with app.app_context():
         print("🔧 正在检查管理员用户...")

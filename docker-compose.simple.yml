@@ -48,7 +48,7 @@ services:
       FLASK_DEBUG: "false"
 
       # 数据库配置
-      DATABASE_URL: postgresql://examuser:exam_password_123456@db:5432/examdb
+      DATABASE_URL: postgresql://examuser:exam_password_123456@db:5432/examdb?sslmode=disable
 
       # 安全配置
       SECRET_KEY: dev-secret-key-for-local-use
