@@ -149,13 +149,11 @@ DATABASE_URL=sqlite:///exam_system.db
 # Redis 配置（可选）
 REDIS_URL=redis://localhost:6379/0
 
-# AI API 配置
-DEEPSEEK_API_KEY=your_deepseek_api_key
-OPENAI_API_KEY=your_openai_api_key
-
 # 文件上传配置
 MAX_CONTENT_LENGTH=52428800  # 50MB
 UPLOAD_FOLDER=uploads
+
+# 注意：AI API 配置（DeepSeek、OpenAI）在项目后台管理员界面配置，无需在此处配置
 ```
 
 **`.env.production` 生产环境配置**：
@@ -184,6 +182,8 @@ MAIL_USE_TLS=true
 MAIL_USERNAME=your_email@gmail.com
 MAIL_PASSWORD=your_app_password
 MAIL_DEFAULT_SENDER=noreply@example.com
+
+# 注意：AI API 配置（DeepSeek、OpenAI）在项目后台管理员界面配置，无需在此处配置
 ```
 
 ### Docker Compose 配置说明

@@ -75,12 +75,6 @@ services:
       # 安全配置
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-do-not-use-in-production}
 
-      # AI API 配置
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-
       # Redis 配置
       REDIS_URL: redis://redis:6379/0
 
