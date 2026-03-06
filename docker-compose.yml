@@ -5,14 +5,21 @@ services:
   db:
     image: postgres:14-alpine
     container_name: exam-postgres
-    command: postgres -c max_connections=200 -c shared_buffers=256MB -c ssl=off
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c ssl=off
+      -c listen_addresses='*'
+      -c hba_file=/etc/postgresql/pg_hba.conf
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-examdb}
       POSTGRES_USER: ${POSTGRES_USER:-examuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-exam_password_123456}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --auth-host=trust --auth-local=trust"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker-init-db/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     networks:
       - exam-network
     restart: unless-stopped
