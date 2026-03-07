@@ -44,12 +44,6 @@ def create_app(config_name='default'):
         # 禁用模板缓存
         app.config['TEMPLATES_AUTO_RELOAD'] = True
         app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-        
-        # 创建数据库表
-        with app.app_context():
-            # 导入模型以确保它们被注册
-            from . import models
-            db.create_all()
     
     return app
 
