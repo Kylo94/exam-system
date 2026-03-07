@@ -480,8 +480,8 @@ class AIDocumentParser:
                 max_tokens = 64000  # DeepSeek R1 reasoning模型支持64K输出
                 self._add_log(f"  检测到推理模型，使用max_tokens={max_tokens}", 'info')
             else:
-                # chat模型，使用配置中的值，但不超过8192
-                max_tokens = min(max_tokens_config, 8192)
+                # chat模型，使用配置中的值，不超过16K
+                max_tokens = min(max_tokens_config, 16000)
                 if max_tokens != max_tokens_config:
                     self._add_log(f"  Chat模型限制max_tokens为{max_tokens}（配置值: {max_tokens_config}）", 'info')
                 else:
@@ -851,7 +851,33 @@ class AIDocumentParser:
                     self._add_log(f"  JSON响应前200字符: {response[:200]}", 'info')
                     self._add_log(f"  JSON响应后200字符: {response[-200:]}", 'info')
 
-            # 步骤3: 尝试使用json5解析（更宽松）
+            # 步骤3: 尝试从截断的JSON中恢复数据
+            if not response.rstrip().endswith(']'):
+                self._add_log("  检测到JSON被截断，尝试恢复部分数据...", 'warning')
+                try:
+                    # 尝试修复截断的JSON：查找最后一个完整的对象
+                    last_complete = response.rfind('},')
+                    if last_complete > 0:
+                        truncated_response = response[:last_complete + 1] + ']'
+                        self._add_log(f"  尝试使用截断恢复的JSON（{len(truncated_response)}字符）", 'info')
+                        if HAS_JSON5:
+                            try:
+                                questions = json5.loads(truncated_response)
+                                self._add_log(f"  截断恢复成功！获得 {len(questions) if isinstance(questions, list) else 1} 道题目", 'success')
+                                return self._normalize_questions(questions)
+                            except Exception as e:
+                                self._add_log(f"  截断恢复失败: {str(e)[:100]}", 'warning')
+                        else:
+                            try:
+                                questions = json.loads(truncated_response)
+                                self._add_log(f"  截断恢复成功！获得 {len(questions) if isinstance(questions, list) else 1} 道题目", 'success')
+                                return self._normalize_questions(questions)
+                            except Exception as e:
+                                self._add_log(f"  截断恢复失败: {str(e)[:100]}", 'warning')
+                except Exception as e:
+                    self._add_log(f"  截断恢复过程出错: {str(e)[:100]}", 'warning')
+
+            # 步骤4: 尝试使用json5解析（更宽松）
             if HAS_JSON5:
                 try:
                     questions = json5.loads(response)
