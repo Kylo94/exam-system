@@ -199,9 +199,16 @@ class SubmissionService(BaseService[Submission]):
         
         # 判断是否及格
         submission.is_passed = submission.score_percentage >= exam.pass_score
-        
+
+        # 计算答题时长
+        if submission.started_at:
+            duration = now - submission.started_at
+            submission.duration_seconds = int(duration.total_seconds())
+        else:
+            submission.duration_seconds = 0
+
         self.db.session.commit()
-        
+
         return {
             'success': True,
             'submission_id': submission_id,
@@ -248,35 +255,39 @@ class SubmissionService(BaseService[Submission]):
     
     def get_submission_details(self, submission_id: int) -> Dict[str, Any]:
         """获取提交详情
-        
+
         Args:
             submission_id: 提交记录ID
-            
+
         Returns:
             提交详情字典
         """
         submission = self.get_by_id(submission_id)
         if not submission:
             raise ValueError(f"提交记录ID {submission_id} 不存在")
-        
+
+        # 状态检查：进行中的试卷无法获取详情
+        if submission.status == 'in_progress':
+            raise ValueError(f"考试正在进行中，暂时无法查看详情")
+
         # 获取考试信息
         exam = Exam.query.get(submission.exam_id)
-        
+
         # 获取答案列表
         answers = Answer.query.filter_by(submission_id=submission_id).all()
-        
+
         # 获取问题详情
         answer_details = []
         for answer in answers:
             from .question_service import QuestionService
             question_service = QuestionService(self.db)
             question_detail = question_service.get_question_with_options(answer.question_id)
-            
+
             answer_details.append({
                 'answer': answer,
                 'question': question_detail
             })
-        
+
         return {
             'submission': submission,
             'exam': exam,

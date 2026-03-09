@@ -318,18 +318,22 @@ def submission_result(submission_id):
         submission_service = SubmissionService(db)
         exam_service = ExamService(db)
         question_service = QuestionService(db)
-        
+
         submission = submission_service.get_by_id(submission_id)
         if not submission:
             return render_template('errors/404.html', message='提交记录不存在'), 404
-        
+
         # 权限检查：只有管理员、教师或记录的所有者可以查看
         current_user_obj = User.query.get(current_user.id)
         if current_user_obj and current_user_obj.role not in ['admin', 'teacher']:
             # 普通用户只能查看自己的记录
             if submission.user_id != current_user.id:
                 return render_template('errors/403.html', message='您没有权限查看此记录'), 403
-        
+
+        # 状态检查：进行中的试卷无法查看结果
+        if submission.status == 'in_progress':
+            return render_template('errors/403.html', message='考试正在进行中，暂时无法查看结果'), 403
+
         exam = exam_service.get_by_id(submission.exam_id)
         if not exam:
             return render_template('errors/404.html', message='考试不存在'), 404
@@ -364,12 +368,12 @@ def submission_result(submission_id):
         incorrect_count = sum(1 for a in all_answers if not a.is_correct and a.user_answer)
         unanswered_count = sum(1 for a in all_answers if not a.user_answer)
         
-        # 计算平均得分
-        if len(all_answers) > 0:
-            average_score = submission.obtained_score / len(all_answers)
+        # 计算得分率（得分/总分）
+        if submission.total_score and float(submission.total_score) > 0:
+            score_rate = float(submission.obtained_score) / float(submission.total_score)
         else:
-            average_score = 0
-        
+            score_rate = 0
+
         # 按题型统计
         type_stats = {}
         for answer in all_answers:
@@ -402,7 +406,7 @@ def submission_result(submission_id):
             correct_count=correct_count,
             incorrect_count=incorrect_count,
             unanswered_count=unanswered_count,
-            average_score=average_score,
+            average_score=score_rate,
             type_stats=sorted(type_stats.values(), key=lambda x: x['correct_percentage'], reverse=True),
             weak_types=weak_types
         )

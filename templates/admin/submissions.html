@@ -65,9 +65,11 @@
                                 <td>{{ submission.submit_time.strftime('%Y-%m-%d %H:%M') if submission.submit_time else '未知' }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
+                                        {% if submission.status != 'in_progress' %}
                                         <a href="{{ url_for('main.submission_result', submission_id=submission.id) }}" class="btn btn-outline-primary">
                                             <i class="bi bi-eye"></i>查看详情
                                         </a>
+                                        {% endif %}
                                         <button class="btn btn-outline-danger" onclick="deleteSubmission({{ submission.id }})">
                                             <i class="bi bi-trash"></i>
                                         </button>

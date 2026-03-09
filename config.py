@@ -32,7 +32,7 @@ class Config:
     OPENAI_BASE_URL = os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1')
     
     # 应用配置
-    APP_NAME = os.environ.get('APP_NAME', '在线答题系统 v3.0')
+    APP_NAME = os.environ.get('APP_NAME', '在线答题系统 v3.1')
     
     @staticmethod
     def init_app(app):
