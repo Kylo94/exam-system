@@ -2,6 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 from flask.views import MethodView
+from flask_login import login_required
 
 from app.services import LevelService
 from .base import BaseResource
@@ -172,6 +173,7 @@ levels_bp.add_url_rule(
 
 # 额外路由
 @levels_bp.route('/levels/active', methods=['GET'])
+@login_required
 def get_active_levels():
     """获取所有活跃难度级别"""
     try:
@@ -199,6 +201,7 @@ def get_active_levels():
 
 
 @levels_bp.route('/levels/by-subject/<int:subject_id>', methods=['GET'])
+@login_required
 def get_levels_by_subject(subject_id):
     """根据科目获取难度级别列表"""
     try:

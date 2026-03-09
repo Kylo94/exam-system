@@ -2,6 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 from flask.views import MethodView
+from flask_login import login_required
 
 from app.services import SubjectService, LevelService
 from app.models import Level
@@ -182,6 +183,7 @@ subjects_bp.add_url_rule(
 
 # 额外路由
 @subjects_bp.route('/subjects/active', methods=['GET'])
+@login_required
 def get_active_subjects():
     """获取所有活跃科目"""
     try:

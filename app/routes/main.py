@@ -115,18 +115,21 @@ def dashboard():
 
 
 @main_bp.route('/exams')
+@login_required
 def exams_page():
     """考试页面（已废弃，重定向到真题测试）"""
     return redirect(url_for('main.exam_select_page'))
 
 
 @main_bp.route('/exam-select')
+@login_required
 def exam_select_page():
     """真题测试页面 - 科目-等级-试卷选择"""
     return render_template('student_home.html', current_step=1)
 
 
 @main_bp.route('/exams/<int:exam_id>')
+@login_required
 def exam_detail(exam_id):
     """考试详情页面"""
     try:
@@ -135,16 +138,17 @@ def exam_detail(exam_id):
 
         service = ExamService(db)
         exam = service.get_by_id(exam_id)
-        
+
         if not exam:
             return render_template('errors/404.html', message='考试不存在'), 404
-        
+
         return render_template('exam/detail.html', exam=exam)
     except Exception as e:
         return render_template('errors/500.html', message=str(e)), 500
 
 
 @main_bp.route('/exams/<int:exam_id>/edit')
+@login_required
 def exam_edit(exam_id):
     """考试编辑页面"""
     try:
@@ -153,16 +157,23 @@ def exam_edit(exam_id):
 
         service = ExamService(db)
         exam = service.get_by_id(exam_id)
-        
+
         if not exam:
             return render_template('errors/404.html', message='考试不存在'), 404
-        
+
+        # 权限检查：只有管理员可以编辑考试
+        from app.models import User
+        current_user_obj = User.query.get(current_user.id)
+        if not current_user_obj or current_user_obj.role != 'admin':
+            return render_template('errors/403.html', message='您没有权限编辑考试'), 403
+
         return render_template('exam/edit.html', exam=exam)
     except Exception as e:
         return render_template('errors/500.html', message=str(e)), 500
 
 
 @main_bp.route('/exams/<int:exam_id>/start', methods=['GET', 'POST'])
+@login_required
 def start_exam(exam_id):
     """开始考试"""
     try:
@@ -172,12 +183,12 @@ def start_exam(exam_id):
 
         exam_service = ExamService(db)
         exam = exam_service.get_by_id(exam_id)
-        
+
         if not exam:
             return render_template('errors/404.html', message='考试不存在'), 404
-        
-        # 检查是否可以开始考试
-        user_id = current_user.id if current_user.is_authenticated else 1
+
+        # 使用当前登录用户的ID
+        user_id = current_user.id
         can_start = exam_service.can_start_exam(exam_id, user_id)
 
         if not can_start['can_start']:
@@ -202,7 +213,7 @@ def start_exam(exam_id):
             )
 
             return redirect(url_for('main.take_exam', submission_id=submission.id))
-        
+
         return render_template('exam/start.html', exam=exam)
     except Exception as e:
         return render_template('errors/500.html', message=str(e)), 500
@@ -285,14 +296,10 @@ def submission_detail(submission_id):
 
 
 @main_bp.route('/my-submissions')
+@login_required
 def my_submissions():
     """我的考试记录页面"""
     try:
-        from flask_login import current_user
-        
-        if not current_user.is_authenticated:
-            return redirect(url_for('auth.login_page'))
-        
         return render_template('submission/my_submissions.html')
     except Exception as e:
         return render_template('errors/500.html', message=str(e)), 500
@@ -404,12 +411,14 @@ def submission_result(submission_id):
 
 
 @main_bp.route('/subjects')
+@login_required
 def subjects_page():
     """科目管理页面"""
     return render_template('subjects.html')
 
 
 @main_bp.route('/subjects/<int:subject_id>/levels')
+@login_required
 def subject_levels_page(subject_id):
     """科目等级管理页面"""
     from app.models import Subject
@@ -422,24 +431,28 @@ def subject_levels_page(subject_id):
 
 
 @main_bp.route('/levels')
+@login_required
 def levels_page():
     """难度级别管理页面（已废弃，请使用科目等级管理）"""
     return render_template('levels.html')
 
 
 @main_bp.route('/questions')
+@login_required
 def questions_page():
     """问题管理页面（已重定向到admin路由）"""
     return redirect(url_for('admin.questions_page'))
 
 
 @main_bp.route('/questions/create')
+@login_required
 def create_question_page():
     """创建题目页面（已重定向到admin路由）"""
     return redirect(url_for('admin.create_question_page'))
 
 
 @main_bp.route('/questions/<int:question_id>/edit')
+@login_required
 def edit_question_page(question_id):
     """编辑题目页面（已重定向到admin路由）"""
     return redirect(url_for('admin.edit_question_page', question_id=question_id))
@@ -480,18 +493,21 @@ def exam_manage_page():
 
 
 @main_bp.route('/submissions')
+@login_required
 def submissions_page():
     """提交记录页面（已重定向到admin路由）"""
     return redirect(url_for('admin.submissions_page'))
 
 
 @main_bp.route('/ai-configs')
+@login_required
 def ai_configs_page():
     """AI配置管理页面"""
     return render_template('ai_configs.html')
 
 
 @main_bp.route('/practice')
+@login_required
 def practice_page():
     """专项刷题页面"""
     return render_template('practice/index.html')
@@ -515,6 +531,7 @@ def health_check():
 
 
 @main_bp.route('/api/info')
+@login_required
 def system_info():
     """系统信息接口"""
     from app.models import Subject, Level, Exam, Question, Submission, Answer
@@ -542,8 +559,9 @@ def system_info():
 
 
 @main_bp.route('/api/subjects', methods=['GET'])
+@login_required
 def api_subjects():
-    """获取科目列表（公开接口）"""
+    """获取科目列表（需要登录）"""
     from app.models import Subject
     from app.extensions import db
 
