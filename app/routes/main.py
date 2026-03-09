@@ -209,11 +209,14 @@ def start_exam(exam_id):
 
 
 @main_bp.route('/exam/<int:submission_id>')
+@login_required
 def take_exam(submission_id):
     """答题页面"""
     try:
         from app.services import SubmissionService, ExamService, QuestionService
         from app.extensions import db
+        from app.models import User
+        from flask_login import current_user
 
         submission_service = SubmissionService(db)
         exam_service = ExamService(db)
@@ -222,6 +225,13 @@ def take_exam(submission_id):
         submission = submission_service.get_by_id(submission_id)
         if not submission:
             return render_template('errors/404.html', message='考试记录不存在'), 404
+        
+        # 权限检查：只有管理员、教师或记录的所有者可以参加考试
+        current_user_obj = User.query.get(current_user.id)
+        if current_user_obj and current_user_obj.role not in ['admin', 'teacher']:
+            # 普通用户只能参加自己的考试
+            if submission.user_id != current_user.id:
+                return render_template('errors/403.html', message='您没有权限参加此考试'), 403
         
         exam = exam_service.get_by_id(submission.exam_id)
         if not exam:
@@ -241,11 +251,14 @@ def take_exam(submission_id):
 
 
 @main_bp.route('/submissions/<int:submission_id>')
+@login_required
 def submission_detail(submission_id):
     """提交记录详情页面"""
     try:
         from app.services import SubmissionService, AnswerService
         from app.extensions import db
+        from app.models import User
+        from flask_login import current_user
 
         submission_service = SubmissionService(db)
         answer_service = AnswerService(db)
@@ -253,6 +266,13 @@ def submission_detail(submission_id):
         submission = submission_service.get_by_id(submission_id)
         if not submission:
             return render_template('errors/404.html', message='提交记录不存在'), 404
+        
+        # 权限检查：只有管理员、教师或记录的所有者可以查看
+        current_user_obj = User.query.get(current_user.id)
+        if current_user_obj and current_user_obj.role not in ['admin', 'teacher']:
+            # 普通用户只能查看自己的记录
+            if submission.user_id != current_user.id:
+                return render_template('errors/403.html', message='您没有权限查看此记录'), 403
         
         answers = answer_service.get_by_submission_id(submission_id)
         
@@ -279,12 +299,14 @@ def my_submissions():
 
 
 @main_bp.route('/submission/<int:submission_id>/result')
+@login_required
 def submission_result(submission_id):
     """考试结果页面"""
     try:
         from app.services import SubmissionService, AnswerService, ExamService, QuestionService
         from app.extensions import db
-        from app.models import Question, Answer
+        from app.models import Question, Answer, User
+        from flask_login import current_user
 
         submission_service = SubmissionService(db)
         exam_service = ExamService(db)
@@ -293,6 +315,13 @@ def submission_result(submission_id):
         submission = submission_service.get_by_id(submission_id)
         if not submission:
             return render_template('errors/404.html', message='提交记录不存在'), 404
+        
+        # 权限检查：只有管理员、教师或记录的所有者可以查看
+        current_user_obj = User.query.get(current_user.id)
+        if current_user_obj and current_user_obj.role not in ['admin', 'teacher']:
+            # 普通用户只能查看自己的记录
+            if submission.user_id != current_user.id:
+                return render_template('errors/403.html', message='您没有权限查看此记录'), 403
         
         exam = exam_service.get_by_id(submission.exam_id)
         if not exam:

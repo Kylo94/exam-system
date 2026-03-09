@@ -2,6 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 from flask.views import MethodView
+from flask_login import current_user
 
 from app.services import SubmissionService, ExamService
 from .base import BaseResource
@@ -14,7 +15,7 @@ class SubmissionResource(BaseResource):
     
     def get(self, submission_id=None):
         """获取提交记录
-        
+
         GET /api/submissions - 获取所有提交记录
         GET /api/submissions/<id> - 获取指定提交记录
         """
@@ -22,17 +23,38 @@ class SubmissionResource(BaseResource):
             if submission_id is None:
                 # 获取所有提交记录
                 params = self.parse_query_params()
-                
+
                 # 构建过滤条件
                 exam_id = request.args.get('exam_id', type=int)
                 user_id = request.args.get('user_id', type=int)
                 status = request.args.get('status')
-                
+
+                # 如果没有指定user_id，且当前用户已登录，则默认只查看自己的记录
+                # 管理员和教师可以查看所有记录（需要检查权限）
+                if user_id is None and current_user.is_authenticated:
+                    # 检查当前用户是否为管理员或教师
+                    from app.models import User
+                    user = User.query.get(current_user.id)
+                    if user and user.role in ['admin', 'teacher']:
+                        # 管理员和教师可以查看所有记录，不需要user_id过滤
+                        pass
+                    else:
+                        # 普通用户只能查看自己的记录
+                        user_id = current_user.id
+
                 # 获取数据
                 if exam_id and user_id:
                     submissions = self.get_service().get_user_exam_submissions(user_id, exam_id)
                 elif exam_id:
-                    submissions = self.get_service().get_by_exam_id(exam_id)
+                    # 如果指定了exam_id但没有user_id，需要检查权限
+                    # 管理员和教师可以查看某次考试的所有记录
+                    from app.models import User
+                    user = User.query.get(current_user.id)
+                    if user and user.role in ['admin', 'teacher']:
+                        submissions = self.get_service().get_by_exam_id(exam_id)
+                    else:
+                        # 普通用户需要user_id过滤
+                        submissions = self.get_service().get_user_exam_submissions(current_user.id, exam_id)
                 elif user_id:
                     submissions = self.get_service().get_by_user_id(user_id)
                 else:
@@ -40,10 +62,10 @@ class SubmissionResource(BaseResource):
                         skip=params['skip'],
                         limit=params['limit']
                     )
-                
+
                 # 转换数据
                 items = [self._serialize_submission_with_exam(s) for s in submissions]
-                
+
                 return self.paginated_response(
                     items=items,
                     total=len(submissions),
@@ -56,12 +78,21 @@ class SubmissionResource(BaseResource):
                 if not submission:
                     from app.utils.error_handlers import NotFoundError
                     raise NotFoundError(f"提交记录ID {submission_id} 不存在")
-                
+
+                # 权限检查：只有管理员、教师或记录的所有者可以查看
+                from app.models import User
+                user = User.query.get(current_user.id)
+                if user and user.role not in ['admin', 'teacher']:
+                    # 普通用户只能查看自己的记录
+                    if submission.user_id != current_user.id:
+                        from app.utils.error_handlers import ForbiddenError
+                        raise ForbiddenError("您没有权限查看此记录")
+
                 # 获取详细数据
                 details = self.get_service().get_submission_details(submission_id)
-                
+
                 return self.success_response(details)
-                
+
         except Exception as e:
             return self.handle_exception(e)
     
