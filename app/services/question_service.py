@@ -465,9 +465,28 @@ class QuestionService(BaseService[Question]):
                 score = question.points if is_correct else 0
 
             elif question.type == 'true_false':
-                correct_answer = question.correct_answer.lower() == 'true'
-                user_bool = str(user_answer).lower() == 'true'
-                is_correct = user_bool == correct_answer
+                # 判断题答案可能是: 'true', 'false', '正确', '错误'
+                # 将正确答案转换为布尔值
+                correct_lower = question.correct_answer.strip().lower()
+                if correct_lower == 'true' or correct_lower == '正确':
+                    correct_bool = True
+                elif correct_lower == 'false' or correct_lower == '错误':
+                    correct_bool = False
+                else:
+                    # 如果无法识别，默认为False
+                    correct_bool = False
+
+                # 将用户答案转换为布尔值
+                user_lower = str(user_answer).strip().lower()
+                if user_lower == 'true' or user_lower == '正确':
+                    user_bool = True
+                elif user_lower == 'false' or user_lower == '错误':
+                    user_bool = False
+                else:
+                    # 如果无法识别，默认为False
+                    user_bool = False
+
+                is_correct = user_bool == correct_bool
                 score = question.points if is_correct else 0
 
             elif question.type in ['fill_blank', 'short_answer']:

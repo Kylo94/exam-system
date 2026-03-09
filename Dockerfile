@@ -27,11 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir gunicorn
 
 # 复制应用代码
-COPY app/ ./app/
-COPY migrations/ ./migrations/
-COPY static/ ./static/
-COPY templates/ ./templates/
-COPY requirements.txt run.py wsgi.py config.py ./
+COPY . .
 
 # 创建必要的目录
 RUN mkdir -p uploads logs instance

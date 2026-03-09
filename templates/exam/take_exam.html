@@ -184,7 +184,7 @@
                     
                     <!-- 题目内容 -->
                     <div class="question-content mb-4">
-                        <p class="card-text">{{ question.content|safe }}</p>
+                        <p class="card-text" style="white-space: pre-wrap;">{{ question.content|safe }}</p>
 
                         {% if question.has_image %}
                         <div class="mt-3 mb-3">
@@ -321,14 +321,16 @@
                     <div class="mt-4 pt-3 border-top d-flex justify-content-between">
                         <div>
                             {% if not loop.first %}
-                            <a href="#question-{{ exam.questions[loop.index-2].id }}" class="btn btn-outline-secondary btn-sm">
+                            <a href="#question-{{ exam.questions[loop.index-2].id }}" class="btn btn-outline-secondary btn-sm"
+                               onclick="event.preventDefault(); scrollToQuestion({{ loop.index-1 }}, {{ exam.questions[loop.index-2].id }});">
                                 <i class="bi bi-arrow-up me-1"></i>上一题
                             </a>
                             {% endif %}
                         </div>
                         <div>
                             {% if not loop.last %}
-                            <a href="#question-{{ exam.questions[loop.index].id }}" class="btn btn-outline-primary btn-sm">
+                            <a href="#question-{{ exam.questions[loop.index].id }}" class="btn btn-outline-primary btn-sm"
+                               onclick="event.preventDefault(); scrollToQuestion({{ loop.index+1 }}, {{ exam.questions[loop.index].id }});">
                                 下一题 <i class="bi bi-arrow-down ms-1"></i>
                             </a>
                             {% endif %}
@@ -382,9 +384,10 @@
             <!-- 题目导航 -->
             <div id="questionNav" class="d-flex flex-wrap gap-1">
                 {% for question in (exam.questions or []) %}
-                <div class="question-nav-item" id="nav-{{ question.id }}"
+                <div class="question-nav-item" id="nav-{{ loop.index }}"
                      data-question-id="{{ question.id }}"
-                     onclick="scrollToQuestion({{ question.id }})"
+                     data-question-index="{{ loop.index }}"
+                     onclick="scrollToQuestion({{ loop.index }}, {{ question.id }})"
                      style="width: 32px; height: 32px; font-size: 0.8rem;">
                     {{ loop.index }}
                 </div>
@@ -719,7 +722,12 @@
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         const questionId = entry.target.id.replace('question-', '');
-                        updateCurrentQuestion(parseInt(questionId));
+                        // 找到对应题目的索引
+                        const navItem = document.querySelector(`.question-nav-item[data-question-id="${questionId}"]`);
+                        if (navItem) {
+                            const questionIndex = navItem.dataset.questionIndex;
+                            updateCurrentQuestion(parseInt(questionIndex));
+                        }
                     }
                 });
             }, { threshold: 0.3 });
@@ -837,18 +845,29 @@
             sheet.classList.toggle('show');
         }
 
-        function scrollToQuestion(questionId) {
+        function scrollToQuestion(questionIndex, questionId) {
             const questionCard = document.getElementById(`question-${questionId}`);
             if (questionCard) {
                 questionCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                updateCurrentQuestion(questionId);
+                updateCurrentQuestion(questionIndex);
             }
         }
 
         function updateAnswerSheet() {
+            // 建立题号到答案的映射（因为前端用loop.index作为索引，但userAnswers用question.id作为key）
+            const indexToAnswerMap = {};
+            document.querySelectorAll('.question-nav-item').forEach(item => {
+                const questionId = parseInt(item.dataset.questionId);
+                const questionIndex = item.dataset.questionIndex;
+                if (questionId && userAnswers[questionId]) {
+                    indexToAnswerMap[questionIndex] = userAnswers[questionId];
+                }
+            });
+
             // 更新每道题的状态
             document.querySelectorAll('.question-nav-item').forEach(item => {
                 const questionId = parseInt(item.dataset.questionId);
+                const questionIndex = item.dataset.questionIndex;
                 const hasAnswer = questionId in userAnswers && userAnswers[questionId];
                 const isMarked = markedQuestions.has(questionId);
 
@@ -877,14 +896,14 @@
             document.getElementById('markedStat').textContent = marked;
         }
 
-        function updateCurrentQuestion(questionId) {
+        function updateCurrentQuestion(questionIndex) {
             // 移除所有current类
             document.querySelectorAll('.question-nav-item').forEach(item => {
                 item.classList.remove('current');
             });
 
-            // 为当前题目添加current类
-            const currentItem = document.querySelector(`.question-nav-item[data-question-id="${questionId}"]`);
+            // 为当前题目添加current类（使用索引查找）
+            const currentItem = document.querySelector(`.question-nav-item[data-question-index="${questionIndex}"]`);
             if (currentItem) {
                 currentItem.classList.add('current');
             }
