@@ -125,7 +125,7 @@
                             {% for sub in recent_submissions %}
                             <div class="list-group-item recent-submission border-0 px-0 py-3 cursor-pointer"
                                  {% if sub.status == 'in_progress' %}
-                                 onclick="window.location.href='/exam/{{ sub.exam_id }}'"
+                                 onclick="window.location.href='/exam/{{ sub.id }}'"
                                  {% else %}
                                  onclick="window.location.href='/submission/{{ sub.id }}/result'"
                                  {% endif %}>
