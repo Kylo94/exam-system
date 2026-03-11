@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     curl \
     libpq-dev \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
@@ -35,12 +36,18 @@ RUN mkdir -p uploads logs instance
 # 设置权限
 RUN chmod -R 755 uploads logs instance
 
+# 设置 entrypoint 脚本可执行权限
+RUN chmod +x entrypoint.sh
+
 # 暴露端口
 EXPOSE 5002
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c \"from app import create_app; app = create_app('production'); test_client = app.test_client(); test_client.get('/').status_code == 200\" || exit 1
+
+# 使用 entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # 启动应用
 CMD ["gunicorn", "--bind", "0.0.0.0:5002", "--workers", "2", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "--log-level", "info", "wsgi:app"]

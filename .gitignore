@@ -49,14 +49,20 @@ instance/
 uploads/
 *.log
 .env
+.env.production
 
 # Testing
 .coverage
 htmlcov/
 .pytest_cache/
-.mypy_cache/
+.mypy_cache
 
 # Database migrations (Alembic)
-migrations/versions/*.py
-!migrations/versions/.gitkeep
+# 注意：migrations/versions/*.py 应该提交到 Git
+# 只有 .pyc 文件应该被忽略
+migrations/versions/*.pyc
 *.pid
+
+# Docker
+postgres_data/
+postgres_data_prod/

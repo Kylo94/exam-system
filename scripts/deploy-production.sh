@@ -161,36 +161,7 @@ init_database() {
 
     # 创建管理员账号（如果不存在）
     log_info "检查管理员账号..."
-    docker-compose -f docker-compose.prod.yml run --rm web python -c "
-from app import create_app, db
-from app.models.user import User
-import sys
-
-app = create_app()
-with app.app_context():
-    admin = User.query.filter_by(username='admin').first()
-    if not admin:
-        try:
-            admin = User(
-                username='admin',
-                email='admin@example.com',
-                password='admin',
-                role='admin',
-                is_active=True
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print('管理员账号创建成功')
-            print('用户名: admin')
-            print('密码: admin')
-            print('邮箱: admin@example.com')
-            print('⚠️  请立即登录并修改密码！')
-        except Exception as e:
-            print(f'创建管理员失败: {e}', file=sys.stderr)
-            sys.exit(1)
-    else:
-        print('管理员账号已存在')
-"
+    docker-compose -f docker-compose.prod.yml run --rm web python create_admin.py
 
     log_success "数据库初始化完成"
 }

@@ -41,6 +41,20 @@ with app.app_context():
 "
 fi
 
+# 运行数据库迁移
+echo "🔄 运行数据库迁移..."
+python -c "
+import os
+from dotenv import load_dotenv
+load_dotenv('.env.production')
+import subprocess
+result = subprocess.run(['flask', 'db', 'upgrade'], capture_output=True, text=True)
+if result.returncode == 0:
+    print('数据库迁移完成')
+else:
+    print('数据库迁移失败或无需迁移')
+" 2>/dev/null
+
 # 检查管理员账户
 echo "👤 检查管理员账户..."
 python -c "
