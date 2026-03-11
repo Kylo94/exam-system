@@ -6,12 +6,12 @@ load_dotenv()
 
 class Config:
     """基础配置类"""
-    
+
     # Flask配置
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     DEBUG = False
     TESTING = False
-    
+
     # 数据库配置
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///exam_system.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -19,21 +19,26 @@ class Config:
         'pool_recycle': 300,
         'pool_pre_ping': True,
     }
-    
+
+    # 管理员配置
+    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin')
+    ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
+
     # 文件上传配置
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16777216))  # 16MB
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
     ALLOWED_EXTENSIONS = {'.docx', '.pdf', '.txt'}
-    
+
     # AI配置
     DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
     DEEPSEEK_BASE_URL = os.environ.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     OPENAI_BASE_URL = os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1')
-    
+
     # 应用配置
     APP_NAME = os.environ.get('APP_NAME', '在线答题系统 v3.1')
-    
+
     @staticmethod
     def init_app(app):
         """初始化应用配置"""

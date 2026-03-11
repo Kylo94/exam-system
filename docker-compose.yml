@@ -1,14 +1,9 @@
+version: '3.8'
+
 services:
-  # PostgreSQL 数据库
   db:
     image: postgres:14-alpine
-    container_name: exam-postgres
-    command: >
-      postgres
-      -c max_connections=200
-      -c shared_buffers=256MB
-      -c ssl=off
-      -c listen_addresses='*'
+    container_name: exam-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-examdb}
       POSTGRES_USER: ${POSTGRES_USER:-examuser}
@@ -20,43 +15,41 @@ services:
       - exam-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U examuser -d examdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-examuser} -d ${POSTGRES_DB:-examdb}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  # Flask Web 应用
   web:
     build: .
     image: exam-system:latest
     container_name: exam-web
-    command: gunicorn --bind 0.0.0.0:5002 --workers 2 --threads 2 --worker-class sync --timeout 120 --access-logfile - --error-logfile - wsgi:app
     ports:
       - "5002:5002"
     environment:
       # Flask 配置
       FLASK_ENV: production
       FLASK_DEBUG: "false"
+      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}
 
       # 数据库配置
       DATABASE_URL: postgresql://${POSTGRES_USER:-examuser}:${POSTGRES_PASSWORD:-exam_password_123456}@db:5432/${POSTGRES_DB:-examdb}
 
-      # 安全配置
-      SECRET_KEY: dev-secret-key-for-local-use
+      # 管理员配置
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
 
       # 文件上传配置
-      MAX_CONTENT_LENGTH: 52428800
+      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-52428800}
       UPLOAD_FOLDER: /app/uploads
 
       # 日志配置
-      LOG_LEVEL: INFO
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     volumes:
-      # 持久化上传文件
       - ./uploads:/app/uploads
-      # 持久化日志
       - ./logs:/app/logs
-      # 数据库迁移文件
       - ./migrations:/app/migrations
     depends_on:
       db:

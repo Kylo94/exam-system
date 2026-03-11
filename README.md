@@ -42,39 +42,28 @@
 git clone https://github.com/Kylo94/exam-system.git
 cd exam-system
 
-# 2. 配置环境变量
+# 2. 配置环境变量（使用默认配置）
 cp .env.example .env
 
-# 3. 构建镜像
-./scripts/build-image.sh dev
-
-# 4. 启动服务
+# 3. 启动服务
 docker-compose up -d
 
-# 5. 访问应用
+# 4. 访问应用
 # http://localhost:5002
 ```
 
 #### 生产环境
 ```bash
-# 1. 配置生产环境变量
-cp .env.production .env
-# 编辑 .env 文件，修改密钥和密码
+# 1. 设置环境变量（推荐）
+export SECRET_KEY="your-secret-key"
+export ADMIN_PASSWORD="your-admin-password"
+export POSTGRES_PASSWORD="your-db-password"
 
-# 2. 构建镜像
-./scripts/build-image.sh prod
+# 2. 启动服务
+docker-compose up -d
 
-# 3. 启动服务
-docker-compose -f docker-compose.prod.yml up -d
-
-# 4. 初始化数据库
-docker-compose -f docker-compose.prod.yml exec web flask db upgrade
-
-# 5. 创建管理员账户
-docker-compose -f docker-compose.prod.yml exec web python create_admin.py
-
-# 6. 访问应用
-# http://localhost:80
+# 3. 访问应用
+# http://localhost:5002
 ```
 
 ### 本地开发
@@ -88,18 +77,16 @@ source venv/bin/activate  # Linux/macOS
 # 2. 安装依赖
 pip install -r requirements.txt
 
-# 3. 配置环境变量
+# 3. 配置环境变量（使用默认配置）
 cp .env.example .env
 
-# 4. 初始化数据库
-flask db upgrade
-
-# 5. 创建管理员
-python create_admin.py
-
-# 6. 启动开发服务器
-flask run --host=0.0.0.0 --port=5002
+# 4. 启动开发服务器（自动初始化数据库和管理员）
+python run.py
 ```
+
+系统首次启动时会自动完成以下操作：
+- 检查并创建数据库表
+- 自动创建管理员账户
 
 ## 文档
 
@@ -121,26 +108,26 @@ flask run --host=0.0.0.0 --port=5002
 
 ## 默认账号密码
 
-首次部署需要创建管理员账户：
+系统首次启动时会自动创建管理员账户：
 
+默认配置：
+- **管理员用户名**: `admin`（通过 `ADMIN_USERNAME` 环境变量配置）
+- **管理员密码**: `admin`（通过 `ADMIN_PASSWORD` 环境变量配置）
+- **管理员邮箱**: `admin@example.com`（通过 `ADMIN_EMAIL` 环境变量配置）
+
+生产环境部署示例：
 ```bash
-# 使用创建脚本
-python create_admin.py
+docker run -d \
+  -e SECRET_KEY="your-secret-key" \
+  -e ADMIN_USERNAME="admin" \
+  -e ADMIN_PASSWORD="your-secure-password" \
+  -e ADMIN_EMAIL="admin@example.com" \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
+  -p 5002:5002 \
+  exam-system:latest
 ```
 
-输入示例：
-```
-用户名: admin
-邮箱: admin@example.com
-密码: your_password
-```
-
-系统默认配置：
-- **数据库用户**: `examuser`
-- **数据库名称**: `examdb`
-- **数据库密码**: 开发环境 `exam_password_123456` / 生产环境需自定义
-
-⚠️ **生产环境必须修改所有默认密码！**
+⚠️ **生产环境必须通过环境变量修改默认密码！**
 
 ## 技术栈
 
