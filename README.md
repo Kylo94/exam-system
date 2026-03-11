@@ -1,4 +1,4 @@
-# 在线答题系统 v1.1.0
+# 在线答题系统 v2.0.0
 
 基于 Flask 的模块化、可扩展的在线答题系统，支持 Word 文档上传、AI 智能解析、多题型自动判卷。
 
@@ -26,6 +26,7 @@
 - **错误处理**：统一的异常处理机制
 - **易于扩展**：插件式解析器、判卷器设计
 - **容器化部署**：完整的 Docker 支持，一键部署
+- **自动初始化**：启动时自动创建数据库和管理员账户
 
 ## 快速开始
 
@@ -34,89 +35,84 @@
 - Docker 20.10+
 - Docker Compose 2.0+
 
-### 一键部署
+### Docker 部署（推荐）
 
-#### 开发环境
+#### 方式一：使用 docker-compose
+
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/Kylo94/exam-system.git
 cd exam-system
 
-# 2. 配置环境变量（使用默认配置）
+# 2. 配置环境变量
 cp .env.example .env
+# 编辑 .env 修改 SECRET_KEY、ADMIN_PASSWORD、POSTGRES_PASSWORD 等敏感配置
 
-# 3. 启动服务
+# 3. 启动服务（自动初始化数据库和管理员）
 docker-compose up -d
 
 # 4. 访问应用
 # http://localhost:5002
 ```
 
-#### 生产环境
+#### 方式二：使用 Docker Hub
+
 ```bash
-# 1. 设置环境变量（推荐）
-export SECRET_KEY="your-secret-key"
-export ADMIN_PASSWORD="your-admin-password"
-export POSTGRES_PASSWORD="your-db-password"
-
-# 2. 启动服务
-docker-compose up -d
-
-# 3. 访问应用
-# http://localhost:5002
+# 命令行传递环境变量
+docker run -d \
+  -e SECRET_KEY="$(openssl rand -base64 32)" \
+  -e ADMIN_USERNAME="admin" \
+  -e ADMIN_PASSWORD="your-secure-password" \
+  -e ADMIN_EMAIL="admin@example.com" \
+  -e DATABASE_URL="postgresql://user:password@host:5432/dbname" \
+  -p 5002:5002 \
+  your-username/exam-system:latest
 ```
 
 ### 本地开发
 
 ```bash
-# 1. 创建虚拟环境
+# 1. 克隆仓库
+git clone https://github.com/Kylo94/exam-system.git
+cd exam-system
+
+# 2. 创建虚拟环境
 python -m venv venv
 source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate  # Windows
 
-# 2. 安装依赖
+# 3. 安装依赖
 pip install -r requirements.txt
 
-# 3. 配置环境变量（使用默认配置）
+# 4. 配置环境变量
 cp .env.example .env
+# 修改 .env: FLASK_ENV=development, FLASK_DEBUG=true, DATABASE_URL=sqlite:///instance/exam.db
 
-# 4. 启动开发服务器（自动初始化数据库和管理员）
+# 5. 启动开发服务器（自动初始化数据库和管理员）
 python run.py
 ```
 
+### 系统初始化
+
 系统首次启动时会自动完成以下操作：
-- 检查并创建数据库表
-- 自动创建管理员账户
+- ✅ 检查并创建数据库表
+- ✅ 执行数据库迁移
+- ✅ 自动创建管理员账户
 
-## 文档
-
-- **[部署指南](docs/DEPLOYMENT_GUIDE.md)** - 完整的部署说明（推荐）
-  - 环境准备
-  - 开发/生产环境部署
-  - 数据库配置
-  - 默认账号密码
-  - 常用命令
-  - 故障排查
-
-- **[生产环境部署](docs/PRODUCTION_DEPLOYMENT.md)** - 生产环境详细部署
-  - Nginx 配置
-  - SSL 证书配置
-  - 性能优化
-  - 监控和日志
-
-- **[版本更新记录](docs/CHANGELOG.md)** - 版本历史和更新内容
+无需手动初始化！
 
 ## 默认账号密码
 
 系统首次启动时会自动创建管理员账户：
 
-默认配置：
-- **管理员用户名**: `admin`（通过 `ADMIN_USERNAME` 环境变量配置）
-- **管理员密码**: `admin`（通过 `ADMIN_PASSWORD` 环境变量配置）
-- **管理员邮箱**: `admin@example.com`（通过 `ADMIN_EMAIL` 环境变量配置）
+**默认配置**：
+- **管理员用户名**: `admin`（可通过 `ADMIN_USERNAME` 环境变量配置）
+- **管理员密码**: `admin`（可通过 `ADMIN_PASSWORD` 环境变量配置）
+- **管理员邮箱**: `admin@example.com`（可通过 `ADMIN_EMAIL` 环境变量配置）
 
-生产环境部署示例：
+**生产环境部署示例**：
 ```bash
+# 方式一：命令行传递环境变量
 docker run -d \
   -e SECRET_KEY="your-secret-key" \
   -e ADMIN_USERNAME="admin" \
@@ -124,10 +120,63 @@ docker run -d \
   -e ADMIN_EMAIL="admin@example.com" \
   -e DATABASE_URL="postgresql://user:pass@host:5432/db" \
   -p 5002:5002 \
-  exam-system:latest
+  your-username/exam-system:latest
+
+# 方式二：使用 .env 文件
+cat > .env << 'EOF'
+SECRET_KEY=your-secret-key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-password
+ADMIN_EMAIL=admin@example.com
+DATABASE_URL=postgresql://user:password@db:5432/examdb
+POSTGRES_PASSWORD=your-db-password
+EOF
+
+docker run -d --env-file .env -p 5002:5002 your-username/exam-system:latest
 ```
 
 ⚠️ **生产环境必须通过环境变量修改默认密码！**
+
+## 环境变量配置
+
+### 必需配置（生产环境）
+
+| 变量名 | 说明 | 默认值 | 是否必需 |
+|--------|------|--------|---------|
+| `SECRET_KEY` | Flask 安全密钥 | dev-secret-key | 是 |
+| `ADMIN_PASSWORD` | 管理员密码 | admin | 是 |
+| `POSTGRES_PASSWORD` | PostgreSQL 密码 | exam_password_123456 | Docker部署 |
+| `DATABASE_URL` | 数据库连接 | sqlite:///instance/exam.db | 是 |
+
+### 可选配置
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `ADMIN_USERNAME` | 管理员用户名 | admin |
+| `ADMIN_EMAIL` | 管理员邮箱 | admin@example.com |
+| `FLASK_ENV` | Flask 环境 | production |
+| `FLASK_DEBUG` | 调试模式 | false |
+| `LOG_LEVEL` | 日志级别 | INFO |
+| `MAX_CONTENT_LENGTH` | 最大上传大小 | 52428800 (50MB) |
+
+完整配置请参考 `.env.example` 文件。
+
+## 文档
+
+- **[部署指南](docs/部署指南.md)** - 完整的部署说明（推荐）
+  - Docker 部署
+  - Docker Hub 部署
+  - 本地开发
+  - 生产环境部署
+  - 环境变量配置
+  - 数据库管理
+  - 故障排查
+
+- **[文档说明](docs/文档说明.md)** - 文档目录索引
+
+- **[更新日志](docs/更新日志.md)** - 版本历史和更新内容
+
+- **[数据库迁移指南](docs/数据库迁移指南.md)** - 数据库管理
 
 ## 技术栈
 
@@ -149,261 +198,184 @@ docker run -d \
 - **jQuery** - DOM 操作
 
 ### 数据库
-- **PostgreSQL** - 生产环境推荐
-- **SQLite** - 开发环境
+- **PostgreSQL** - 生产环境数据库
+- **SQLite** - 开发环境数据库
 
-### AI 集成
-- **DeepSeek API** - 智能解析支持
-- **OpenAI API** - GPT 模型支持
-
-### 缓存
-- **Redis 7** - 会话缓存和任务队列
-
-### Web 服务器
-- **Gunicorn** - WSGI 服务器
-- **Nginx 1.25** - 反向代理
+### 容器化
+- **Docker** - 容器平台
+- **Docker Compose** - 容器编排
 
 ## 项目结构
 
 ```
-/在线答题系统v3/
-├── app/                          # 主应用包
-│   ├── __init__.py              # 应用工厂
-│   ├── models/                  # 数据层 - SQLAlchemy 模型
-│   │   ├── user.py             # 用户模型
-│   │   ├── subject.py          # 科目模型
-│   │   ├── question.py         # 题目模型
-│   │   ├── exam.py             # 试卷模型
-│   │   └── ...
-│   ├── services/                # 服务层 - 业务逻辑封装
-│   │   ├── exam_service.py     # 试卷服务
-│   │   ├── grade_service.py    # 成绩服务
-│   │   └── ...
-│   ├── parsers/                 # 解析层 - 文档解析器
-│   │   ├── docx_parser.py      # Word 解析器
-│   │   ├── pdf_parser.py       # PDF 解析器
-│   │   └── ai_parser.py        # AI 解析器
-│   ├── utils/                   # 工具层 - 通用工具函数
-│   │   ├── decorators.py       # 装饰器
-│   │   ├── helpers.py          # 辅助函数
-│   │   └── ...
-│   ├── routes/                  # 视图层 - Flask 路由
-│   │   ├── auth.py             # 认证路由
-│   │   ├── student.py          # 学生路由
-│   │   ├── teacher.py          # 教师路由
-│   │   ├── admin.py            # 管理员路由
-│   │   └── ...
-│   ├── templates/               # 模板层 - Jinja2 模板
-│   │   ├── auth/               # 认证模板
-│   │   ├── student/            # 学生模板
-│   │   ├── teacher/            # 教师模板
-│   │   ├── admin/              # 管理员模板
-│   │   └── partials/           # 局部模板
-│   └── static/                  # 静态资源
-│       ├── css/                # 样式文件
-│       ├── js/                 # JavaScript 文件
-│       └── img/                # 图片文件
-├── tests/                       # 测试目录
-├── migrations/                  # 数据库迁移文件
-├── scripts/                     # 部署脚本
-│   ├── deploy-production.sh   # 生产环境一键部署
-│   ├── backup-db.sh          # 数据库备份脚本
-│   └── ...
-├── docker/                       # Docker 配置
-│   ├── init-db.sql           # 数据库初始化脚本
-│   ├── postgresql.conf      # PostgreSQL 配置
-│   └── nginx/                # Nginx 配置
-│       ├── nginx.conf       # Nginx 主配置
-│       └── conf.d/           # 应用配置
-├── docs/                        # 项目文档
-│   ├── DEPLOYMENT_GUIDE.md   # 部署指南（推荐）
-│   ├── PRODUCTION_DEPLOYMENT.md  # 生产环境部署
-│   └── CHANGELOG.md          # 版本更新记录
-├── config.py                   # 配置文件
-├── run.py                      # 开发入口
-├── wsgi.py                     # 生产入口
-├── requirements.txt            # 生产依赖
-├── requirements-dev.txt        # 开发依赖
-├── Dockerfile                   # Docker 镜像文件
-├── docker-compose.yml           # 开发环境配置
-├── docker-compose.prod.yml      # 生产环境配置
-└── create_admin.py             # 创建管理员脚本
+exam-system/
+├── app/                    # 应用主目录
+│   ├── models/            # 数据模型
+│   ├── routes/            # 路由视图
+│   ├── services/          # 业务逻辑
+│   ├── parsers/           # 试题解析器
+│   ├── graders/           # 判卷器
+│   ├── utils/             # 工具函数
+│   ├── extensions.py     # Flask 扩展
+│   └── __init__.py        # 应用工厂
+├── templates/             # 模板文件
+├── static/                # 静态文件
+├── migrations/            # 数据库迁移
+├── uploads/               # 上传文件
+├── logs/                  # 日志文件
+├── docs/                  # 文档
+├── docker-compose.yml     # Docker Compose 配置
+├── Dockerfile             # Docker 镜像配置
+├── .env.example           # 环境变量模板
+├── requirements.txt       # Python 依赖
+└── run.py                 # 应用入口
 ```
+
+## 常用命令
+
+### Docker 部署
+
+```bash
+# 启动服务
+docker-compose up -d
+
+# 停止服务
+docker-compose stop
+
+# 重启服务
+docker-compose restart
+
+# 查看日志
+docker-compose logs -f web
+
+# 进入容器
+docker-compose exec web bash
+
+# 查看运行状态
+docker-compose ps
+
+# 删除容器和卷
+docker-compose down -v
+```
+
+### 本地开发
+
+```bash
+# 启动开发服务器
+python run.py
+
+# 运行测试
+pytest
+
+# 数据库迁移
+flask db upgrade
+
+# 查看日志
+tail -f logs/exam_system.log
+```
+
+## 系统要求
+
+### 开发环境
+- Python 3.12+
+- 2GB 内存
+- 10GB 磁盘空间
+
+### 生产环境
+- Docker 20.10+
+- 4GB+ 内存
+- 20GB+ 磁盘空间
+- Linux (Ubuntu 20.04+, CentOS 7+)
 
 ## 开发指南
 
 ### 代码规范
 - 单个函数不超过 50 行
-- 所有函数必须有类型注解和文档字符串
-- 使用 black 和 isort 自动格式化代码
-- 提交前运行 mypy 进行类型检查
-- 遵循 PEP 8 代码风格
+- 完整的类型注解
+- 遵循 PEP 8 规范
+- 使用 Git Flow 工作流
 
-### 代码格式化
-```bash
-# 格式化代码
-black app/ tests/
-isort app/ tests/
-
-# 检查格式
-black --check app/ tests/
-isort --check-only app/ tests/
+### 提交规范
+```
+feat: 新功能
+fix: 修复bug
+docs: 文档更新
+style: 代码格式
+refactor: 重构
+test: 测试相关
+chore: 构建/工具
 ```
 
-### 测试
+## 故障排查
+
+### 常见问题
+
+**1. 容器无法启动**
 ```bash
-# 运行所有测试
-pytest
+# 查看日志
+docker-compose logs web
 
-# 运行特定测试文件
-pytest tests/test_models.py
-
-# 生成测试覆盖率报告
-pytest --cov=app --cov-report=html
+# 检查端口占用
+lsof -i :5002
 ```
 
-### 数据库迁移
+**2. 数据库连接失败**
 ```bash
-# 创建迁移文件
-flask db migrate -m "描述变更内容"
+# 检查数据库状态
+docker-compose ps db
 
-# 应用迁移
-flask db upgrade
-
-# 回滚迁移
-flask db downgrade
+# 查看数据库日志
+docker-compose logs db
 ```
+
+**3. 管理员无法登录**
+```bash
+# 检查管理员账户
+docker-compose exec web python -c "
+from app import create_app
+from app.models.user import User
+app = create_app()
+with app.app_context():
+    admin = User.get_by_username('admin')
+    print(f'管理员存在: {admin.username}, 邮箱: {admin.email}')
+"
+```
+
+更多问题请查看 [部署指南](docs/部署指南.md)。
 
 ## 贡献指南
 
-欢迎贡献代码！请遵循以下流程：
-
-1. **Fork 项目**：点击右上角 Fork 按钮
-2. **创建功能分支**：`git checkout -b feature/新功能`
-3. **提交更改**：`git commit -m '添加新功能'`
-4. **推送分支**：`git push origin feature/新功能`
-5. **创建 Pull Request**：在 GitHub 上提交 PR
-
-### 提交规范
-
-提交消息格式：
-```
-feat: 添加新功能描述
-fix: 修复某个问题
-docs: 更新文档
-style: 代码格式调整
-refactor: 重构代码
-test: 添加测试
-chore: 构建过程或辅助工具的变动
-```
-
-### 代码审查
-
-- 确保代码通过所有测试
-- 运行 `black` 和 `isort` 格式化代码
-- 运行 `mypy` 进行类型检查
-- 更新相关文档
-
-## 常见问题
-
-### Q: 如何重置数据库？
-```bash
-# 删除数据库文件
-rm instance/exam_system.db  # SQLite
-# 或
-psql -U postgres -c "DROP DATABASE examdb;"  # PostgreSQL
-
-# 重新初始化
-flask db upgrade
-```
-
-### Q: 如何创建管理员账号？
-```bash
-# 运行管理员创建脚本
-python create_admin.py
-
-# 默认账号信息：
-# 用户名: admin
-# 密码: admin
-# 邮箱: admin@example.com
-```
-
-**注意：** 首次登录后请立即修改密码！
-
-### Q: 如何配置 AI 解析？
-AI 配置在管理员后台进行设置，无需修改 `.env` 文件：
-
-1. 使用管理员账号登录系统
-2. 进入"后台管理" -> "AI配置"
-3. 配置 AI 提供商（DeepSeek / OpenAI）
-4. 填写 API Key 和 Base URL
-5. 保存配置即可使用
-
-### Q: 如何修改上传文件大小限制？
-上传文件大小限制在管理员后台进行设置，或者编辑 `.env` 文件：
-
-1. 管理员后台：系统设置 -> 文件上传设置
-2. 编辑 `.env` 文件（单位：字节）：
-```
-MAX_CONTENT_LENGTH=52428800  # 50MB
-```
-
-### Q: 如何查看日志？
-```bash
-# 开发环境日志
-tail -f logs/exam_system.log
-
-# 生产环境（systemd）
-sudo journalctl -u exam-system -f
-
-# Docker 日志
-docker-compose logs -f web
-```
-
-### Q: 学生如何绑定教师？
-1. 学生登录后进入个人中心
-2. 在"绑定教师"页面输入教师 ID
-3. 提交绑定申请
-4. 教师在"绑定申请"中批准申请
-5. 绑定成功后，学生可以查看教师发布的试卷
-
-## 版本历史
-
-### v1.1.0 (2026-03-04)
-- ✨ 添加提交记录批量删除功能
-- 🐛 修复提交记录页面分值和状态显示错误
-- 🐛 修复密码修改功能，修改成功后自动登出
-- 🎨 优化页脚设计和布局
-- 🐛 移除管理员首页的最近提交记录
-- ⚠️ **已知问题**：部分页面权限检查不完善，无需登录即可访问（待修复）
-
-### v1.0.0 (2026-02-27) - 🎉 首个正式发布版本
-- 完整的 Docker 部署支持
-- 完善的部署文档和快速部署脚本
-- 生产环境优化建议
-
-- **v0.9.6** (2026-02-27)
-  - 修复教师绑定申请功能
-  - 完善学生绑定教师流程
-  - 添加绑定申请状态管理
-
-- **v0.9.5** (2026-02-26)
-  - 添加教师注册和学生绑定功能
-  - 优化用户权限管理
-
-更多版本历史请查看 [CHANGELOG.md](docs/CHANGELOG.md)。
-
-## 技术支持
-
-- 📖 **文档**：查看 [部署文档](docs/DEPLOYMENT.md)
-- 🐛 **问题反馈**：提交 GitHub Issue
-- 💬 **讨论**：参与 GitHub Discussions
-- 📧 **邮件**：联系技术支持团队
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'feat: Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
 ## 许可证
 
-[MIT License](LICENSE)
+本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
 
-## 致谢
+## 联系方式
 
-感谢所有贡献者和开源项目的支持！
+- **作者**: Kylo94
+- **Email**: your-email@example.com
+- **GitHub**: https://github.com/Kylo94/exam-system
+
+## 更新日志
+
+### v2.0.0 (2026-03-11)
+- ✨ 实现自动初始化功能
+- ✨ 支持通过环境变量配置管理员
+- ✨ 支持从 Docker Hub 部署
+- 🐛 修复数据库初始化问题
+- 📝 更新部署文档
+- ♻️ 重构 README.md，去除过时配置
+
+### v1.1.0
+- 添加 AI 智能判卷功能
+- 优化用户体验
+- 性能优化
+
+### v1.0.0
+- 初始版本发布
+- 基础功能实现
