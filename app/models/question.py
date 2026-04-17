@@ -1,345 +1,70 @@
-"""题目模型"""
-
+"""
+题目模型 - Tortoise-ORM
+"""
+from tortoise import fields
+from tortoise.models import Model
 import json
-from typing import Dict, List, Optional, Any
-from app.extensions import db
-from .base import BaseModel
 
 
-class Question(BaseModel):
-    """
-    题目模型
-    
-    表示试卷中的一个题目，支持多种题型
-    """
-    
-    __tablename__ = 'questions'
-    
-    # 字段定义
-    exam_id = db.Column(
-        db.Integer,
-        db.ForeignKey('exams.id', ondelete='CASCADE'),
-        nullable=True,
-        index=True,
-        doc='试卷ID'
+class Question(Model):
+    """题目模型"""
+
+    id = fields.IntField(pk=True)
+    exam = fields.ForeignKeyField(
+        "models.Exam",
+        related_name="questions",
+        on_delete=fields.CASCADE,
+        null=True,
     )
-    type = db.Column(
-        db.String(20),
-        nullable=False,
-        index=True,
-        doc='题型（single_choice/multiple_choice/judgment/fill_blank/subjective/programming）'
+    type = fields.CharField(max_length=20)  # single_choice, multiple_choice, true_false, fill_blank, essay, coding
+    content = fields.TextField()
+    options = fields.JSONField(default={})  # 存储选项 {"A": "...", "B": "...", ...}
+    correct_answer = fields.TextField()  # 正确答案
+    points = fields.IntField(default=10)
+    explanation = fields.TextField(null=True)
+    knowledge_point = fields.ForeignKeyField(
+        "models.KnowledgePoint",
+        related_name="questions",
+        null=True,
+        on_delete=fields.SET_NULL,
     )
-    content = db.Column(
-        db.Text,
-        nullable=False,
-        doc='题目内容'
-    )
-    options = db.Column(
-        db.JSON,
-        nullable=True,
-        doc='选项列表，JSON格式：[{"id": "A", "text": "选项内容"}, ...]'
-    )
-    correct_answer = db.Column(
-        db.Text,
-        nullable=False,
-        doc='正确答案'
-    )
-    points = db.Column(
-        db.Integer,
-        default=10,
-        nullable=False,
-        doc='分值'
-    )
-    order_index = db.Column(
-        db.Integer,
-        default=0,
-        nullable=False,
-        doc='排序序号'
-    )
-    has_image = db.Column(
-        db.Boolean,
-        default=False,
-        nullable=False,
-        doc='是否包含图片'
-    )
-    image_data = db.Column(
-        db.Text,
-        nullable=True,
-        doc='图片数据（base64编码或文件路径）'
-    )
-    explanation = db.Column(
-        db.Text,
-        nullable=True,
-        doc='答案解析'
-    )
-    knowledge_point_id = db.Column(
-        db.Integer,
-        db.ForeignKey('knowledge_points.id', ondelete='SET NULL'),
-        nullable=True,
-        index=True,
-        doc='考点ID'
-    )
-    question_metadata = db.Column(
-        db.JSON,
-        nullable=True,
-        doc='额外元数据，如解析来源、难度标签等'
-    )
-    
-    # 关系定义
-    exam = db.relationship(
-        'Exam',
-        back_populates='questions',
-        lazy='joined',
-        doc='关联的试卷'
-    )
-    knowledge_point = db.relationship(
-        'KnowledgePoint',
-        backref='questions',
-        lazy='joined',
-        doc='关联的考点'
-    )
-    answers = db.relationship(
-        'Answer',
-        back_populates='question',
-        lazy='dynamic',
-        cascade='all, delete-orphan',
-        doc='关联的答题记录'
-    )
-    
-    def __init__(
-        self,
-        exam_id: int,
-        type: str,
-        content: str,
-        correct_answer: str,
-        points: int = 10,
-        order_index: int = 0,
-        options: Optional[List[Dict[str, Any]]] = None,
-        has_image: bool = False,
-        image_data: Optional[str] = None,
-        explanation: Optional[str] = None,
-        knowledge_point_id: Optional[int] = None,
-        question_metadata: Optional[Dict[str, Any]] = None,
-        metadata: Optional[Dict[str, Any]] = None  # 兼容旧参数名
-    ):
-        """
-        初始化题目
+    difficulty = fields.IntField(default=1)  # 1-5难度
+    order_num = fields.IntField(default=0)  # 题目顺序
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
-        Args:
-            exam_id: 试卷ID
-            type: 题型
-            content: 题目内容
-            correct_answer: 正确答案
-            points: 分值，默认10
-            order_index: 排序序号，默认0
-            options: 选项列表（可选）
-            has_image: 是否包含图片，默认False
-            image_data: 图片数据（可选）
-            explanation: 答案解析（可选）
-            knowledge_point_id: 考点ID（可选）
-            question_metadata: 额外元数据（可选）
-            metadata: 额外元数据（可选，兼容旧参数名）
-        """
-        self.exam_id = exam_id
-        self.type = type
-        self.content = content
-        self.correct_answer = correct_answer
-        self.points = points
-        self.order_index = order_index
-        self.options = options or []
-        self.has_image = has_image
-        self.image_data = image_data
-        self.explanation = explanation
-        self.knowledge_point_id = knowledge_point_id
-        # 兼容两种参数名，question_metadata优先
-        self.question_metadata = question_metadata or metadata or {}
-    
-    @classmethod
-    def get_by_exam(cls, exam_id: int) -> List['Question']:
-        """
-        根据试卷ID获取所有题目
+    # 关系
+    answers: fields.ReverseRelation["Answer"]
 
-        Args:
-            exam_id: 试卷ID
+    class Meta:
+        table = "questions"
+        ordering = ["order_num", "id"]
 
-        Returns:
-            题目列表，按顺序排序
-        """
-        return cls.query.filter_by(exam_id=exam_id).order_by(cls.order_index).all()
-    
-    @classmethod
-    def get_types_by_exam(cls, exam_id: int) -> Dict[str, int]:
-        """
-        获取试卷中各种题型的数量统计
-        
-        Args:
-            exam_id: 试卷ID
-            
-        Returns:
-            题型统计字典，如 {'single_choice': 10, 'judgment': 5}
-        """
-        from sqlalchemy import func
-        result = (
-            db.session.query(cls.type, func.count(cls.id))
-            .filter_by(exam_id=exam_id)
-            .group_by(cls.type)
-            .all()
-        )
-        return dict(result)
-    
-    def get_options_list(self) -> List[Dict[str, Any]]:
-        """
-        获取选项列表（包括图片信息）
+    def __str__(self):
+        return f"<Question {self.id}: {self.content[:50]}>"
 
-        Returns:
-            选项字典列表，如果options为None则返回空列表
-        """
-        if self.options is None:
-            return []
+    @property
+    def type_display(self) -> str:
+        """题型显示名称"""
+        type_map = {
+            "single_choice": "单选题",
+            "multiple_choice": "多选题",
+            "true_false": "判断题",
+            "fill_blank": "填空题",
+            "essay": "简答题",
+            "coding": "编程题",
+        }
+        return type_map.get(self.type, self.type)
 
-        # 确保返回的是列表
-        if isinstance(self.options, str):
-            try:
-                options_data = json.loads(self.options)
-            except json.JSONDecodeError:
-                return []
-        else:
-            options_data = self.options
+    def get_options_list(self) -> list:
+        """获取选项列表"""
+        if isinstance(self.options, dict):
+            return [{"key": k, "value": v} for k, v in self.options.items()]
+        return []
 
-        # 处理不同的选项格式
-        if isinstance(options_data, dict):
-            # 格式1: {'choices': ['选项A', '选项B', ...]}
-            if 'choices' in options_data and isinstance(options_data['choices'], list):
-                choices = options_data['choices']
-                options_list = [{'id': chr(65 + i), 'text': str(choices[i])} for i in range(len(choices))]
-            # 格式2: {'A': '选项A', 'B': '选项B', ...}
-            elif all(k.upper() in 'ABCD' for k in options_data.keys()):
-                options_list = [{'id': k.upper(), 'text': str(v)} for k, v in options_data.items()]
-            else:
-                return []
-        elif isinstance(options_data, list):
-            # 格式3: [{'id': 'A', 'text': '选项A'}, ...]
-            if all(isinstance(opt, dict) for opt in options_data):
-                options_list = options_data
-            # 格式4: ['选项A', '选项B', ...]
-            elif all(isinstance(opt, str) for opt in options_data):
-                options_list = [{'id': chr(65 + i), 'text': opt} for i, opt in enumerate(options_data)]
-            else:
-                return []
-        else:
-            return []
-
-        # 从 metadata 中添加选项图片信息
-        if self.question_metadata and isinstance(self.question_metadata, dict):
-            options_images = self.question_metadata.get('options_images', {})
-            for option in options_list:
-                option_id = option.get('id', '')
-                if option_id in options_images:
-                    img_info = options_images[option_id]
-                    option['has_image'] = img_info.get('has_image', False)
-                    option['image_path'] = img_info.get('image_path')
-                else:
-                    option['has_image'] = False
-                    option.setdefault('has_image', False)
-
-        return options_list
-    
-    def get_option_text(self, option_id: str) -> Optional[str]:
-        """
-        根据选项ID获取选项文本
-        
-        Args:
-            option_id: 选项ID（如'A', 'B'）
-            
-        Returns:
-            选项文本，如果不存在则返回None
-        """
-        options = self.get_options_list()
-        for option in options:
-            if option.get('id') == option_id:
-                return option.get('text')
-        return None
-    
-    def is_correct_answer(self, student_answer: str) -> bool:
-        """
-        判断学生答案是否正确
-        
-        Args:
-            student_answer: 学生答案
-            
-        Returns:
-            是否正确
-        """
-        # 这里可以实现更复杂的判卷逻辑
-        # 目前简单字符串比较，后续可在grading_service中扩展
-        return str(student_answer).strip() == str(self.correct_answer).strip()
-    
-    def get_correct_rate(self) -> Optional[float]:
-        """
-        获取正确率
-        
-        Returns:
-            正确率（0-1），如果没有答题记录则返回None
-        """
-        answers = self.answers.all()
-        if not answers:
-            return None
-        
-        correct_count = sum(1 for answer in answers if answer.is_correct)
-        return correct_count / len(answers)
-    
-    def to_dict(self, include_exam: bool = False) -> dict:
-        """
-        转换为字典，可包含关联的试卷信息
-
-        Args:
-            include_exam: 是否包含试卷信息
-
-        Returns:
-            包含题目信息的字典
-        """
-        data = super().to_dict()
-
-        # 处理JSON字段
-        if 'options' in data and data['options']:
-            if isinstance(data['options'], str):
-                try:
-                    data['options'] = json.loads(data['options'])
-                except json.JSONDecodeError:
-                    data['options'] = []
-
-        # 处理 question_metadata 字段
-        if 'question_metadata' in data and data['question_metadata']:
-            if isinstance(data['question_metadata'], str):
-                try:
-                    data['question_metadata'] = json.loads(data['question_metadata'])
-                except json.JSONDecodeError:
-                    data['question_metadata'] = {}
-        elif 'question_metadata' not in data:
-            data['question_metadata'] = {}
-
-        # 处理 metadata 字段（兼容旧版本）
-        if 'metadata' in data and data['metadata']:
-            if isinstance(data['metadata'], str):
-                try:
-                    data['metadata'] = json.loads(data['metadata'])
-                except json.JSONDecodeError:
-                    data['metadata'] = {}
-
-        # 添加统计信息
-        data['correct_rate'] = self.get_correct_rate()
-
-        if include_exam:
-            if self.exam:
-                data['exam'] = {
-                    'id': self.exam.id,
-                    'title': self.exam.title
-                }
-            else:
-                data['exam'] = None
-
-        return data
-    
-    def __repr__(self) -> str:
-        """友好的字符串表示"""
-        return f'<Question id={self.id} type="{self.type}" exam_id={self.exam_id}>'
+    def check_answer(self, user_answer: str) -> bool:
+        """检查答案是否正确"""
+        if self.type in ["single_choice", "multiple_choice", "true_false"]:
+            return user_answer.strip().upper() == self.correct_answer.strip().upper()
+        # 其他题型需要AI批改
+        return False

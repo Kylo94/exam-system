@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}答题详情 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">答题记录详情</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>学生：</strong>{{ submission.user.username if submission.user else '-' }}</p>
+                        <p><strong>试卷：</strong>{{ submission.exam.title if submission.exam else '-' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>得分：</strong>{{ submission.obtained_score or '-' }} / {{ submission.total_score }}</p>
+                        <p><strong>用时：</strong>{{ (submission.duration_seconds // 60) if submission.duration_seconds else '-' }}分钟</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h4 class="mb-3">答案详情</h4>
+        
+        {% for answer in submission.answers %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between">
+                <span><strong>第{{ loop.index }}题</strong></span>
+                <span class="badge bg-{{ 'success' if answer.is_correct else 'danger' }}">
+                    {{ answer.score if answer.score else 0 }}分
+                </span>
+            </div>
+            <div class="card-body">
+                <p><strong>题目：</strong>{{ answer.question.content if answer.question else '题目已删除' }}</p>
+                <p><strong>学生答案：</strong>{{ answer.user_answer }}</p>
+                {% if answer.question %}
+                <p><strong>正确答案：</strong>{{ answer.question.correct_answer }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="text-center mt-4">
+            <a href="/teacher/submissions" class="btn btn-outline-secondary">返回列表</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

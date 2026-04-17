@@ -1,346 +1,111 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    {% include "partials/head.html" %}
-    <title>{{ app_name }} - 科目管理</title>
-</head>
-<body>
-    {% include "partials/navbar.html" %}
-    
-    <main class="container py-5">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理面板</a></li>
-                <li class="breadcrumb-item active">科目管理</li>
-            </ol>
-        </nav>
-        
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2">科目管理</h1>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
-                <i class="bi bi-plus-circle me-1"></i>创建科目
-            </button>
-        </div>
-        
-        <!-- 科目列表 -->
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>名称</th>
-                                <th>描述</th>
-                                <th>试卷数量</th>
-                                <th>创建时间</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="subjects-body">
-                            <!-- 动态加载 -->
-                        </tbody>
-                    </table>
-                </div>
-                <div id="subjects-pagination" class="d-flex justify-content-center mt-3">
-                    <!-- 分页 -->
-                </div>
-            </div>
-        </div>
-    </main>
+{% extends "base.html" %}
 
-    <!-- 创建科目模态框 -->
-    <div class="modal fade" id="createSubjectModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">创建科目</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
+{% block title %}科目管理 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-book"></i> 科目管理</h2>
+    <button class="btn btn-primary" onclick="showAddModal()">
+        <i class="bi bi-plus-circle"></i> 添加科目
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>科目名称</th>
+                    <th>描述</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subject in subjects %}
+                <tr>
+                    <td>{{ subject.id }}</td>
+                    <td>{{ subject.name }}</td>
+                    <td>{{ subject.description or '-' }}</td>
+                    <td>{{ subject.created_at.strftime('%Y-%m-%d') if subject.created_at else '-' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editSubject({{ subject.id }}, '{{ subject.name }}', '{{ subject.description or '' }}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteSubject({{ subject.id }})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 添加/编辑Modal -->
+<div class="modal fade" id="subjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加科目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="subjectForm">
                 <div class="modal-body">
-                    <form id="create-subject-form">
-                        <div class="mb-3">
-                            <label for="subject-name" class="form-label">科目名称 *</label>
-                            <input type="text" class="form-control" id="subject-name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="subject-description" class="form-label">描述</label>
-                            <textarea class="form-control" id="subject-description" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="subject-order" class="form-label">排序索引</label>
-                            <input type="number" class="form-control" id="subject-order" value="0">
-                        </div>
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="subject-active" checked>
-                            <label class="form-check-label" for="subject-active">
-                                启用科目
-                            </label>
-                        </div>
-                    </form>
+                    <input type="hidden" name="id" id="subjectId">
+                    <div class="mb-3">
+                        <label for="subjectName" class="form-label">科目名称</label>
+                        <input type="text" class="form-control" id="subjectName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subjectDesc" class="form-label">描述</label>
+                        <textarea class="form-control" id="subjectDesc" name="description" rows="3"></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="createSubject()">创建</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
+</div>
 
-    <!-- 编辑科目模态框 -->
-    <div class="modal fade" id="editSubjectModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">编辑科目</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="edit-subject-form">
-                        <input type="hidden" id="edit-subject-id">
-                        <div class="mb-3">
-                            <label for="edit-subject-name" class="form-label">科目名称 *</label>
-                            <input type="text" class="form-control" id="edit-subject-name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-subject-description" class="form-label">描述</label>
-                            <textarea class="form-control" id="edit-subject-description" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-subject-order" class="form-label">排序索引</label>
-                            <input type="number" class="form-control" id="edit-subject-order">
-                        </div>
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="edit-subject-active">
-                            <label class="form-check-label" for="edit-subject-active">
-                                启用科目
-                            </label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="updateSubject()">保存</button>
-                </div>
-            </div>
-        </div>
-    </div>
+<script>
+function showAddModal() {
+    document.getElementById('modalTitle').textContent = '添加科目';
+    document.getElementById('subjectId').value = '';
+    document.getElementById('subjectName').value = '';
+    document.getElementById('subjectDesc').value = '';
+    new bootstrap.Modal(document.getElementById('subjectModal')).show();
+}
 
-    {% include "partials/footer.html" %}
-    {% include "partials/scripts.html" %}
+function editSubject(id, name, desc) {
+    document.getElementById('modalTitle').textContent = '编辑科目';
+    document.getElementById('subjectId').value = id;
+    document.getElementById('subjectName').value = name;
+    document.getElementById('subjectDesc').value = desc;
+    new bootstrap.Modal(document.getElementById('subjectModal')).show();
+}
 
-    <script>
-        // 加载科目数据
-        function loadSubjects(page = 1) {
-            fetch(`/admin/api/subjects?page=${page}&per_page=10`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const subjects = data.data.items;
-                        const tbody = document.getElementById('subjects-body');
-                        tbody.innerHTML = '';
+async function deleteSubject(id) {
+    if (!confirm('确定要删除此科目吗？')) return;
+    await fetch(`/api/subjects/${id}`, { method: 'DELETE' });
+    location.reload();
+}
 
-                        if (subjects.length === 0) {
-                            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">暂无科目数据</td></tr>';
-                            return;
-                        }
-
-                        subjects.forEach(subject => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${subject.id}</td>
-                                <td>
-                                    <strong>${subject.name}</strong>
-                                    ${subject.description ? `<br><small class="text-muted">${subject.description}</small>` : ''}
-                                </td>
-                                <td>${subject.description || '-'}</td>
-                                <td>${subject.exam_count || 0}</td>
-                                <td>${new Date(subject.created_at).toLocaleString('zh-CN')}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" onclick="editSubject(${subject.id})">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger" onclick="deleteSubject(${subject.id})">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            `;
-                            tbody.appendChild(row);
-                        });
-
-                        // 更新分页
-                        updatePagination(data.data.pagination);
-                    }
-                })
-                .catch(error => {
-                    console.error('加载科目失败:', error);
-                });
-        }
-
-        // 更新分页
-        function updatePagination(pagination) {
-            const container = document.getElementById('subjects-pagination');
-            if (!container || !pagination) return;
-
-            container.innerHTML = `
-                <nav aria-label="科目分页">
-                    <ul class="pagination">
-                        <li class="page-item ${pagination.has_prev ? '' : 'disabled'}">
-                            <a class="page-link" href="#" onclick="loadSubjects(${pagination.page - 1}); return false;">
-                                上一页
-                            </a>
-                        </li>
-                        ${Array.from({length: pagination.total_pages}, (_, i) => i + 1)
-                            .map(page => `
-                                <li class="page-item ${page === pagination.page ? 'active' : ''}">
-                                    <a class="page-link" href="#" onclick="loadSubjects(${page}); return false;">
-                                        ${page}
-                                    </a>
-                                </li>
-                            `).join('')}
-                        <li class="page-item ${pagination.has_next ? '' : 'disabled'}">
-                            <a class="page-link" href="#" onclick="loadSubjects(${pagination.page + 1}); return false;">
-                                下一页
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
-            `;
-        }
-
-        // 创建科目
-        function createSubject() {
-            const name = document.getElementById('subject-name').value.trim();
-            const description = document.getElementById('subject-description').value.trim();
-            const orderIndex = document.getElementById('subject-order').value;
-            const isActive = document.getElementById('subject-active').checked;
-
-            if (!name) {
-                alert('请输入科目名称');
-                return;
-            }
-
-            fetch('/admin/api/subjects', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    name: name,
-                    description: description,
-                    order_index: parseInt(orderIndex),
-                    is_active: isActive
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('科目创建成功');
-                    bootstrap.Modal.getInstance(document.getElementById('createSubjectModal')).hide();
-                    document.getElementById('create-subject-form').reset();
-                    loadSubjects();
-                } else {
-                    alert('创建失败: ' + (data.message || '未知错误'));
-                }
-            })
-            .catch(error => {
-                console.error('创建科目失败:', error);
-                alert('创建失败，请检查网络连接');
-            });
-        }
-
-        // 编辑科目
-        function editSubject(id) {
-            fetch(`/admin/api/subjects/${id}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const subject = data.data;
-                        document.getElementById('edit-subject-id').value = subject.id;
-                        document.getElementById('edit-subject-name').value = subject.name;
-                        document.getElementById('edit-subject-description').value = subject.description || '';
-                        document.getElementById('edit-subject-order').value = subject.order_index || 0;
-                        document.getElementById('edit-subject-active').checked = subject.is_active;
-
-                        const modal = new bootstrap.Modal(document.getElementById('editSubjectModal'));
-                        modal.show();
-                    } else {
-                        alert('加载科目数据失败: ' + (data.message || '未知错误'));
-                    }
-                })
-                .catch(error => {
-                    console.error('加载科目数据失败:', error);
-                    alert('加载科目数据失败');
-                });
-        }
-
-        // 更新科目
-        function updateSubject() {
-            const id = document.getElementById('edit-subject-id').value;
-            const name = document.getElementById('edit-subject-name').value.trim();
-            const description = document.getElementById('edit-subject-description').value.trim();
-            const orderIndex = document.getElementById('edit-subject-order').value;
-            const isActive = document.getElementById('edit-subject-active').checked;
-
-            if (!name) {
-                alert('请输入科目名称');
-                return;
-            }
-
-            fetch(`/admin/api/subjects/${id}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    name: name,
-                    description: description,
-                    order_index: parseInt(orderIndex),
-                    is_active: isActive
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('科目更新成功');
-                    bootstrap.Modal.getInstance(document.getElementById('editSubjectModal')).hide();
-                    loadSubjects();
-                } else {
-                    alert('更新失败: ' + (data.message || '未知错误'));
-                }
-            })
-            .catch(error => {
-                console.error('更新科目失败:', error);
-                alert('更新失败，请检查网络连接');
-            });
-        }
-
-        // 删除科目
-        function deleteSubject(id) {
-            if (!confirm('确定要删除这个科目吗？')) {
-                return;
-            }
-
-            fetch(`/admin/api/subjects/${id}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('科目删除成功');
-                    loadSubjects();
-                } else {
-                    alert('删除失败: ' + (data.message || '未知错误'));
-                }
-            })
-            .catch(error => {
-                console.error('删除科目失败:', error);
-                alert('删除失败，请检查网络连接');
-            });
-        }
-
-        // 页面加载
-        document.addEventListener('DOMContentLoaded', function() {
-            loadSubjects();
-        });
-    </script>
-</body>
-</html>
+document.getElementById('subjectForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const id = formData.get('id');
+    const url = id ? `/api/subjects/${id}` : '/api/subjects';
+    await fetch(url, {
+        method: 'POST',
+        body: formData
+    });
+    location.reload();
+};
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}试卷管理 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-text"></i> 试卷管理</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>试卷名称</th>
+                    <th>科目</th>
+                    <th>创建者</th>
+                    <th>总分</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exam in exams %}
+                <tr>
+                    <td>{{ exam.id }}</td>
+                    <td>{{ exam.title }}</td>
+                    <td>{{ exam.subject.name if exam.subject else '-' }}</td>
+                    <td>{{ exam.creator.username if exam.creator else '-' }}</td>
+                    <td>{{ exam.total_points }}</td>
+                    <td>
+                        {% if exam.is_published %}
+                        <span class="badge bg-success">已发布</span>
+                        {% else %}
+                        <span class="badge bg-secondary">草稿</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ exam.created_at.strftime('%Y-%m-%d') if exam.created_at else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

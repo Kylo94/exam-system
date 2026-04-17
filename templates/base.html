@@ -1,64 +1,144 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-bs-theme="light">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ app_name }}{% endblock %}</title>
-    
-    <!-- Bootstrap 5.3 CSS -->
+    <title>{% block title %}{{ settings.APP_NAME | default('在线答题系统') }}{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <!-- 自定义CSS -->
-    <link href="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
-    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        main {
+            flex: 1;
+        }
+        footer {
+            background-color: #f8f9fa;
+            padding: 20px 0;
+            margin-top: auto;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- 导航栏 -->
-    {% include 'partials/navbar.html' %}
-    
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-mortarboard-fill"></i> {{ settings.APP_NAME | default('在线答题系统') }}
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="bi bi-house"></i> 首页</a>
+                    </li>
+                    {% if user %}
+                        {% if user.is_admin %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-gear"></i> 系统管理
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/admin/users">用户管理</a></li>
+                                <li><a class="dropdown-item" href="/admin/subjects">科目管理</a></li>
+                                <li><a class="dropdown-item" href="/admin/levels">难度管理</a></li>
+                                <li><a class="dropdown-item" href="/admin/exams">试卷管理</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/admin/bind-requests">绑定申请</a></li>
+                                <li><a class="dropdown-item" href="/admin/statistics">数据统计</a></li>
+                            </ul>
+                        </li>
+                        {% elif user.is_teacher %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-badge"></i> 教师工作台
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/teacher/students">学生管理</a></li>
+                                <li><a class="dropdown-item" href="/teacher/exams">我的试卷</a></li>
+                                <li><a class="dropdown-item" href="/teacher/submissions">成绩管理</a></li>
+                                <li><a class="dropdown-item" href="/teacher/ai-configs">AI配置</a></li>
+                            </ul>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student/exams">
+                                <i class="bi bi-journal-text"></i> 在线答题
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/student/history">
+                                <i class="bi bi-clock-history"></i> 历史记录
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i> {{ user.username }}
+                                <span class="badge bg-light text-dark">{{ user.role }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/auth/profile"><i class="bi bi-person"></i> 个人资料</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/auth/logout"><i class="bi bi-box-arrow-right"></i> 退出登录</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="/auth/login"><i class="bi bi-box-arrow-in-right"></i> 登录</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/auth/register"><i class="bi bi-person-plus"></i> 注册</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
     <!-- 消息提示 -->
-    <div class="container mt-3">
-        {% include 'partials/alerts.html' %}
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle"></i> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-    
-    <!-- 主要内容 -->
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <!-- 主内容 -->
     <main class="container py-4">
         {% block content %}{% endblock %}
     </main>
-    
+
     <!-- 页脚 -->
-    {% include 'partials/footer.html' %}
-    
-    <!-- Bootstrap 5.3 JS -->
+    <footer>
+        <div class="container text-center">
+            <p class="text-muted mb-0">
+                &copy; 2024 {{ settings.APP_NAME | default('在线答题系统') }} - Powered by FastAPI
+            </p>
+        </div>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- 自定义JS -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    
-    <!-- 退出登录函数 -->
-    <script>
-    async function logout(event) {
-        if (event) event.preventDefault();
-        try {
-            const response = await fetch("{{ url_for('auth.logout') }}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            if (response.ok) {
-                window.location.href = "{{ url_for('main.index') }}";
-            } else {
-                alert('退出登录失败');
-            }
-        } catch (error) {
-            console.error('退出登录失败:', error);
-            alert('网络错误');
-        }
-    }
-    </script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

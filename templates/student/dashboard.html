@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}学生仪表盘 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="bi bi-speedometer2"></i> 学生仪表盘</h2>
+        <p class="text-muted">欢迎回来，{{ user.username }}！</p>
+    </div>
+</div>
+
+<!-- 快捷操作 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-body">
+                <h5 class="card-title text-primary"><i class="bi bi-pencil-square"></i> 开始答题</h5>
+                <p class="card-text text-muted">选择一份试卷开始你的答题之旅</p>
+                <a href="/student/exams" class="btn btn-primary">浏览试卷</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-body">
+                <h5 class="card-title text-success"><i class="bi bi-clock-history"></i> 历史记录</h5>
+                <p class="card-text text-muted">查看你已完成的所有答题记录</p>
+                <a href="/student/history" class="btn btn-success">查看历史</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近试卷 -->
+<div class="row">
+    <div class="col-12">
+        <h4 class="mb-3"><i class="bi bi-journal-text"></i> 最新试卷</h4>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>试卷名称</th>
+                        <th>科目</th>
+                        <th>难度</th>
+                        <th>题目数</th>
+                        <th>总分</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in recent_exams %}
+                    <tr>
+                        <td>{{ exam.title }}</td>
+                        <td>{{ exam.subject.name if exam.subject else '-' }}</td>
+                        <td>{{ exam.level.name if exam.level else '-' }}</td>
+                        <td>{{ exam.question_count }}</td>
+                        <td>{{ exam.total_points }}</td>
+                        <td>
+                            <a href="/exam/{{ exam.id }}" class="btn btn-sm btn-outline-primary">查看</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not recent_exams %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">暂无试卷</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 最近成绩 -->
+{% if my_submissions %}
+<div class="row mt-4">
+    <div class="col-12">
+        <h4 class="mb-3"><i class="bi bi-trophy"></i> 最近成绩</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>试卷</th>
+                        <th>得分</th>
+                        <th>及格</th>
+                        <th>用时</th>
+                        <th>提交时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sub in my_submissions %}
+                    <tr>
+                        <td>{{ sub.exam.title if sub.exam else '已删除' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if sub.is_passed else 'danger' }}">
+                                {{ sub.obtained_score or 0 }}/{{ sub.total_score }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if sub.is_passed %}
+                            <span class="badge bg-success">及格</span>
+                            {% elif sub.is_passed is sameas false %}
+                            <span class="badge bg-danger">不及格</span>
+                            {% else %}
+                            <span class="badge bg-secondary">待批改</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ (sub.duration_seconds // 60) if sub.duration_seconds else '-' }}分钟</td>
+                        <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') if sub.submitted_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

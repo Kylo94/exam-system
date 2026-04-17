@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}答题历史 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clock-history"></i> 答题历史</h2>
+    <a href="/student/exams" class="btn btn-primary">
+        <i class="bi bi-pencil-square"></i> 去答题
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>试卷名称</th>
+                    <th>得分</th>
+                    <th>正确率</th>
+                    <th>状态</th>
+                    <th>用时</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                <tr>
+                    <td>{{ sub.exam.title if sub.exam else '已删除' }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if sub.is_passed else 'danger' }}">
+                            {{ sub.obtained_score or 0 }} / {{ sub.total_score }}
+                        </span>
+                    </td>
+                    <td>{{ '%.1f'|format(sub.score_percentage) }}%</td>
+                    <td>
+                        {% if sub.status == 'graded' or sub.obtained_score is not none %}
+                            {% if sub.is_passed %}
+                            <span class="badge bg-success">及格</span>
+                            {% else %}
+                            <span class="badge bg-danger">不及格</span>
+                            {% endif %}
+                        {% elif sub.status == 'grading' %}
+                        <span class="badge bg-warning">批改中</span>
+                        {% else %}
+                        <span class="badge bg-info">待批改</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ (sub.duration_seconds // 60) if sub.duration_seconds else '-' }}分钟</td>
+                    <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') if sub.submitted_at else '-' }}</td>
+                    <td>
+                        {% if sub.exam %}
+                        <a href="/student/exam/{{ sub.exam_id }}/result/{{ sub.id }}" class="btn btn-sm btn-outline-primary">
+                            查看详情
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

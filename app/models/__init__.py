@@ -1,29 +1,26 @@
-"""数据库模型导出"""
-
-from .base import BaseModel
-from .subject import Subject
-from .level import Level
-from .knowledge_point import KnowledgePoint
-from .exam import Exam
-from .question import Question
-from .submission import Submission
-from .answer import Answer
-from .user import User
-from .ai_config import AIConfig
-from .teacher_bind_request import TeacherBindRequest
-from .exam_question import ExamQuestion
+"""
+Tortoise-ORM 数据模型
+"""
+from app.models.user import User
+from app.models.subject import Subject
+from app.models.level import Level
+from app.models.knowledge_point import KnowledgePoint
+from app.models.exam import Exam
+from app.models.question import Question
+from app.models.submission import Submission
+from app.models.answer import Answer
+from app.models.ai_config import AIConfig
+from app.models.teacher_bind_request import TeacherBindRequest
 
 __all__ = [
-    'BaseModel',
-    'Subject',
-    'Level',
-    'KnowledgePoint',
-    'Exam',
-    'Question',
-    'Submission',
-    'Answer',
-    'User',
-    'AIConfig',
-    'TeacherBindRequest',
-    'ExamQuestion',
+    "User",
+    "Subject",
+    "Level",
+    "KnowledgePoint",
+    "Exam",
+    "Question",
+    "Submission",
+    "Answer",
+    "AIConfig",
+    "TeacherBindRequest",
 ]

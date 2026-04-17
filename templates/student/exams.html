@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}在线答题 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-journal-text"></i> 在线答题</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>试卷名称</th>
+                        <th>科目</th>
+                        <th>难度</th>
+                        <th>总分</th>
+                        <th>时长</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for exam in exams %}
+                    <tr>
+                        <td>
+                            <a href="/exam/{{ exam.id }}">{{ exam.title }}</a>
+                        </td>
+                        <td>{{ exam.subject.name if exam.subject else '-' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if exam.level and exam.level.name == '简单' else ('warning' if exam.level and exam.level.name == '中等' else 'danger') }}">
+                                {{ exam.level.name if exam.level else '未设置' }}
+                            </span>
+                        </td>
+                        <td>{{ exam.total_points }}</td>
+                        <td>{{ exam.duration_minutes }}分钟</td>
+                        <td>
+                            {% if exam.id in completed_exam_ids %}
+                            <span class="badge bg-success">已完成</span>
+                            {% else %}
+                            <span class="badge bg-primary">可答题</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if exam.id in completed_exam_ids %}
+                            <a href="/student/history" class="btn btn-sm btn-outline-secondary">查看成绩</a>
+                            {% else %}
+                            <a href="/student/exam/{{ exam.id }}/take" class="btn btn-sm btn-primary">开始答题</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not exams %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            暂无可用试卷
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

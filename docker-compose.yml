@@ -1,145 +1,72 @@
 version: '3.8'
 
-# ============================================================
-# 在线答题系统 Docker Compose 配置
-# ============================================================
-# 使用说明：
-# 1. 复制 .env.example 为 .env: cp .env.example .env
-# 2. 修改 .env 文件中的配置（标注为【需配置】的部分）
-# 3. 运行: docker-compose up -d
-#
-# 【需要手动配置的配置项】：
-# - SECRET_KEY: Flask 安全密钥
-# - ADMIN_USERNAME: 管理员用户名
-# - ADMIN_PASSWORD: 管理员密码
-# - ADMIN_EMAIL: 管理员邮箱
-# - POSTGRES_PASSWORD: PostgreSQL 数据库密码
-# - BACKUP_DIR: 备份目录路径
-# ============================================================
-
 services:
-  # PostgreSQL 数据库服务
-  db:
-    image: postgres:14-alpine
-    container_name: exam-db
-    environment:
-      # 【需配置】数据库名称（默认：examdb）
-      POSTGRES_DB: ${POSTGRES_DB:-examdb}
-      # 【需配置】数据库用户名（默认：examuser）
-      POSTGRES_USER: ${POSTGRES_USER:-examuser}
-      # 【需配置】数据库密码（⚠️ 生产环境必须修改！）
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-exam_password_123456}
-      POSTGRES_HOST_AUTH_METHOD: trust
-    volumes:
-      # PostgreSQL 数据持久化存储
-      - postgres_data:/var/lib/postgresql/data
-      # 【需配置】备份目录（用于手动备份和自动备份）
-      # 格式: ./backups:/backups
-      - ${BACKUP_DIR:-./backups}:/backups
-    networks:
-      - exam-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-examuser} -d ${POSTGRES_DB:-examdb}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  # Web 应用服务
-  web:
-    # 【需配置】使用 Docker Hub 镜像时，修改 image 为你的镜像名
-    # 格式: your-username/exam-system:latest
-    # 本地构建时使用: build: .
-    build: .
-    image: exam-system:latest
-    container_name: exam-web
+  # FastAPI应用
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: exam_system_fastapi
     ports:
-      # 【需配置】端口映射（宿主机端口:容器端口）
-      - "5002:5002"
+      - "8000:8000"
     environment:
-      # ==================== Flask 配置 ====================
-      FLASK_ENV: production
-      FLASK_DEBUG: "false"
-      # 【需配置】Flask 安全密钥（⚠️ 生产环境必须修改！）
-      # 生成命令: python -c "import secrets; print(secrets.token_hex(32))"
-      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}
-
-      # ==================== 数据库配置 ====================
-      # 数据库连接 URL（自动从 PostgreSQL 配置生成）
-      DATABASE_URL: postgresql://${POSTGRES_USER:-examuser}:${POSTGRES_PASSWORD:-exam_password_123456}@db:5432/${POSTGRES_DB:-examdb}
-
-      # ==================== 管理员配置 ====================
-      # 【需配置】管理员用户名（默认：admin）
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      # 【需配置】管理员密码（⚠️ 生产环境必须修改！）
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-      # 【需配置】管理员邮箱（默认：admin@example.com）
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-
-      # ==================== 文件上传配置 ====================
-      # 最大上传文件大小（默认：50MB）
-      MAX_CONTENT_LENGTH: ${MAX_CONTENT_LENGTH:-52428800}
-      # 上传文件夹路径（容器内路径）
-      UPLOAD_FOLDER: /app/uploads
-
-      # ==================== 日志配置 ====================
-      # 日志级别（DEBUG/INFO/WARNING/ERROR/CRITICAL）
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/exam_system
+      - SECRET_KEY=your-secret-key-change-in-production
+      - DEBUG=false
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=admin123
     volumes:
-      # 【需配置】上传文件目录（宿主机路径:容器路径）
-      # 建议将宿主机路径改为绝对路径，如：/path/to/uploads:/app/uploads
-      - ${UPLOAD_DIR:-./uploads}:/app/uploads
-      # 【需配置】日志目录（宿主机路径:容器路径）
-      - ${LOG_DIR:-./logs}:/app/logs
-      # 迁移文件目录（只读挂载）
-      - ./migrations:/app/migrations:ro
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
     depends_on:
       db:
         condition: service_healthy
-    networks:
-      - exam-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    networks:
+      - exam_network
 
-  # 自动备份服务（可选）
-  # 取消注释以启用自动备份功能
-  # backup:
-  #   image: postgres:14-alpine
-  #   container_name: exam-backup
-  #   volumes:
-  #     - ${BACKUP_DIR:-./backups}:/backups
-  #     - ./scripts/backup.sh:/backup.sh:ro
-  #   environment:
-  #     POSTGRES_DB: ${POSTGRES_DB:-examdb}
-  #     POSTGRES_USER: ${POSTGRES_USER:-examuser}
-  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-exam_password_123456}
-  #     POSTGRES_HOST: db
-  #     POSTGRES_PORT: 5432
-  #     # 【需配置】备份保留天数（默认：7）
-  #     BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
-  #     # 【需配置】备份间隔（Cron 表达式，默认：每天凌晨2点）
-  #     BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
-  #   depends_on:
-  #     - db
-  #   networks:
-  #     - exam-network
-  #   restart: unless-stopped
-  #   # 使用 cron 执行定时备份
-  #   command: >
-  #     sh -c "echo '0 2 * * * pg_dump -U $$POSTGRES_USER -h $$POSTGRES_HOST -d $$POSTGRES_DB > /backups/examdb_$$(date +\%Y\%m\%d_\%H\%M\%S).sql' | crontab - && crond -f"
+  # PostgreSQL数据库
+  db:
+    image: postgres:15-alpine
+    container_name: exam_system_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=exam_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - exam_network
+
+  # Nginx反向代理（可选）
+  nginx:
+    image: nginx:alpine
+    container_name: exam_system_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - exam_network
+    profiles:
+      - with-nginx
 
 volumes:
-  # PostgreSQL 数据持久化卷
   postgres_data:
-    driver: local
 
 networks:
-  # 内部网络
-  exam-network:
+  exam_network:
     driver: bridge

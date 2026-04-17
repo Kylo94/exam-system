@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}我的试卷 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-text"></i> 我的试卷</h2>
+    <a href="/teacher/exams/create" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> 创建试卷
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>试卷名称</th>
+                    <th>科目</th>
+                    <th>难度</th>
+                    <th>题目数</th>
+                    <th>总分</th>
+                    <th>发布时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exam in exams %}
+                <tr>
+                    <td>{{ exam.title }}</td>
+                    <td>{{ exam.subject.name if exam.subject else '-' }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if exam.level and exam.level.name == '简单' else ('warning' if exam.level and exam.level.name == '中等' else 'danger') }}">
+                            {{ exam.level.name if exam.level else '未设置' }}
+                        </span>
+                    </td>
+                    <td>{{ exam.question_count }}</td>
+                    <td>{{ exam.total_points }}</td>
+                    <td>
+                        {% if exam.is_published %}
+                        <span class="badge bg-success">已发布</span>
+                        {% else %}
+                        <span class="badge bg-secondary">草稿</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/teacher/exams/{{ exam.id }}/edit" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil"></i> 编辑
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ '编辑' if exam else '创建' }}试卷{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{{ '编辑' if exam else '创建' }}试卷</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/teacher/exams{{ '/{}/edit'.format(exam.id) if exam else '/create' }}">
+                    <div class="mb-3">
+                        <label class="form-label">试卷标题</label>
+                        <input type="text" class="form-control" name="title" value="{{ exam.title if exam else '' }}" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">科目</label>
+                            <select class="form-select" name="subject_id" required>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.id }}" {{ 'selected' if exam and exam.subject_id == subject.id else '' }}>
+                                    {{ subject.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">难度</label>
+                            <select class="form-select" name="level_id">
+                                <option value="">不设置</option>
+                                {% for level in levels %}
+                                <option value="{{ level.id }}" {{ 'selected' if exam and exam.level_id == level.id else '' }}>
+                                    {{ level.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">总分</label>
+                            <input type="number" class="form-control" name="total_points" value="{{ exam.total_points if exam else 100 }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">时长(分钟)</label>
+                            <input type="number" class="form-control" name="duration_minutes" value="{{ exam.duration_minutes if exam else 60 }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">及格分数</label>
+                            <input type="number" class="form-control" name="pass_score" value="{{ exam.pass_score if exam else 60 }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="3">{{ exam.description if exam else '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">最大答题次数</label>
+                        <input type="number" class="form-control" name="max_attempts" value="{{ exam.max_attempts if exam else 1 }}" min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <input type="checkbox" name="is_published" {{ 'checked' if exam and exam.is_published else '' }}>
+                            发布试卷
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                    <a href="/teacher/exams" class="btn btn-outline-secondary">取消</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

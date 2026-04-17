@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}系统管理 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="bi bi-gear"></i> 系统管理</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-3">
+        <a href="/admin/users" class="text-decoration-none">
+            <div class="card border-primary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people fs-1 text-primary"></i>
+                    <h5 class="mt-2">用户管理</h5>
+                    <p class="text-muted small">管理系统用户</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/admin/subjects" class="text-decoration-none">
+            <div class="card border-success h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-book fs-1 text-success"></i>
+                    <h5 class="mt-2">科目管理</h5>
+                    <p class="text-muted small">管理考试科目</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/admin/levels" class="text-decoration-none">
+            <div class="card border-warning h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-bar-chart fs-1 text-warning"></i>
+                    <h5 class="mt-2">难度管理</h5>
+                    <p class="text-muted small">管理题目难度</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/admin/exams" class="text-decoration-none">
+            <div class="card border-info h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-text fs-1 text-info"></i>
+                    <h5 class="mt-2">试卷管理</h5>
+                    <p class="text-muted small">管理考试试卷</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/admin/bind-requests" class="text-decoration-none">
+            <div class="card border-secondary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+                    <h5 class="mt-2">绑定申请</h5>
+                    <p class="text-muted small">学生-教师绑定</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/admin/statistics" class="text-decoration-none">
+            <div class="card border-danger h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-graph-up fs-1 text-danger"></i>
+                    <h5 class="mt-2">数据统计</h5>
+                    <p class="text-muted small">查看系统数据</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/admin/knowledge-points" class="text-decoration-none">
+            <div class="card border-dark h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-diagram-3 fs-1 text-dark"></i>
+                    <h5 class="mt-2">知识点</h5>
+                    <p class="text-muted small">管理知识点</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

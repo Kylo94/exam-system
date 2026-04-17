@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}答题结果 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- 成绩卡片 -->
+        <div class="card mb-4">
+            <div class="card-body text-center py-5">
+                <h2 class="mb-3">答题完成！</h2>
+                
+                <div class="display-1 mb-4">
+                    {% if submission.is_passed %}
+                    <span class="text-success">{{ submission.obtained_score }}</span>
+                    {% else %}
+                    <span class="text-danger">{{ submission.obtained_score }}</span>
+                    {% endif %}
+                    <span class="fs-3 text-muted">/ {{ submission.total_score }}</span>
+                </div>
+                
+                <p class="lead">
+                    {% if submission.is_passed %}
+                    <span class="badge bg-success fs-5">恭喜及格！</span>
+                    {% else %}
+                    <span class="badge bg-danger fs-5">未及格，继续加油！</span>
+                    {% endif %}
+                </p>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="fs-4">{{ submission.obtained_score or 0 / submission.total_score * 100 | round(1) }}%</div>
+                        <small class="text-muted">正确率</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="fs-4">{{ (submission.duration_seconds // 60) if submission.duration_seconds else 0 }}分钟</div>
+                        <small class="text-muted">用时</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="fs-4">{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else '-' }}</div>
+                        <small class="text-muted">提交时间</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 答案解析 -->
+        <h4 class="mb-3"><i class="bi bi-list-check"></i> 答案解析</h4>
+        
+        {% for answer in submission.answers %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <strong>第{{ loop.index }}题</strong> 
+                    <span class="badge bg-secondary">{{ answer.question.type_display if answer.question else '未知' }}</span>
+                </span>
+                <span class="badge bg-{{ 'success' if answer.is_correct else 'danger' }}">
+                    {{ answer.score if answer.score else 0 }}分
+                </span>
+            </div>
+            <div class="card-body">
+                <p><strong>题目：</strong>{{ answer.question.content if answer.question else '题目已删除' }}</p>
+                
+                {% if answer.question and answer.question.type in ['single_choice', 'multiple_choice', 'true_false'] %}
+                <p><strong>你的答案：</strong> {{ answer.user_answer }}</p>
+                <p><strong>正确答案：</strong> {{ answer.question.correct_answer }}</p>
+                {% else %}
+                <p><strong>你的答案：</strong></p>
+                <div class="p-3 bg-light rounded">{{ answer.user_answer }}</div>
+                {% endif %}
+                
+                {% if answer.question and answer.question.explanation %}
+                <div class="alert alert-info mt-3">
+                    <strong><i class="bi bi-lightbulb"></i> 解析：</strong>{{ answer.question.explanation }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- 操作按钮 -->
+        <div class="text-center mt-4">
+            <a href="/student/exams" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> 返回试卷列表
+            </a>
+            <a href="/student/history" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history"></i> 查看历史记录
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

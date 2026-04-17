@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}成绩管理 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clipboard-data"></i> 成绩管理</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>学生</th>
+                    <th>试卷</th>
+                    <th>得分</th>
+                    <th>状态</th>
+                    <th>提交时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sub in submissions %}
+                <tr>
+                    <td>{{ sub.id }}</td>
+                    <td>{{ sub.user.username if sub.user else '-' }}</td>
+                    <td>{{ sub.exam.title if sub.exam else '已删除' }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if sub.is_passed else 'danger' }}">
+                            {{ sub.obtained_score or '-' }} / {{ sub.total_score }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if sub.status == 'graded' %}
+                        <span class="badge bg-success">已批改</span>
+                        {% elif sub.status == 'grading' %}
+                        <span class="badge bg-warning">批改中</span>
+                        {% else %}
+                        <span class="badge bg-info">待批改</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') if sub.submitted_at else '-' }}</td>
+                    <td>
+                        <a href="/teacher/submissions/{{ sub.id }}" class="btn btn-sm btn-outline-primary">
+                            查看详情
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

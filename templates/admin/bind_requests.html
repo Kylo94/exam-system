@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}绑定申请 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-bounding-box"></i> 学生绑定申请</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>学生</th>
+                    <th>申请教师</th>
+                    <th>状态</th>
+                    <th>申请时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in bind_requests %}
+                <tr>
+                    <td>{{ req.id }}</td>
+                    <td>{{ req.student.username if req.student else '-' }}</td>
+                    <td>{{ req.teacher.username if req.teacher else '-' }}</td>
+                    <td>
+                        {% if req.status == 'approved' %}
+                        <span class="badge bg-success">已批准</span>
+                        {% elif req.status == 'rejected' %}
+                        <span class="badge bg-danger">已拒绝</span>
+                        {% else %}
+                        <span class="badge bg-warning">待处理</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ req.created_at.strftime('%Y-%m-%d %H:%M') if req.created_at else '-' }}</td>
+                    <td>
+                        {% if req.status == 'pending' %}
+                        <button class="btn btn-sm btn-success" onclick="approveRequest({{ req.id }})">
+                            <i class="bi bi-check"></i> 批准
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectRequest({{ req.id }})">
+                            <i class="bi bi-x"></i> 拒绝
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+async function approveRequest(id) {
+    await fetch(`/admin/bind-requests/${id}/approve`, { method: 'POST' });
+    location.reload();
+}
+
+async function rejectRequest(id) {
+    await fetch(`/admin/bind-requests/${id}/reject`, { method: 'POST' });
+    location.reload();
+}
+</script>
+{% endblock %}

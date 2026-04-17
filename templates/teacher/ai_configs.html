@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}AI配置 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-robot"></i> AI配置</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if ai_configs %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>提供商</th>
+                    <th>模型</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for config in ai_configs %}
+                <tr>
+                    <td>{{ config.name }}</td>
+                    <td>{{ config.provider }}</td>
+                    <td>{{ config.model }}</td>
+                    <td>
+                        {% if config.is_active %}
+                        <span class="badge bg-success">启用</span>
+                        {% else %}
+                        <span class="badge bg-secondary">禁用</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary">编辑</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-robot fs-1 text-muted"></i>
+            <p class="text-muted mt-3">暂无AI配置</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exam.title }} - 在线答题{% endblock %}
+
+{% block extra_css %}
+<style>
+    .timer {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #dc3545;
+    }
+    .question-card {
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 左侧：题目列表 -->
+    <div class="col-md-3">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock"></i> 剩余时间</span>
+                    <span class="timer" id="timer">{{ exam.duration_minutes }}:00</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <h6>题目导航</h6>
+                <div class="d-flex flex-wrap gap-2" id="question-nav">
+                    {% for q in questions %}
+                    <button type="button" class="btn btn-sm btn-outline-primary question-nav-btn"
+                            data-question="{{ loop.index }}" onclick="scrollToQuestion({{ loop.index }})">
+                        {{ loop.index }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <hr>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-success" onclick="submitExam()">
+                        <i class="bi bi-check-circle"></i> 提交试卷
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 右侧：答题区域 -->
+    <div class="col-md-9">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">{{ exam.title }}</h5>
+                <small class="text-muted">{{ exam.subject.name if exam.subject else '' }} | 共{{ questions|length }}题 | 满分{{ exam.total_points }}</small>
+            </div>
+        </div>
+        
+        <form id="exam-form" method="POST" action="/student/exam/{{ exam.id }}/submit">
+            {% for q in questions %}
+            <div class="card question-card" id="question-{{ loop.index }}">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <span class="badge bg-primary me-2">{{ loop.index }}</span>
+                        <span class="badge bg-secondary">{{ q.type_display }}</span>
+                        <span class="badge bg-warning text-dark">{{ q.points }}分</span>
+                    </h6>
+                    
+                    <p class="card-text mt-3">{{ q.content }}</p>
+                    
+                    {% if q.type == 'single_choice' or q.type == 'multiple_choice' %}
+                    <div class="ms-4">
+                        {% for opt in q.get_options_list() %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="{{ 'checkbox' if q.type == 'multiple_choice' else 'radio' }}"
+                                   name="answer_{{ q.id }}"
+                                   id="opt_{{ q.id }}_{{ opt.key }}"
+                                   value="{{ opt.key }}"
+                                   {{ 'required' if q.type == 'single_choice' else '' }}>
+                            <label class="form-check-label" for="opt_{{ q.id }}_{{ opt.key }}">
+                                <strong>{{ opt.key }}.</strong> {{ opt.value }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% elif q.type == 'true_false' %}
+                    <div class="ms-4">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="answer_{{ q.id }}" id="true_{{ q.id }}" value="true" required>
+                            <label class="form-check-label" for="true_{{ q.id }}">正确</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="answer_{{ q.id }}" id="false_{{ q.id }}" value="false">
+                            <label class="form-check-label" for="false_{{ q.id }}">错误</label>
+                        </div>
+                    </div>
+                    {% elif q.type == 'fill_blank' or q.type == 'essay' %}
+                    <div class="ms-4 mt-3">
+                        <textarea class="form-control" name="answer_{{ q.id }}" rows="4" 
+                                  placeholder="请输入答案..."></textarea>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            <div class="text-center mb-5">
+                <button type="button" class="btn btn-success btn-lg" onclick="submitExam()">
+                    <i class="bi bi-check-circle"></i> 提交试卷
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 提交确认Modal -->
+<div class="modal fade" id="submitModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-question-circle"></i> 确认提交</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要提交试卷吗？提交后将无法修改答案。</p>
+                <div id="unanswered-warning" class="alert alert-warning d-none">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    还有 <span id="unanswered-count">0</span> 道题目未作答
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">继续答题</button>
+                <button type="button" class="btn btn-success" onclick="confirmSubmit()">确认提交</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let timeLeft = {{ exam.duration_minutes * 60 }};
+let timerInterval;
+
+function updateTimer() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    document.getElementById('timer').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    if (timeLeft <= 0) {
+        clearInterval(timerInterval);
+        alert('时间到！系统将自动提交试卷。');
+        document.getElementById('exam-form').submit();
+    }
+    timeLeft--;
+}
+
+timerInterval = setInterval(updateTimer, 1000);
+
+function scrollToQuestion(num) {
+    document.getElementById(`question-${num}`).scrollIntoView({ behavior: 'smooth' });
+}
+
+function submitExam() {
+    const modal = new bootstrap.Modal(document.getElementById('submitModal'));
+    
+    // 检查未作答题目
+    const questions = document.querySelectorAll('.question-card');
+    let unanswered = 0;
+    questions.forEach((q, i) => {
+        const inputs = q.querySelectorAll('input:checked, textarea');
+        const textareas = q.querySelectorAll('textarea');
+        let answered = inputs.length > 0;
+        if (!answered) {
+            textareas.forEach(t => {
+                if (t.value.trim()) answered = true;
+            });
+        }
+        if (!answered) {
+            unanswered++;
+            q.querySelector('.question-nav-btn').classList.add('btn-danger');
+        } else {
+            q.querySelector('.question-nav-btn').classList.remove('btn-danger');
+        }
+    });
+    
+    document.getElementById('unanswered-count').textContent = unanswered;
+    document.getElementById('unanswered-warning').classList.toggle('d-none', unanswered === 0);
+    
+    modal.show();
+}
+
+function confirmSubmit() {
+    document.getElementById('exam-form').submit();
+}
+</script>
+{% endblock %}
