@@ -61,26 +61,16 @@
                                         <option value="">请选择难度</option>
                                     </select>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">时长（分钟）<small class="text-muted">（留空表示不限时）</small></label>
-                                    <input type="number" class="form-control" id="examDuration" value="{{ exam.duration_minutes }}" min="1" placeholder="留空表示不限时">
-                                </div>
+
                             </div>
 
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-6">
-                                    <label class="form-label">开始时间<small class="text-muted">（留空表示立即开始）</small></label>
-                                    <input type="datetime-local" class="form-control" id="examStartTime"
-                                           value="{{ exam.start_time.strftime('%Y-%m-%dT%H:%M') if exam.start_time else '' }}" placeholder="留空表示立即开始">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">结束时间<small class="text-muted">（留空表示不限时）</small></label>
-                                    <input type="datetime-local" class="form-control" id="examEndTime"
-                                           value="{{ exam.end_time.strftime('%Y-%m-%dT%H:%M') if exam.end_time else '' }}" placeholder="留空表示不限时">
-                                </div>
-                            </div>
+
                             
                             <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label">时长（分钟）<small class="text-muted">（建议设置）</small></label>
+                                    <input type="number" class="form-control" id="examDuration" value="{{ exam.duration_minutes }}" min="1" placeholder="建议设置">
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label">及格分数</label>
                                     <input type="number" class="form-control" id="examPassScore" value="{{ exam.pass_score }}" min="0">
@@ -460,8 +450,6 @@
                 subject_id: subjectId,
                 level_id: levelId,
                 duration_minutes: parseInt(document.getElementById('examDuration').value) || null,
-                start_time: document.getElementById('examStartTime').value || null,
-                end_time: document.getElementById('examEndTime').value || null,
                 pass_score: parseFloat(document.getElementById('examPassScore').value) || null,
                 max_attempts: maxAttempts,
                 is_active: document.getElementById('examStatus').value === '1'

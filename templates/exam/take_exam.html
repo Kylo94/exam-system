@@ -418,17 +418,13 @@
     {% include "partials/scripts.html" %}
     
     <script>
-        // 考试数据
+        // 考试数据（随时可测，无时间限制）
         const examData = {
             id: {{ exam.id }},
             title: "{{ exam.title }}",
             durationMinutes: {{ exam.duration_minutes or 0 }},
             totalQuestions: {{ exam.question_count or 0 }},
-            {% if exam.end_time %}
-            endTime: new Date("{{ exam.end_time.isoformat() }}"),
-            {% else %}
-            endTime: null,
-            {% endif %}
+            endTime: null,  // 无结束时间限制
             submissionId: {{ submission.id }}
         };
 

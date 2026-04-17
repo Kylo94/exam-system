@@ -31,8 +31,6 @@ class Exam(Model):
     is_temporary = fields.BooleanField(default=False)
     is_published = fields.BooleanField(default=False)
     duration_minutes = fields.IntField(default=60)
-    start_time = fields.DatetimeField(null=True)
-    end_time = fields.DatetimeField(null=True)
     max_attempts = fields.IntField(default=1)
     pass_score = fields.IntField(default=60)
     description = fields.TextField(null=True)
