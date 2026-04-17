@@ -42,8 +42,8 @@ class AIDocumentParser:
     def _add_log(self, message: str, level: str = 'info', progress: int = None):
         """添加解析日志"""
         from datetime import datetime
-        from flask import current_app
-
+        import logging
+        
         timestamp = datetime.now().strftime('%H:%M:%S')
         icon = {'info': 'ℹ️', 'success': '✅', 'warning': '⚠️', 'error': '❌'}.get(level, '•')
         log_entry = f"[{timestamp}] {icon} {message}"
@@ -58,19 +58,16 @@ class AIDocumentParser:
                 # 只传递消息和级别（不更新进度）
                 self.progress_callback(message, level)
 
-        # 同时记录到 Flask 日志
-        try:
-            if level == 'success':
-                current_app.logger.info(message)
-            elif level == 'error':
-                current_app.logger.error(message)
-            elif level == 'warning':
-                current_app.logger.warning(message)
-            else:
-                current_app.logger.debug(message)
-        except RuntimeError:
-            # 在应用上下文外时只打印
-            pass
+        # 同时记录到日志
+        logger = logging.getLogger(__name__)
+        if level == 'success':
+            logger.info(message)
+        elif level == 'error':
+            logger.error(message)
+        elif level == 'warning':
+            logger.warning(message)
+        else:
+            logger.debug(message)
 
     def get_logs(self) -> str:
         """获取解析日志的HTML格式"""

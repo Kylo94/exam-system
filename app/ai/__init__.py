@@ -7,7 +7,7 @@
 4. 题目生成
 """
 
-from .base import BaseAIService
+from .base import BaseAIService, BaseProvider
 from .llm_service import LLMService
 from .grader_service import GraderService
 from .generator_service import GeneratorService
@@ -16,6 +16,7 @@ from .providers.openai import OpenAIProvider
 
 __all__ = [
     'BaseAIService',
+    'BaseProvider',
     'LLMService',
     'GraderService',
     'GeneratorService',

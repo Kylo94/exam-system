@@ -23,12 +23,6 @@ def allowed_file(filename: str, allowed_extensions: Set[str]) -> bool:
         
     Returns:
         是否允许
-        
-    Examples:
-        >>> allowed_file('exam.docx', {'.docx', '.pdf'})
-        True
-        >>> allowed_file('image.jpg', {'.docx', '.pdf'})
-        False
     """
     if not filename:
         return False
@@ -105,7 +99,7 @@ def save_uploaded_file(file, upload_folder: str, allowed_extensions: Optional[Se
     保存上传的文件到指定目录
     
     Args:
-        file: 上传的文件对象（如Flask的request.files['file']）
+        file: 上传的文件对象
         upload_folder: 上传目录路径
         allowed_extensions: 允许的扩展名集合（可选）
         
@@ -117,16 +111,6 @@ def save_uploaded_file(file, upload_folder: str, allowed_extensions: Optional[Se
         - mimetype: MIME类型
         - saved: 是否保存成功
         - error: 错误信息（如果有）
-        
-    Raises:
-        ValueError: 文件对象无效
-        IOError: 保存文件失败
-        
-    Examples:
-        >>> from flask import request
-        >>> result = save_uploaded_file(request.files['file'], 'uploads')
-        >>> if result['saved']:
-        >>>     print(f"文件已保存: {result['filepath']}")
     """
     if not file or not hasattr(file, 'filename'):
         raise ValueError("无效的文件对象")
