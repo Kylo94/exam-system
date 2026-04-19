@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>访问被拒绝 - {{ app_name }}</title>
+    <title>访问被拒绝 - {{ settings.APP_NAME }}</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}
@@ -22,10 +22,10 @@
                             {% endif %}
                         </p>
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-lg">
+                            <a href="{{ '/dashboard' }}" class="btn btn-primary btn-lg">
                                 <i class="bi bi-house-door me-1"></i>返回首页
                             </a>
-                            <a href="{{ url_for('main.my_submissions') }}" class="btn btn-outline-secondary btn-lg">
+                            <a href="{{ '/my-submissions' }}" class="btn btn-outline-secondary btn-lg">
                                 <i class="bi bi-list-ul me-1"></i>我的记录
                             </a>
                         </div>

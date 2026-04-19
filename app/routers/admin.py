@@ -3,7 +3,6 @@
 """
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from tortoise.queryset import Q
 
 from app.auth import get_current_user, require_admin
@@ -14,9 +13,9 @@ from app.models.level import Level
 from app.models.knowledge_point import KnowledgePoint
 from app.models.submission import Submission
 from app.models.teacher_bind_request import TeacherBindRequest
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -226,7 +225,7 @@ async def admin_statistics(request: Request, current_user: User = Depends(requir
     total_exams = await Exam.all().count()
     total_submissions = await Submission.all().count()
     graded_submissions = await Submission.filter(status="graded").count()
-    
+
     return templates.TemplateResponse("admin/statistics.html", {
         "request": request,
         "user": current_user,
@@ -236,4 +235,19 @@ async def admin_statistics(request: Request, current_user: User = Depends(requir
             "total_submissions": total_submissions,
             "graded_submissions": graded_submissions,
         }
+    })
+
+
+# ===== AI配置管理 =====
+@router.get("/ai-configs", response_class=HTMLResponse)
+async def admin_ai_configs(request: Request, current_user: User = Depends(require_admin)):
+    """AI配置列表"""
+    from app.models.ai_config import AIConfig
+    ai_configs = await AIConfig.all().prefetch_related("creator").order_by("-created_at")
+
+    return templates.TemplateResponse("ai_configs.html", {
+        "request": request,
+        "user": current_user,
+        "ai_configs": ai_configs,
+        "is_admin_view": True
     })

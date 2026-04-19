@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ app_name }} - 提交管理</title>
+    <title>{{ settings.APP_NAME }} - 提交管理</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}
@@ -10,14 +10,14 @@
     <main class="container py-5">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理面板</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/admin' }}">管理面板</a></li>
                 <li class="breadcrumb-item active">提交管理</li>
             </ol>
         </nav>
         
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h2">提交管理</h1>
-            <a href="{{ url_for('admin.submissions_page') }}" class="btn btn-primary">
+            <a href="{{ '/admin/submissions' }}" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>查看所有提交
             </a>
         </div>
@@ -66,7 +66,7 @@
                                 <td>
                                     <div class="btn-group btn-group-sm">
                                         {% if submission.status != 'in_progress' %}
-                                        <a href="{{ url_for('main.submission_result', submission_id=submission.id) }}" class="btn btn-outline-primary">
+                                        <a href="{{ '/submission/' + str(submission.id) }}" class="btn btn-outline-primary">
                                             <i class="bi bi-eye"></i>查看详情
                                         </a>
                                         {% endif %}

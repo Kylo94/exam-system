@@ -3,7 +3,7 @@
 """
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status, Request, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -15,7 +15,12 @@ from app.models.user import User
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+
+def get_token_from_cookie(request: Request) -> Optional[str]:
+    """从Cookie获取token"""
+    return request.cookies.get("access_token")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -49,27 +54,53 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
-    """获取当前用户"""
+async def get_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> User:
+    """获取当前用户（必须登录）"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="认证失败，请重新登录",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    payload = decode_token(token)
-    if payload is None:
+
+    # 优先从Cookie获取token
+    if not token:
+        token = get_token_from_cookie(request)
+
+    if not token:
         raise credentials_exception
 
-    user_id: int = payload.get("sub")
-    if user_id is None:
-        raise credentials_exception
-
-    user = await User.get_or_none(id=user_id)
+    user = await _get_user_from_token(token)
     if user is None:
         raise credentials_exception
 
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="用户已被禁用")
+    return user
+
+
+async def get_optional_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> Optional[User]:
+    """获取当前用户（可选，未登录返回None）"""
+    # 优先从Cookie获取token
+    if not token:
+        token = get_token_from_cookie(request)
+
+    if not token:
+        return None
+
+    return await _get_user_from_token(token)
+
+
+async def _get_user_from_token(token: str) -> Optional[User]:
+    """从token获取用户"""
+    payload = decode_token(token)
+    if payload is None:
+        return None
+
+    user_id_str: str = payload.get("sub")
+    if user_id_str is None:
+        return None
+
+    user = await User.get_or_none(id=int(user_id_str))
+    if user is None or not user.is_active:
+        return None
 
     return user
 
@@ -95,5 +126,6 @@ def require_role(*roles: str):
 
 # 常用角色依赖
 require_admin = require_role("admin")
-require_teacher = require_role("admin", "teacher")
+require_teacher = require_role("teacher")
+require_admin_or_teacher = require_role("admin", "teacher")
 require_student = require_role("student")

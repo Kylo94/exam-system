@@ -3,8 +3,8 @@
 """
 from fastapi import APIRouter, Depends, Request, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from datetime import datetime
+import random
 
 from app.auth import get_current_user, require_student
 from app.models.user import User
@@ -12,9 +12,10 @@ from app.models.exam import Exam
 from app.models.question import Question
 from app.models.submission import Submission
 from app.models.answer import Answer
+from app.models.subject import Subject
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -23,6 +24,38 @@ async def student_home(request: Request, current_user: User = Depends(require_st
     return templates.TemplateResponse("student/index.html", {
         "request": request,
         "user": current_user
+    })
+
+
+# ===== 专项刷题 =====
+@router.get("/practice", response_class=HTMLResponse)
+async def student_practice(request: Request, current_user: User = Depends(require_student)):
+    """专项刷题页面"""
+    subjects = await Subject.all().order_by("name")
+    return templates.TemplateResponse("student/practice.html", {
+        "request": request,
+        "user": current_user,
+        "subjects": subjects
+    })
+
+
+@router.get("/practice/{subject_id}", response_class=HTMLResponse)
+async def practice_by_subject(subject_id: int, request: Request, current_user: User = Depends(require_student)):
+    """按科目刷题"""
+    subject = await Subject.get_or_none(id=subject_id)
+    if not subject:
+        raise HTTPException(status_code=404, detail="科目不存在")
+
+    # 获取该科目的题目
+    questions = await Question.filter(subject_id=subject_id).limit(10)
+    # 随机打乱
+    random.shuffle(questions)
+
+    return templates.TemplateResponse("student/practice_questions.html", {
+        "request": request,
+        "user": current_user,
+        "subject": subject,
+        "questions": questions
     })
 
 

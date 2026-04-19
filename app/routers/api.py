@@ -2,7 +2,6 @@
 REST API 路由
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime

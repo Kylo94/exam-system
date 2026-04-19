@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>开始考试 - {{ exam.title }} - {{ app_name }}</title>
+    <title>开始考试 - {{ exam.title }} - {{ settings.APP_NAME }}</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}
@@ -11,8 +11,8 @@
         <!-- 面包屑导航 -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('main.exams_page') }}">考试列表</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('main.exam_detail', exam_id=exam.id) }}">{{ exam.title }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/student/exams' }}">考试列表</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/exam/' + str(exam.id) }}">{{ exam.title }}</a></li>
                 <li class="breadcrumb-item active">开始考试</li>
             </ol>
         </nav>
@@ -105,7 +105,7 @@
                                         onclick="return confirm('确认开始考试？计时将立即开始。')">
                                     <i class="bi bi-play-circle me-2"></i>开始考试
                                 </button>
-                                <a href="{{ url_for('main.exam_detail', exam_id=exam.id) }}" 
+                                <a href="{{ '/exam/' + str(exam.id) }}" 
                                    class="btn btn-outline-secondary btn-lg">
                                     <i class="bi bi-arrow-left me-2"></i>返回
                                 </a>

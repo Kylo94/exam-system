@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ exam.title }} - 答题页面 - {{ app_name }}</title>
+    <title>{{ exam.title }} - 答题页面 - {{ settings.APP_NAME }}</title>
     <style>
         .question-card {
             border-left: 4px solid #0d6efd;
@@ -154,7 +154,7 @@
         </div>
         
         <!-- 答题表单 -->
-        <form id="examForm" action="{{ url_for('submissions.submit_exam', submission_id=submission.id) }}" method="POST">
+        <form id="examForm" action="{{ '/api/submit/' + str(submission.id) }}" method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
             
             {% for question in (exam.questions or []) %}
@@ -192,7 +192,7 @@
                                 {% if question.image_data.startswith('data:') %}
                                 <img src="{{ question.image_data }}" class="img-fluid rounded" alt="题目图片">
                                 {% else %}
-                                <img src="{{ url_for('upload.uploaded_file', filename=question.image_data) }}" class="img-fluid rounded" alt="题目图片">
+                                <img src="{{ '/upload/' + str(question.image_data) }}" class="img-fluid rounded" alt="题目图片">
                                 {% endif %}
                             {% else %}
                             <div class="alert alert-info">
@@ -224,7 +224,7 @@
                                         <strong>{{ option_label }}.</strong> {{ option_text }}
                                         {% if option.get('has_image') and option.get('image_path') %}
                                         <div class="mt-2 mb-2">
-                                            <img src="{{ url_for('upload.uploaded_file', filename=option['image_path']) }}"
+                                            <img src="{{ '/upload/' + str(option['image_path']) }}"
                                                  class="img-fluid rounded"
                                                  alt="选项{{ option_label }}图片"
                                                  style="max-height: 150px;">
@@ -257,7 +257,7 @@
                                         <strong>{{ option_label }}.</strong> {{ option_text }}
                                         {% if option.get('has_image') and option.get('image_path') %}
                                         <div class="mt-2 mb-2">
-                                            <img src="{{ url_for('upload.uploaded_file', filename=option['image_path']) }}"
+                                            <img src="{{ '/upload/' + str(option['image_path']) }}"
                                                  class="img-fluid rounded"
                                                  alt="选项{{ option_label }}图片"
                                                  style="max-height: 150px;">

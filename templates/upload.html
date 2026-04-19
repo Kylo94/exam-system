@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ app_name }} - 新建试卷</title>
+    <title>{{ settings.APP_NAME }} - 新建试卷</title>
     <style>
         .upload-method-card {
             cursor: pointer;
@@ -50,7 +50,7 @@
         <!-- 面包屑导航 -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.exams_page') }}">试卷管理</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/admin/exams' }}">试卷管理</a></li>
                 <li class="breadcrumb-item active">新建试卷</li>
             </ol>
         </nav>

@@ -3,22 +3,21 @@
 """
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from tortoise.queryset import Q
 
-from app.auth import get_current_user
+from app.auth import get_current_user, get_optional_current_user
 from app.models.user import User
 from app.models.exam import Exam
 from app.models.submission import Submission
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/", response_class=HTMLResponse)
-async def home(request: Request):
+async def home(request: Request, current_user: User = Depends(get_optional_current_user)):
     """首页"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "current_user": current_user})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)

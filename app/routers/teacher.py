@@ -3,7 +3,6 @@
 """
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from tortoise.queryset import Q
 
 from app.auth import get_current_user, require_teacher
@@ -14,9 +13,9 @@ from app.models.subject import Subject
 from app.models.level import Level
 from app.models.submission import Submission
 from app.models.answer import Answer
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -32,11 +31,8 @@ async def teacher_home(request: Request, current_user: User = Depends(require_te
 @router.get("/students", response_class=HTMLResponse)
 async def teacher_students(request: Request, current_user: User = Depends(require_teacher)):
     """学生列表"""
-    if current_user.is_admin:
-        students = await User.filter(role="student").order_by("-created_at")
-    else:
-        students = await User.filter(teacher_id=current_user.id, role="student").order_by("-created_at")
-    
+    students = await User.filter(teacher_id=current_user.id, role="student").order_by("-created_at")
+
     return templates.TemplateResponse("teacher/students.html", {
         "request": request,
         "user": current_user,
@@ -48,11 +44,8 @@ async def teacher_students(request: Request, current_user: User = Depends(requir
 @router.get("/exams", response_class=HTMLResponse)
 async def teacher_exams(request: Request, current_user: User = Depends(require_teacher)):
     """我的试卷列表"""
-    if current_user.is_admin:
-        exams = await Exam.all().prefetch_related("subject", "level").order_by("-created_at")
-    else:
-        exams = await Exam.filter(creator_id=current_user.id).prefetch_related("subject", "level").order_by("-created_at")
-    
+    exams = await Exam.filter(creator_id=current_user.id).prefetch_related("subject", "level").order_by("-created_at")
+
     return templates.TemplateResponse("teacher/exams.html", {
         "request": request,
         "user": current_user,
@@ -65,7 +58,7 @@ async def create_exam_page(request: Request, current_user: User = Depends(requir
     """创建试卷页面"""
     subjects = await Subject.all()
     levels = await Level.all()
-    
+
     return templates.TemplateResponse("teacher/exam_form.html", {
         "request": request,
         "user": current_user,
@@ -81,14 +74,14 @@ async def edit_exam_page(exam_id: int, request: Request, current_user: User = De
     exam = await Exam.get_or_none(id=exam_id)
     if not exam:
         raise HTTPException(status_code=404, detail="试卷不存在")
-    
-    if not current_user.is_admin and exam.creator_id != current_user.id:
-        raise HTTPException(status_code=403, detail="无权限")
-    
+
+    if exam.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权限编辑此试卷")
+
     subjects = await Subject.all()
     levels = await Level.all()
     questions = await Question.filter(exam_id=exam_id)
-    
+
     return templates.TemplateResponse("teacher/exam_form.html", {
         "request": request,
         "user": current_user,
@@ -103,13 +96,10 @@ async def edit_exam_page(exam_id: int, request: Request, current_user: User = De
 @router.get("/submissions", response_class=HTMLResponse)
 async def teacher_submissions(request: Request, current_user: User = Depends(require_teacher)):
     """答题记录列表"""
-    if current_user.is_admin:
-        submissions = await Submission.all().prefetch_related("user", "exam").order_by("-created_at")
-    else:
-        # 获取自己学生的提交记录
-        student_ids = await User.filter(teacher_id=current_user.id).values_list("id", flat=True)
-        submissions = await Submission.filter(user_id__in=student_ids).prefetch_related("user", "exam").order_by("-created_at")
-    
+    # 获取自己学生的提交记录
+    student_ids = await User.filter(teacher_id=current_user.id).values_list("id", flat=True)
+    submissions = await Submission.filter(user_id__in=student_ids).prefetch_related("user", "exam").order_by("-created_at")
+
     return templates.TemplateResponse("teacher/submissions.html", {
         "request": request,
         "user": current_user,
@@ -121,16 +111,15 @@ async def teacher_submissions(request: Request, current_user: User = Depends(req
 async def submission_detail(submission_id: int, request: Request, current_user: User = Depends(require_teacher)):
     """答题详情"""
     submission = await Submission.get_or_none(id=submission_id).prefetch_related("user", "exam", "answers__question")
-    
+
     if not submission:
         raise HTTPException(status_code=404, detail="提交记录不存在")
-    
-    # 检查权限
-    if not current_user.is_admin:
-        student = await User.get_or_none(id=submission.user_id)
-        if not student or student.teacher_id != current_user.id:
-            raise HTTPException(status_code=403, detail="无权限查看此记录")
-    
+
+    # 检查权限 - 只能查看自己学生的提交
+    student = await User.get_or_none(id=submission.user_id)
+    if not student or student.teacher_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权限查看此记录")
+
     return templates.TemplateResponse("teacher/submission_detail.html", {
         "request": request,
         "user": current_user,

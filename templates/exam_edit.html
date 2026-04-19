@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ app_name }} - 编辑试卷</title>
+    <title>{{ settings.APP_NAME }} - 编辑试卷</title>
     <style>
         .question-card {
             border: 1px solid #dee2e6;
@@ -31,7 +31,7 @@
         <!-- 面包屑导航 -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.exams_page') }}">试卷管理</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/admin/exams' }}">试卷管理</a></li>
                 <li class="breadcrumb-item active">编辑试卷</li>
             </ol>
         </nav>

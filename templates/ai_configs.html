@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ app_name }} - AI配置管理</title>
+    <title>{{ settings.APP_NAME }} - AI配置管理</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}
@@ -11,7 +11,7 @@
         <!-- 面包屑导航 -->
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理后台</a></li>
+                <li class="breadcrumb-item"><a href="{{ '/admin' }}">管理后台</a></li>
                 <li class="breadcrumb-item active">AI配置管理</li>
             </ol>
         </nav>

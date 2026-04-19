@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}个人资料 - {{ app_name }}{% endblock %}
+{% block title %}个人资料 - {{ settings.APP_NAME }}{% endblock %}
 
 {# 定义公共内容块 - 用户信息卡片 #}
 {% macro user_info_card() %}
@@ -639,7 +639,7 @@
                         showAlert(data.message || '密码修改成功，请重新登录', 'success');
                         changePasswordForm.reset();
                         setTimeout(() => {
-                            window.location.href = "{{ url_for('auth.login_page') }}";
+                            window.location.href = "{{ '/auth/login' }}";
                         }, 2000);
                     } else {
                         showAlert(data.message || data.error?.message || '密码修改失败', 'danger');
@@ -708,7 +708,7 @@
                     const data = await response.json();
 
                     if (response.ok) {
-                        window.location.href = "{{ url_for('auth.login_page') }}";
+                        window.location.href = "{{ '/auth/login' }}";
                     } else {
                         showAlert(data.message || '退出登录失败', 'danger');
                     }

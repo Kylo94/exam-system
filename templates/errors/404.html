@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>页面未找到 - {{ app_name }}</title>
+    <title>页面未找到 - {{ settings.APP_NAME }}</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}
@@ -22,10 +22,10 @@
                             {% endif %}
                         </p>
                         <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary btn-lg">
+                            <a href="{{ '/dashboard' }}" class="btn btn-primary btn-lg">
                                 <i class="bi bi-house-door me-1"></i>返回首页
                             </a>
-                            <a href="{{ url_for('main.exams_page') }}" class="btn btn-outline-secondary btn-lg">
+                            <a href="{{ '/student/exams' }}" class="btn btn-outline-secondary btn-lg">
                                 <i class="bi bi-list-ul me-1"></i>考试列表
                             </a>
                         </div>

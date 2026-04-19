@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(conda run *)",
+      "Bash(sed -i '' 's/^DATABASE_URL=postgresql:\\\\/\\\\/\\\\${POSTGRES_USER}:\\\\${POSTGRES_PASSWORD}@db:5432\\\\/\\\\${POSTGRES_DB}/# DATABASE_URL=postgresql:\\\\/\\\\/\\\\${POSTGRES_USER}:\\\\${POSTGRES_PASSWORD}@db:5432\\\\/\\\\${POSTGRES_DB}/' .env)",
+      "Bash(sed -i '' 's/^# DATABASE_URL=sqlite:\\\\/\\\\/\\\\/instance\\\\/exam.db/DATABASE_URL=sqlite:\\\\/\\\\/\\\\/instance\\\\/exam.db/' .env)",
+      "Bash(python -c \"from main import app; print\\('App loads OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(git add *)"
+    ]
+  }
+}

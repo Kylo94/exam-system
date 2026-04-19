@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }} - 刷题练习 - {{ settings.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/student/practice">专项刷题</a></li>
+                <li class="breadcrumb-item active">{{ subject.name }}</li>
+            </ol>
+        </nav>
+        <h2 class="mb-4"><i class="bi bi-pencil-square"></i> {{ subject.name }} - 刷题练习</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">练习题 (共 {{ questions|length }} 题)</h5>
+            </div>
+            <div class="card-body">
+                {% for question in questions %}
+                <div class="question-item mb-4 pb-4 border-bottom">
+                    <p><strong>Q{{ loop.index }}.</strong> {{ question.content }}</p>
+
+                    {% if question.options %}
+                    <div class="options ps-4">
+                        {% for option in question.options %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="q{{ question.id }}" id="q{{ question.id }}_{{ loop.index }}" value="{{ option.id }}">
+                            <label class="form-check-label" for="q{{ question.id }}_{{ loop.index }}">
+                                {{ option.id }}. {{ option.text }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="answer-input">
+                        <textarea class="form-control" rows="2" placeholder="请输入答案..."></textarea>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-primary check-answer" data-question-id="{{ question.id }}">查看答案</button>
+                        <div class="answer-reveal mt-2 d-none" id="answer{{ question.id }}">
+                            <div class="alert alert-success">
+                                <strong>正确答案：</strong> {{ question.correct_answer }}
+                            </div>
+                            {% if question.explanation %}
+                            <div class="alert alert-info mt-2">
+                                <strong>解析：</strong> {{ question.explanation }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">暂无题目</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">说明</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-info-circle text-primary me-2"></i>点击"查看答案"显示正确答案</li>
+                    <li><i class="bi bi-info-circle text-primary me-2"></i>练习不计分</li>
+                    <li><i class="bi bi-info-circle text-primary me-2"></i>可以反复练习</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+document.querySelectorAll('.check-answer').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const questionId = this.dataset.questionId;
+        const answerDiv = document.getElementById('answer' + questionId);
+        answerDiv.classList.toggle('d-none');
+        this.textContent = answerDiv.classList.contains('d-none') ? '查看答案' : '隐藏答案';
+    });
+});
+</script>
+{% endblock %}

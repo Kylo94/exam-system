@@ -1,28 +1,28 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('main.index') }}">
+        <a class="navbar-brand" href="/">
             <i class="bi bi-journal-text me-2"></i>
-            {{ app_name }}
+            {{ settings.APP_NAME }}
         </a>
-        
+
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
             <span class="navbar-toggler-icon"></span>
         </button>
-        
+
         <div class="collapse navbar-collapse" id="navbarMain">
-            {% if current_user.is_authenticated %}
+            {% if current_user %}
             <!-- 已登录用户导航 -->
             <ul class="navbar-nav me-auto">
                 <!-- 学生导航 -->
-                {% if current_user.is_student() %}
+                {% if current_user.role == 'student' %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.exam_select_page') }}">
+                    <a class="nav-link" href="/student/exams">
                         <i class="bi bi-journal-check me-1"></i>
                         真题测试
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('main.practice_page') }}">
+                    <a class="nav-link" href="/student">
                         <i class="bi bi-pencil-square me-1"></i>
                         专项刷题
                     </a>
@@ -36,73 +36,61 @@
                 {% endif %}
 
                 <!-- 教师导航 -->
-                {% if current_user.is_teacher() %}
+                {% if current_user.role == 'teacher' %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('teacher.my_students_page') }}">
+                    <a class="nav-link" href="/teacher/students">
                         <i class="bi bi-people me-1"></i>
                         我的学生
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('teacher.student_submissions_page') }}">
+                    <a class="nav-link" href="/teacher/submissions">
                         <i class="bi bi-list-check me-1"></i>
                         学生提交情况
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('teacher.bind_requests_page') }}">
-                        <i class="bi bi-person-check me-1"></i>
-                        绑定申请
                     </a>
                 </li>
                 {% endif %}
 
                 <!-- 管理员导航 -->
-                {% if current_user.is_admin() %}
+                {% if current_user.role == 'admin' %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                         <i class="bi bi-gear me-1"></i>
                         管理中心
                     </a>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
+                        <li><a class="dropdown-item" href="/admin">
                             <i class="bi bi-speedometer2 me-1"></i>管理控制面板
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li class="dropdown-header">用户管理</li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.users_page') }}">
+                        <li><a class="dropdown-item" href="/admin/users">
                             <i class="bi bi-people me-1"></i>用户列表
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li class="dropdown-header">内容管理</li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.subjects_page') }}">
+                        <li><a class="dropdown-item" href="/admin/subjects">
                             <i class="bi bi-journal me-1"></i>科目管理
                         </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.levels_page') }}">
+                        <li><a class="dropdown-item" href="/admin/levels">
                             <i class="bi bi-bar-chart me-1"></i>难度等级
                         </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.knowledge_points_page') }}">
-                            <i class="bi bi-bookmark me-1"></i>知识点管理
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.questions_page') }}">
+                        <li><a class="dropdown-item" href="/admin/questions">
                             <i class="bi bi-question-circle me-1"></i>题目管理
                         </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.exams_page') }}">
+                        <li><a class="dropdown-item" href="/admin/exams">
                             <i class="bi bi-file-earmark-text me-1"></i>试卷管理
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li class="dropdown-header">其他</li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.submissions_page') }}">
+                        <li><a class="dropdown-item" href="/admin/submissions">
                             <i class="bi bi-clipboard-data me-1"></i>提交记录
-                        </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.ai_configs_page') }}">
-                            <i class="bi bi-cpu me-1"></i>AI配置管理
                         </a></li>
                     </ul>
                 </li>
                 {% endif %}
             </ul>
-            
+
             <!-- 用户信息 -->
             <ul class="navbar-nav">
                 <li class="nav-item dropdown">
@@ -111,37 +99,37 @@
                         {{ current_user.username }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="{{ url_for('auth.profile_page') }}">
+                        <li><a class="dropdown-item" href="/auth/profile">
                             <i class="bi bi-person me-1"></i>个人资料
                         </a></li>
-                        {% if current_user.is_admin() %}
-                        <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">
+                        {% if current_user.role == 'admin' %}
+                        <li><a class="dropdown-item" href="/admin">
                             <i class="bi bi-speedometer2 me-1"></i>管理控制面板
                         </a></li>
-                        {% elif current_user.is_teacher() %}
-                        <li><a class="dropdown-item" href="{{ url_for('teacher.dashboard') }}">
+                        {% elif current_user.role == 'teacher' %}
+                        <li><a class="dropdown-item" href="/teacher">
                             <i class="bi bi-speedometer2 me-1"></i>教师控制面板
                         </a></li>
                         {% endif %}
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="logout(event)">
+                        <li><a class="dropdown-item" href="/auth/logout">
                             <i class="bi bi-box-arrow-right me-1"></i>退出登录
                         </a></li>
                     </ul>
                 </li>
             </ul>
-            
+
             {% else %}
             <!-- 未登录导航 -->
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('auth.login_page') }}">
+                    <a class="nav-link" href="/auth/login">
                         <i class="bi bi-box-arrow-in-right me-1"></i>
                         登录
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="btn btn-light ms-2" href="{{ url_for('auth.register_page') }}">
+                    <a class="btn btn-light ms-2" href="/auth/register">
                         <i class="bi bi-person-plus me-1"></i>
                         注册
                     </a>

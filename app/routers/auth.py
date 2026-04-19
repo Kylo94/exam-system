@@ -3,7 +3,6 @@
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, EmailStr
 
 from app.auth import (
@@ -14,9 +13,9 @@ from app.auth import (
 )
 from app.models.user import User
 from app.config import settings
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 # Pydantic模型
@@ -85,10 +84,17 @@ async def login(request: Request, username: str = Form(...), password: str = For
         )
     
     # 创建JWT令牌
-    access_token = create_access_token(data={"sub": user.id})
-    
-    # 根据角色重定向
-    response = RedirectResponse(url="/", status_code=303)
+    access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
+
+    # 根据角色重定向到对应页面
+    if user.role == "admin":
+        redirect_url = "/admin"
+    elif user.role == "teacher":
+        redirect_url = "/teacher"
+    else:
+        redirect_url = "/dashboard"
+
+    response = RedirectResponse(url=redirect_url, status_code=303)
     response.set_cookie(
         key="access_token",
         value=access_token,

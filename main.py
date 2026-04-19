@@ -42,7 +42,7 @@ app.add_middleware(
 )
 
 # 注册Jinja2模板
-templates = Jinja2Templates(directory="templates")
+from app.templating import templates
 
 # 挂载静态文件
 import os

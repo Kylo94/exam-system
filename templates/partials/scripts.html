@@ -2,13 +2,13 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <!-- 自定义JS -->
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="/static/js/main.js"></script>
 
 <!-- 退出登录函数（全局可用） -->
 <script>
 // 先定义URL常量，避免在字符串中混用Jinja2语法
-const LOGOUT_URL = "{{ url_for('auth.logout') }}";
-const HOME_URL = "{{ url_for('main.index') }}";
+const LOGOUT_URL = "/auth/logout";
+const HOME_URL = "/";
 
 async function logout(event) {
     if (event) event.preventDefault();
