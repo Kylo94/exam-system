@@ -149,7 +149,7 @@ async def profile_page(request: Request, current_user: User = Depends(get_curren
     """个人资料页面"""
     return templates.TemplateResponse("auth/profile.html", {
         "request": request,
-        "user": current_user
+        "current_user": current_user
     })
 
 
@@ -164,7 +164,7 @@ async def change_password(
     if not verify_password(old_password, current_user.password_hash):
         return templates.TemplateResponse(
             "auth/profile.html",
-            {"request": request, "user": current_user, "error": "原密码错误"},
+            {"request": request, "current_user": current_user, "error": "原密码错误"},
             status_code=400
         )
     

@@ -48,7 +48,7 @@
                 <p class="text-muted">{{ exam.description }}</p>
                 {% endif %}
                 
-                {% if user.is_student %}
+                {% if current_user.is_student %}
                 <hr class="my-4">
                 <div class="text-center">
                     {% if submission %}

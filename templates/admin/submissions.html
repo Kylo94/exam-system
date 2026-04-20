@@ -1,199 +1,370 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    {% include "partials/head.html" %}
-    <title>{{ settings.APP_NAME }} - 提交管理</title>
-</head>
-<body>
-    {% include "partials/navbar.html" %}
-    
-    <main class="container py-5">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ '/admin' }}">管理面板</a></li>
-                <li class="breadcrumb-item active">提交管理</li>
-            </ol>
-        </nav>
-        
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h2">提交管理</h1>
-            <a href="{{ '/admin/submissions' }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>查看所有提交
-            </a>
-        </div>
-        
-        <!-- 提交列表 -->
-        <div class="card">
-            <div class="card-body">
-                {% if submissions %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th width="50"><input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleSelectAll()"></th>
-                                <th>ID</th>
-                                <th>用户</th>
-                                <th>试卷</th>
-                                <th>分数</th>
-                                <th>状态</th>
-                                <th>提交时间</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for submission in submissions %}
-                            <tr>
-                                <td><input type="checkbox" class="form-check-input submission-checkbox" value="{{ submission.id }}"></td>
-                                <td>{{ submission.id }}</td>
-                                <td>{{ submission.user.username if submission.user else '匿名' }}</td>
-                                <td>{{ submission.exam.title if submission.exam else '未知' }}</td>
-                                <td>
-                                    {% if submission.obtained_score is not none %}
-                                    <span class="badge bg-{{ 'success' if submission.obtained_score >= 60 else 'danger' }}">
-                                        {{ submission.obtained_score|round(2) }}
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">未评分</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% set status_map = {'in_progress': '进行中', 'submitted': '已提交', 'graded': '已评分', 'archived': '已归档'} %}
-                                    <span class="badge bg-{{ 'success' if submission.status == 'submitted' or submission.status == 'graded' else 'warning' if submission.status == 'in_progress' else 'secondary' }}">
-                                        {{ status_map.get(submission.status, submission.status) }}
-                                    </span>
-                                </td>
-                                <td>{{ submission.submit_time.strftime('%Y-%m-%d %H:%M') if submission.submit_time else '未知' }}</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        {% if submission.status != 'in_progress' %}
-                                        <a href="{{ '/submission/' + str(submission.id) }}" class="btn btn-outline-primary">
-                                            <i class="bi bi-eye"></i>查看详情
-                                        </a>
-                                        {% endif %}
-                                        <button class="btn btn-outline-danger" onclick="deleteSubmission({{ submission.id }})">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+{% extends "admin/admin_base.html" %}
 
-                <!-- 批量操作按钮 -->
-                <div class="mt-3" id="batchActions" style="display: none;">
-                    <button class="btn btn-danger" onclick="batchDeleteSubmissions()">
-                        <i class="bi bi-trash"></i> 批量删除选中的提交
-                    </button>
-                    <span class="ms-2 text-muted" id="selectedCount">已选择 0 项</span>
-                </div>
-                {% else %}
-                <p class="text-muted text-center mb-0">暂无提交数据</p>
-                {% endif %}
+{% block title %}答题记录管理 - {{ settings.APP_NAME }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-clipboard-data text-warning"></i> 答题记录管理</h2>
+        <p class="text-secondary small mb-0">共 <span id="totalSubmissions">0</span> 条记录</p>
+    </div>
+    <div>
+        <button class="btn btn-outline-danger" id="btnBatchDelete" disabled onclick="batchDeleteSubmissions()">
+            <i class="bi bi-trash me-2"></i>批量删除 (<span id="selectedCount">0</span>)
+        </button>
+    </div>
+</div>
+
+<!-- 筛选 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">试卷</label>
+                <select class="form-select" id="filterExam">
+                    <option value="">全部试卷</option>
+                    {% for e in exams %}
+                    <option value="{{ e.id }}">{{ e.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">用户</label>
+                <select class="form-select" id="filterUser">
+                    <option value="">全部用户</option>
+                    {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">状态</label>
+                <select class="form-select" id="filterStatus">
+                    <option value="">全部状态</option>
+                    <option value="in_progress">进行中</option>
+                    <option value="submitted">已提交</option>
+                    <option value="graded">已评分</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-primary" onclick="loadSubmissions(1)">
+                    <i class="bi bi-search me-2"></i>筛选
+                </button>
+                <button class="btn btn-secondary ms-2" onclick="resetFilters()">
+                    <i class="bi bi-x-circle me-2"></i>重置
+                </button>
             </div>
         </div>
-    </main>
-    
-    {% include "partials/footer.html" %}
-    {% include "partials/scripts.html" %}
+    </div>
+</div>
 
-    <script>
-    // 全选/取消全选
-    function toggleSelectAll() {
-        const selectAll = document.getElementById('selectAll');
-        const checkboxes = document.querySelectorAll('.submission-checkbox');
-        checkboxes.forEach(checkbox => {
-            checkbox.checked = selectAll.checked;
+<!-- 记录列表 -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
+                        <th class="text-purple">ID</th>
+                        <th class="text-purple">用户</th>
+                        <th class="text-purple">试卷</th>
+                        <th class="text-purple">得分</th>
+                        <th class="text-purple">状态</th>
+                        <th class="text-purple">用时</th>
+                        <th class="text-purple">提交时间</th>
+                        <th class="text-purple">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="submissionsTableBody">
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-hourglass-split me-2"></i>加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 分页 -->
+<div class="d-flex justify-content-between align-items-center mt-3">
+    <div class="text-secondary small">
+        第 <span id="currentPage">1</span> / <span id="totalPages">1</span> 页，共 <span id="totalCount">0</span> 条
+    </div>
+    <nav>
+        <ul class="pagination mb-0" id="pagination">
+        </ul>
+    </nav>
+</div>
+
+<!-- 确认删除Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>确定要删除选中的 <strong id="deleteCount">0</strong> 条记录吗？</p>
+                <p class="text-muted small">此操作不可恢复</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let selectedSubmissions = new Set();
+let submissionsData = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSubmissions(1);
+});
+
+async function loadSubmissions(page) {
+    currentPage = page;
+
+    const params = new URLSearchParams();
+    params.append('page', page);
+    params.append('page_size', 30);
+
+    const examId = document.getElementById('filterExam').value;
+    const userId = document.getElementById('filterUser').value;
+    const status = document.getElementById('filterStatus').value;
+
+    if (examId) params.append('exam_id', examId);
+    if (userId) params.append('user_id', userId);
+    if (status) params.append('status', status);
+
+    try {
+        const response = await fetch(`/admin/api/submissions?${params.toString()}`, {
+            credentials: 'include'
         });
-        updateBatchActions();
+        const result = await response.json();
+
+        if (result.success) {
+            renderSubmissions(result.data);
+            updatePagination(result.total, result.page, result.page_size);
+            document.getElementById('totalSubmissions').textContent = result.total;
+        }
+    } catch (error) {
+        console.error('加载记录失败:', error);
+        document.getElementById('submissionsTableBody').innerHTML =
+            '<tr><td colspan="9" class="text-center text-danger py-4">加载失败</td></tr>';
+    }
+}
+
+function renderSubmissions(submissions) {
+    submissionsData = submissions;
+
+    if (submissions.length === 0) {
+        document.getElementById('submissionsTableBody').innerHTML =
+            '<tr><td colspan="9" class="text-center text-muted py-4">暂无记录数据</td></tr>';
+        return;
     }
 
-    // 更新批量操作按钮显示
-    function updateBatchActions() {
-        const checkboxes = document.querySelectorAll('.submission-checkbox:checked');
-        const batchActions = document.getElementById('batchActions');
-        const selectedCount = document.getElementById('selectedCount');
-
-        if (checkboxes.length > 0) {
-            batchActions.style.display = 'block';
-            selectedCount.textContent = `已选择 ${checkboxes.length} 项`;
-        } else {
-            batchActions.style.display = 'none';
-        }
-    }
-
-    // 监听复选框变化
-    document.querySelectorAll('.submission-checkbox').forEach(checkbox => {
-        checkbox.addEventListener('change', updateBatchActions);
-    });
-
-    // 批量删除提交
-    async function batchDeleteSubmissions() {
-        const checkboxes = document.querySelectorAll('.submission-checkbox:checked');
-        const submissionIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
-
-        if (submissionIds.length === 0) {
-            alert('请先选择要删除的提交记录');
-            return;
-        }
-
-        if (!confirm(`确定要删除选中的 ${submissionIds.length} 条提交记录吗？此操作不可恢复！`)) {
-            return;
-        }
-
-        try {
-            const response = await fetch('/admin/api/submissions/batch-delete', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    submission_ids: submissionIds
-                })
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                alert(`成功删除 ${submissionIds.length} 条提交记录`);
-                window.location.reload();
-            } else {
-                alert('删除失败: ' + (data.error?.message || '未知错误'));
-            }
-        } catch (error) {
-            console.error('批量删除失败:', error);
-            alert('网络错误，请稍后重试');
-        }
-    }
-
-    // 单个删除提交
-    async function deleteSubmission(submissionId) {
-        if (!confirm('确定要删除这条提交记录吗？')) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`/admin/api/submissions/${submissionId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
+    const tbody = document.getElementById('submissionsTableBody');
+    tbody.innerHTML = submissions.map(s => `
+        <tr class="${selectedSubmissions.has(s.id) ? 'table-primary' : ''}">
+            <td>
+                <input type="checkbox" class="form-check-input"
+                    ${selectedSubmissions.has(s.id) ? 'checked' : ''}
+                    onchange="toggleSelect(${s.id})">
+            </td>
+            <td><code>${s.id}</code></td>
+            <td>${escapeHtml(s.username)}</td>
+            <td>
+                <a href="/admin/exams/${s.exam_id}/edit" class="text-decoration-none">${escapeHtml(s.exam_title)}</a>
+            </td>
+            <td>
+                ${s.obtained_score !== null ?
+                    `<span class="badge bg-${s.obtained_score >= 60 ? 'success' : 'danger'}">${s.obtained_score}/${s.total_score}</span>` :
+                    '<span class="badge bg-secondary">未评分</span>'
                 }
-            });
+            </td>
+            <td>${getStatusBadge(s.status)}</td>
+            <td>${formatDuration(s.duration_seconds)}</td>
+            <td>${s.submitted_at ? formatDate(s.submitted_at) : '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteSubmission(${s.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
 
-            const data = await response.json();
+function getStatusBadge(status) {
+    const statusMap = {
+        'in_progress': { class: 'warning', text: '进行中' },
+        'submitted': { class: 'info', text: '已提交' },
+        'graded': { class: 'success', text: '已评分' }
+    };
+    const info = statusMap[status] || { class: 'secondary', text: status };
+    return `<span class="badge bg-${info.class}">${info.text}</span>`;
+}
 
-            if (response.ok && data.success) {
-                alert('删除成功');
-                window.location.reload();
-            } else {
-                alert('删除失败: ' + (data.error?.message || '未知错误'));
-            }
-        } catch (error) {
-            console.error('删除失败:', error);
-            alert('网络错误，请稍后重试');
-        }
+function formatDuration(seconds) {
+    if (!seconds) return '-';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}分${secs}秒`;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function updatePagination(total, page, pageSize) {
+    const totalPages = Math.ceil(total / pageSize);
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('currentPage').textContent = page;
+    document.getElementById('totalPages').textContent = totalPages;
+
+    const pagination = document.getElementById('pagination');
+    let html = '';
+
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
     }
-    </script>
-</body>
-</html>
+
+    html += `<li class="page-item ${page <= 1 ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:loadSubmissions(${page - 1})">上一页</a>
+    </li>`;
+
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, page + 2);
+
+    if (start > 1) {
+        html += `<li class="page-item"><a class="page-link" href="javascript:loadSubmissions(1)">1</a></li>`;
+        if (start > 2) html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+    }
+
+    for (let i = start; i <= end; i++) {
+        html += `<li class="page-item ${i === page ? 'active' : ''}">
+            <a class="page-link" href="javascript:loadSubmissions(${i})">${i}</a>
+        </li>`;
+    }
+
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        html += `<li class="page-item"><a class="page-link" href="javascript:loadSubmissions(${totalPages})">${totalPages}</a></li>`;
+    }
+
+    html += `<li class="page-item ${page >= totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="javascript:loadSubmissions(${page + 1})">下一页</a>
+    </li>`;
+
+    pagination.innerHTML = html;
+}
+
+function toggleSelect(id) {
+    if (selectedSubmissions.has(id)) {
+        selectedSubmissions.delete(id);
+    } else {
+        selectedSubmissions.add(id);
+    }
+    updateSelectedUI();
+    renderSubmissions(submissionsData);
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    if (checked) {
+        submissionsData.forEach(s => selectedSubmissions.add(s.id));
+    } else {
+        selectedSubmissions.clear();
+    }
+    updateSelectedUI();
+    renderSubmissions(submissionsData);
+}
+
+function updateSelectedUI() {
+    const count = selectedSubmissions.size;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('btnBatchDelete').disabled = count === 0;
+}
+
+async function deleteSubmission(id) {
+    if (!confirm('确定要删除这条答题记录吗？')) return;
+
+    try {
+        const response = await fetch(`/admin/api/submissions/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            selectedSubmissions.delete(id);
+            updateSelectedUI();
+            loadSubmissions(currentPage);
+        } else {
+            alert('删除失败');
+        }
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+function batchDeleteSubmissions() {
+    const count = selectedSubmissions.size;
+    if (count === 0) return;
+
+    document.getElementById('deleteCount').textContent = count;
+    new bootstrap.Modal(document.getElementById('confirmDeleteModal')).show();
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+    const ids = Array.from(selectedSubmissions);
+    if (ids.length === 0) return;
+
+    try {
+        const response = await fetch('/admin/api/submissions/batch-delete', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ids)
+        });
+
+        if (response.ok) {
+            selectedSubmissions.clear();
+            updateSelectedUI();
+            bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal')).hide();
+            loadSubmissions(currentPage);
+        } else {
+            alert('批量删除失败');
+        }
+    } catch (error) {
+        alert('批量删除失败: ' + error.message);
+    }
+});
+
+function resetFilters() {
+    document.getElementById('filterExam').value = '';
+    document.getElementById('filterUser').value = '';
+    document.getElementById('filterStatus').value = '';
+    loadSubmissions(1);
+}
+</script>
+{% endblock %}

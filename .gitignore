@@ -5,21 +5,8 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
 # Virtual Environment
 venv/
@@ -42,29 +29,19 @@ ehthumbs.db
 Thumbs.db
 
 # Application
-instance/
 *.db
 *.sqlite
 *.sqlite3
 uploads/
-*.log
+logs/
 .env
-.env.production
-# 允许提交 .env.example 模板文件
-!.env.example
+.env.local
 
 # Testing
 .coverage
 htmlcov/
 .pytest_cache/
-.mypy_cache
-
-# Database migrations (Alembic)
-# 注意：migrations/versions/*.py 应该提交到 Git
-# 只有 .pyc 文件应该被忽略
-migrations/versions/*.pyc
-*.pid
+.mypy_cache/
 
 # Docker
 postgres_data/
-postgres_data_prod/

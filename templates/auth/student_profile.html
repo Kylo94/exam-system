@@ -14,11 +14,11 @@
             <div class="mb-2">
                 <span>我的教师:</span>
                 <div id="teacherInfo">
-                    {% if user.teacher %}
+                    {% if current_user.teacher %}
                     <span class="badge bg-info">
-                        <i class="bi bi-person-badge me-1"></i>{{ user.teacher.username }}
+                        <i class="bi bi-person-badge me-1"></i>{{ current_user.teacher.username }}
                     </span>
-                    <small class="text-muted d-block">ID: {{ user.teacher.id }}</small>
+                    <small class="text-muted d-block">ID: {{ current_user.teacher.id }}</small>
                     {% else %}
                     <span class="badge bg-secondary">未绑定</span>
                     <small class="text-muted d-block">可在下方绑定教师</small>
@@ -64,7 +64,7 @@
                                 <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
                                 <input type="number" class="form-control" id="bindTeacherId"
                                        placeholder="输入教师ID"
-                                       value="{{ user.teacher_id if user.teacher_id else '' }}">
+                                       value="{{ current_user.teacher_id if current_user.teacher_id else '' }}">
                                 <button class="btn btn-outline-primary" type="button" id="verifyTeacherBtn">
                                     验证
                                 </button>
@@ -73,8 +73,8 @@
                                 </button>
                             </div>
                             <div class="form-text" id="teacherBindFeedback">
-                                {% if user.teacher %}
-                                已绑定教师：{{ user.teacher.username }}（ID: {{ user.teacher.id }}）
+                                {% if current_user.teacher %}
+                                已绑定教师：{{ current_user.teacher.username }}（ID: {{ current_user.teacher.id }}）
                                 {% else %}
                                 输入教师ID申请绑定，教师审核通过后可查看您的成绩
                                 {% endif %}

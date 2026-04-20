@@ -5,37 +5,51 @@ from typing import Any, Dict, List, Optional
 from .base import BaseAIService
 from .providers.deepseek import DeepSeekProvider
 from .providers.openai import OpenAIProvider
+from .providers.minimax import MiniMaxProvider
 
 
 class LLMService(BaseAIService):
     """LLM服务类"""
-    
+
     def __init__(self, provider: str = 'deepseek'):
         """初始化LLM服务
-        
+
         Args:
-            provider: AI提供商（deepseek/openai）
+            provider: AI提供商（deepseek/openai/minimax）
         """
         super().__init__(provider)
         self._provider_instance = None
-    
+
     @property
     def provider_instance(self):
         """获取提供商实例（懒加载）"""
         if self._provider_instance is None:
             api_key = self.config.get('api_key')
             base_url = self.config.get('base_url')
-            
+
             if not api_key:
                 raise ValueError(f'{self.provider} API密钥未配置')
-            
+
+            # 默认API地址
+            DEFAULT_URLS = {
+                'deepseek': 'https://api.deepseek.com',
+                'openai': 'https://api.openai.com/v1',
+                'minimax': 'https://api.minimaxi.com/anthropic'
+            }
+
+            # 如果没有提供base_url，使用默认值
+            if not base_url:
+                base_url = DEFAULT_URLS.get(self.provider)
+
             if self.provider == 'deepseek':
                 self._provider_instance = DeepSeekProvider(api_key, base_url)
             elif self.provider == 'openai':
                 self._provider_instance = OpenAIProvider(api_key, base_url)
+            elif self.provider == 'minimax':
+                self._provider_instance = MiniMaxProvider(api_key, base_url)
             else:
                 raise ValueError(f'不支持的AI提供商: {self.provider}')
-        
+
         return self._provider_instance
     
     def generate_answer(self, question: str, context: Optional[str] = None) -> str:

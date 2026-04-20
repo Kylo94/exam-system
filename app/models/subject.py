@@ -4,6 +4,8 @@
 from tortoise import fields
 from tortoise.models import Model
 
+from app.services.id_generator import format_display_id
+
 
 class Subject(Model):
     """科目模型"""
@@ -20,6 +22,11 @@ class Subject(Model):
 
     class Meta:
         table = "subjects"
+
+    @property
+    def display_id(self) -> str:
+        """获取显示用的ID"""
+        return format_display_id(self.id, "subject")
 
     def __str__(self):
         return f"<Subject {self.name}>"

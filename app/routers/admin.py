@@ -484,6 +484,27 @@ async def create_exam_admin(
     return {"success": True, "data": {"id": exam.id}}
 
 
+@router.post("/api/exams/batch-delete")
+async def admin_batch_delete_exams(
+    exam_ids: list[int],
+    current_user: User = Depends(require_admin)
+):
+    """批量删除试卷"""
+    await Exam.filter(id__in=exam_ids).delete()
+    return {"success": True, "deleted": len(exam_ids)}
+
+
+@router.post("/api/exams/batch-publish")
+async def admin_batch_publish_exams(
+    exam_ids: list[int],
+    is_published: bool = True,
+    current_user: User = Depends(require_admin)
+):
+    """批量发布/取消发布试卷"""
+    await Exam.filter(id__in=exam_ids).update(is_published=is_published)
+    return {"success": True, "updated": len(exam_ids)}
+
+
 @router.get("/exams/{exam_id}/edit", response_class=HTMLResponse)
 async def admin_edit_exam_page(exam_id: int, request: Request, current_user: User = Depends(require_admin)):
     """编辑试卷页面"""
@@ -692,6 +713,102 @@ async def admin_delete_question(question_id: int, current_user: User = Depends(r
 
     await question.delete()
     return {"success": True}
+
+
+@router.get("/api/questions")
+async def admin_list_all_questions(
+    exam_id: Optional[int] = None,
+    subject_id: Optional[int] = None,
+    type: Optional[str] = None,
+    difficulty: Optional[int] = None,
+    has_image: Optional[bool] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: User = Depends(require_admin)
+):
+    """获取所有题目列表（支持筛选）"""
+    query = Question.all()
+
+    if exam_id:
+        query = query.filter(exam_id=exam_id)
+    if type:
+        query = query.filter(type=type)
+    if difficulty:
+        query = query.filter(difficulty=difficulty)
+    if has_image is not None:
+        query = query.filter(has_image=has_image)
+
+    # 按试卷筛选时支持按科目筛选
+    if subject_id:
+        query = query.filter(exam__subject_id=subject_id)
+
+    total = await query.count()
+    questions = await query.prefetch_related("exam", "knowledge_point").order_by("-id").offset((page - 1) * page_size).limit(page_size)
+
+    result = []
+    for q in questions:
+        result.append({
+            "id": q.id,
+            "exam_id": q.exam_id,
+            "exam_title": q.exam.title if q.exam else None,
+            "subject_id": q.exam.subject_id if q.exam else None,
+            "type": q.type,
+            "type_display": q.type_display,
+            "content": q.content,
+            "options": q.options,
+            "correct_answer": q.correct_answer,
+            "points": q.points,
+            "difficulty": q.difficulty,
+            "has_image": q.has_image,
+            "knowledge_point": q.knowledge_point.name if q.knowledge_point else None,
+            "created_at": q.created_at.isoformat() if q.created_at else None,
+        })
+
+    return {
+        "success": True,
+        "data": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+
+@router.get("/questions", response_class=HTMLResponse)
+async def admin_questions_page(
+    request: Request,
+    current_user: User = Depends(require_admin)
+):
+    """题目管理页面"""
+    # 获取所有试卷用于筛选
+    exams = await Exam.all().prefetch_related("subject").order_by("-id")
+    subjects = await Subject.all().order_by("name")
+
+    # 题型选项
+    question_types = [
+        {"value": "single_choice", "label": "单选题"},
+        {"value": "multiple_choice", "label": "多选题"},
+        {"value": "true_false", "label": "判断题"},
+        {"value": "fill_blank", "label": "填空题"},
+        {"value": "essay", "label": "简答题"},
+    ]
+
+    return templates.TemplateResponse("admin/questions.html", {
+        "request": request,
+        "current_user": current_user,
+        "exams": exams,
+        "subjects": subjects,
+        "question_types": question_types,
+    })
+
+
+@router.post("/api/questions/batch-delete")
+async def admin_batch_delete_questions(
+    question_ids: list[int],
+    current_user: User = Depends(require_admin)
+):
+    """批量删除题目"""
+    await Question.filter(id__in=question_ids).delete()
+    return {"success": True, "deleted": len(question_ids)}
 
 
 @router.post("/api/upload-image")
@@ -1094,6 +1211,279 @@ async def admin_statistics(request: Request, current_user: User = Depends(requir
             "graded_submissions": graded_submissions,
         }
     })
+
+
+# ===== 答题记录管理 =====
+@router.get("/api/submissions")
+async def admin_list_submissions(
+    exam_id: Optional[int] = None,
+    user_id: Optional[int] = None,
+    status: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 30,
+    current_user: User = Depends(require_admin)
+):
+    """获取答题记录列表"""
+    query = Submission.all()
+
+    if exam_id:
+        query = query.filter(exam_id=exam_id)
+    if user_id:
+        query = query.filter(user_id=user_id)
+    if status:
+        query = query.filter(status=status)
+
+    total = await query.count()
+    submissions = await query.prefetch_related("user", "exam").order_by("-id").offset((page - 1) * page_size).limit(page_size)
+
+    result = []
+    for s in submissions:
+        result.append({
+            "id": s.id,
+            "user_id": s.user_id,
+            "username": s.user.username if s.user else "未知用户",
+            "exam_id": s.exam_id,
+            "exam_title": s.exam.title if s.exam else "未知试卷",
+            "status": s.status,
+            "obtained_score": s.obtained_score,
+            "total_score": s.total_score,
+            "is_passed": s.is_passed,
+            "duration_seconds": s.duration_seconds,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "submitted_at": s.submitted_at.isoformat() if s.submitted_at else None,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
+
+    return {
+        "success": True,
+        "data": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+
+@router.get("/submissions", response_class=HTMLResponse)
+async def admin_submissions_page(
+    request: Request,
+    current_user: User = Depends(require_admin)
+):
+    """答题记录管理页面"""
+    exams = await Exam.all().prefetch_related("subject").order_by("-id")[:50]
+    users = await User.all().order_by("-id")[:50]
+
+    return templates.TemplateResponse("admin/submissions.html", {
+        "request": request,
+        "current_user": current_user,
+        "exams": exams,
+        "users": users,
+    })
+
+
+@router.delete("/api/submissions/{submission_id}")
+async def admin_delete_submission(
+    submission_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """删除答题记录"""
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="记录不存在")
+
+    await submission.delete()
+    return {"success": True}
+
+
+@router.post("/api/submissions/batch-delete")
+async def admin_batch_delete_submissions(
+    submission_ids: list[int],
+    current_user: User = Depends(require_admin)
+):
+    """批量删除答题记录"""
+    await Submission.filter(id__in=submission_ids).delete()
+    return {"success": True, "deleted": len(submission_ids)}
+
+
+# ===== 系统设置管理 =====
+@router.get("/settings", response_class=HTMLResponse)
+async def admin_settings_page(request: Request, current_user: User = Depends(require_admin)):
+    """系统设置页面"""
+    from app.models.system_settings import SystemSettings
+
+    # 初始化默认设置
+    await SystemSettings.initialize_defaults()
+
+    # 获取所有设置
+    general_settings = await SystemSettings.filter(category="general").order_by("key")
+    security_settings = await SystemSettings.filter(category="security").order_by("key")
+    exam_settings = await SystemSettings.filter(category="exam").order_by("key")
+    ai_settings = await SystemSettings.filter(category="ai").order_by("key")
+
+    return templates.TemplateResponse("admin/settings.html", {
+        "request": request,
+        "current_user": current_user,
+        "general_settings": general_settings,
+        "security_settings": security_settings,
+        "exam_settings": exam_settings,
+        "ai_settings": ai_settings,
+    })
+
+
+@router.get("/api/settings")
+async def admin_get_settings(
+    category: Optional[str] = None,
+    current_user: User = Depends(require_admin)
+):
+    """获取设置列表"""
+    from app.models.system_settings import SystemSettings
+
+    query = SystemSettings.all()
+    if category:
+        query = query.filter(category=category)
+
+    settings = await query.order_by("key")
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": s.id,
+                "key": s.key,
+                "value": s.value,
+                "value_type": s.value_type,
+                "description": s.description,
+                "category": s.category,
+            }
+            for s in settings
+        ]
+    }
+
+
+@router.put("/api/settings/{setting_key}")
+async def admin_update_setting(
+    setting_key: str,
+    value: str,
+    current_user: User = Depends(require_admin)
+):
+    """更新单个设置"""
+    from app.models.system_settings import SystemSettings
+
+    setting = await SystemSettings.get_or_none(key=setting_key)
+    if not setting:
+        raise HTTPException(status_code=404, detail="设置不存在")
+
+    setting.value = value
+    await setting.save()
+    return {"success": True}
+
+
+@router.post("/api/settings")
+async def admin_create_setting(
+    key: str,
+    value: str,
+    value_type: str = "string",
+    description: str = None,
+    category: str = "general",
+    current_user: User = Depends(require_admin)
+):
+    """创建设置"""
+    from app.models.system_settings import SystemSettings
+
+    exists = await SystemSettings.get_or_none(key=key)
+    if exists:
+        raise HTTPException(status_code=400, detail="设置键已存在")
+
+    setting = await SystemSettings.create(
+        key=key,
+        value=value,
+        value_type=value_type,
+        description=description,
+        category=category,
+    )
+    return {"success": True, "data": {"id": setting.id}}
+
+
+@router.delete("/api/settings/{setting_key}")
+async def admin_delete_setting(setting_key: str, current_user: User = Depends(require_admin)):
+    """删除设置"""
+    from app.models.system_settings import SystemSettings
+
+    setting = await SystemSettings.get_or_none(key=setting_key)
+    if not setting:
+        raise HTTPException(status_code=404, detail="设置不存在")
+
+    await setting.delete()
+    return {"success": True}
+
+
+# ===== 审计日志 =====
+@router.get("/audit-logs", response_class=HTMLResponse)
+async def admin_audit_logs_page(
+    request: Request,
+    current_user: User = Depends(require_admin)
+):
+    """审计日志页面"""
+    return templates.TemplateResponse("admin/audit_logs.html", {
+        "request": request,
+        "current_user": current_user,
+    })
+
+
+@router.get("/api/audit-logs")
+async def admin_list_audit_logs(
+    action: Optional[str] = None,
+    resource: Optional[str] = None,
+    user_id: Optional[int] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: User = Depends(require_admin)
+):
+    """获取审计日志列表"""
+    from app.models.audit_log import AuditLog
+
+    query = AuditLog.all()
+
+    if action:
+        query = query.filter(action=action)
+    if resource:
+        query = query.filter(resource=resource)
+    if user_id:
+        query = query.filter(user_id=user_id)
+    if status:
+        query = query.filter(status=status)
+    if start_date:
+        query = query.filter(created_at__gte=start_date)
+    if end_date:
+        query = query.filter(created_at__lte=end_date)
+
+    total = await query.count()
+    logs = await query.order_by("-id").offset((page - 1) * page_size).limit(page_size)
+
+    result = []
+    for log in logs:
+        result.append({
+            "id": log.id,
+            "user_id": log.user_id,
+            "username": log.username,
+            "action": log.action,
+            "resource": log.resource,
+            "resource_id": log.resource_id,
+            "description": log.description,
+            "ip_address": log.ip_address,
+            "status": log.status,
+            "details": log.details,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+
+    return {
+        "success": True,
+        "data": result,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
 
 
 # ===== AI配置管理 =====

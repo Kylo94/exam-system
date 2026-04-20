@@ -23,7 +23,7 @@ async def home(request: Request, current_user: User = Depends(get_optional_curre
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, current_user: User = Depends(get_current_user)):
     """仪表盘"""
-    context = {"request": request, "user": current_user}
+    context = {"request": request, "current_user": current_user}
     
     if current_user.is_admin:
         # 管理员仪表盘
@@ -79,7 +79,7 @@ async def exam_detail(request: Request, exam_id: int, current_user: User = Depen
     
     return templates.TemplateResponse("exam/detail.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "exam": exam,
         "submission": submission,
     })
@@ -95,16 +95,7 @@ async def start_exam(request: Request, exam_id: int, current_user: User = Depend
     
     if not exam:
         raise HTTPException(status_code=404, detail="试卷不存在")
-    
-    # 检查是否已达到最大尝试次数
-    attempt_count = await Submission.filter(
-        exam_id=exam_id,
-        user_id=current_user.id
-    ).count()
-    
-    if attempt_count >= exam.max_attempts:
-        raise HTTPException(status_code=400, detail="已达到最大尝试次数")
-    
+
     # 创建答题记录
     submission = await Submission.create(
         exam=exam,
@@ -116,7 +107,7 @@ async def start_exam(request: Request, exam_id: int, current_user: User = Depend
     
     return templates.TemplateResponse("exam/take.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "exam": exam,
         "submission": submission,
         "questions": exam.questions,

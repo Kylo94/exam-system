@@ -11,6 +11,8 @@ from app.models.submission import Submission
 from app.models.answer import Answer
 from app.models.ai_config import AIConfig
 from app.models.teacher_bind_request import TeacherBindRequest
+from app.models.system_settings import SystemSettings
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "User",
@@ -23,4 +25,6 @@ __all__ = [
     "Answer",
     "AIConfig",
     "TeacherBindRequest",
+    "SystemSettings",
+    "AuditLog",
 ]

@@ -24,7 +24,7 @@
                 {% for config in ai_configs %}
                 <tr>
                     <td>{{ config.name }}</td>
-                    <td>{{ config.provider }}</td>
+                    <td><span class="badge bg-primary">{{ config.provider }}</span></td>
                     <td>{{ config.model }}</td>
                     <td>
                         {% if config.is_active %}

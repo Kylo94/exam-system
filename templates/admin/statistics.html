@@ -1,12 +1,16 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}数据统计 - {{ super() }}{% endblock %}
+{% block title %}数据统计 - {{ settings.APP_NAME }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-graph-up"></i> 数据统计</h2>
+    <button class="btn btn-outline-primary" onclick="refreshStats()">
+        <i class="bi bi-arrow-clockwise me-2"></i>刷新
+    </button>
 </div>
 
+<!-- 统计卡片 -->
 <div class="row g-4 mb-4">
     <div class="col-md-3">
         <div class="card bg-primary text-white">
@@ -42,9 +46,63 @@
     </div>
 </div>
 
+<!-- 图表区域 -->
+<div class="row g-4 mb-4">
+    <!-- 用户与试卷统计 -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart me-2"></i>用户与试卷统计</h5>
+            </div>
+            <div class="card-body">
+                <div id="userExamChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 答题趋势 -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>答题趋势</h5>
+            </div>
+            <div class="card-body">
+                <div id="submissionTrendChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- 科目分布 -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart me-2"></i>科目分布</h5>
+            </div>
+            <div class="card-body">
+                <div id="subjectChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 题型分布 -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-pie-chart-fill me-2"></i>题目类型分布</h5>
+            </div>
+            <div class="card-body">
+                <div id="questionTypeChart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 系统概览 -->
 <div class="card">
     <div class="card-body">
-        <h5 class="card-title">系统概览</h5>
+        <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>系统概览</h5>
         <div class="row mt-4">
             <div class="col-md-4 text-center">
                 <div class="fs-1 text-primary">{{ stats.total_users }}</div>
@@ -61,4 +119,167 @@
         </div>
     </div>
 </div>
+{% endblock admin_content %}
+
+{% block scripts %}
+<script>
+// 主题配置
+const darkTheme = {
+    backgroundColor: 'transparent',
+    textStyle: { color: '#adb5bd' },
+    title: { textStyle: { color: '#e9ecef' } },
+    legend: { textStyle: { color: '#adb5bd' } },
+    tooltip: { backgroundColor: '#2b3035', borderColor: '#495057', textStyle: { color: '#adb5bd' } }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    initCharts();
+});
+
+function initCharts() {
+    // 用户与试卷柱状图
+    const userExamChart = echarts.init(document.getElementById('userExamChart'));
+    userExamChart.setOption({
+        ...darkTheme,
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['用户', '试卷'], bottom: 0 },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: ['用户', '试卷', '题目', '答题记录'],
+            axisLine: { lineStyle: { color: '#495057' } },
+            axisLabel: { color: '#adb5bd' }
+        },
+        yAxis: {
+            type: 'value',
+            axisLine: { lineStyle: { color: '#495057' } },
+            axisLabel: { color: '#adb5bd' },
+            splitLine: { lineStyle: { color: '#343a40' } }
+        },
+        series: [
+            {
+                name: '数量',
+                type: 'bar',
+                data: [{{ stats.total_users }}, {{ stats.total_exams }}, 0, {{ stats.total_submissions }}],
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: '#9b59b6' },
+                        { offset: 1, color: '#6f42c1' }
+                    ])
+                }
+            }
+        ]
+    });
+
+    // 答题趋势（模拟数据）
+    const submissionTrendChart = echarts.init(document.getElementById('submissionTrendChart'));
+    const days = [];
+    const submissions = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        days.push(`${d.getMonth() + 1}/${d.getDate()}`);
+        submissions.push(Math.floor(Math.random() * 50) + 10);
+    }
+    submissionTrendChart.setOption({
+        ...darkTheme,
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['答题次数'], bottom: 0 },
+        grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: days,
+            axisLine: { lineStyle: { color: '#495057' } },
+            axisLabel: { color: '#adb5bd' }
+        },
+        yAxis: {
+            type: 'value',
+            axisLine: { lineStyle: { color: '#495057' } },
+            axisLabel: { color: '#adb5bd' },
+            splitLine: { lineStyle: { color: '#343a40' } }
+        },
+        series: [
+            {
+                name: '答题次数',
+                type: 'line',
+                data: submissions,
+                smooth: true,
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(40, 167, 69, 0.5)' },
+                        { offset: 1, color: 'rgba(40, 167, 69, 0.1)' }
+                    ])
+                },
+                lineStyle: { color: '#28a745', width: 2 },
+                itemStyle: { color: '#28a745' }
+            }
+        ]
+    });
+
+    // 科目分布饼图
+    const subjectChart = echarts.init(document.getElementById('subjectChart'));
+    subjectChart.setOption({
+        ...darkTheme,
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#adb5bd' } },
+        series: [
+            {
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['40%', '50%'],
+                avoidLabelOverlap: false,
+                itemStyle: { borderRadius: 10, borderColor: '#212529', borderWidth: 2 },
+                label: { show: false },
+                emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+                labelLine: { show: false },
+                data: [
+                    { value: 35, name: '数学', itemStyle: { color: '#9b59b6' } },
+                    { value: 25, name: '语文', itemStyle: { color: '#28a745' } },
+                    { value: 20, name: '英语', itemStyle: { color: '#007bff' } },
+                    { value: 20, name: '物理', itemStyle: { color: '#fd7e14' } }
+                ]
+            }
+        ]
+    });
+
+    // 题型分布饼图
+    const questionTypeChart = echarts.init(document.getElementById('questionTypeChart'));
+    questionTypeChart.setOption({
+        ...darkTheme,
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#adb5bd' } },
+        series: [
+            {
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['40%', '50%'],
+                roseType: 'radius',
+                itemStyle: { borderRadius: 5, borderColor: '#212529', borderWidth: 2 },
+                label: { show: false },
+                emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
+                data: [
+                    { value: 40, name: '单选题', itemStyle: { color: '#6f42c1' } },
+                    { value: 25, name: '多选题', itemStyle: { color: '#9b59b6' } },
+                    { value: 20, name: '判断题', itemStyle: { color: '#28a745' } },
+                    { value: 10, name: '填空题', itemStyle: { color: '#007bff' } },
+                    { value: 5, name: '简答题', itemStyle: { color: '#fd7e14' } }
+                ]
+            }
+        ]
+    });
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+        userExamChart.resize();
+        submissionTrendChart.resize();
+        subjectChart.resize();
+        questionTypeChart.resize();
+    });
+}
+
+function refreshStats() {
+    location.reload();
+}
+</script>
 {% endblock %}

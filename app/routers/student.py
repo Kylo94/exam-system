@@ -23,7 +23,7 @@ async def student_home(request: Request, current_user: User = Depends(require_st
     """学生首页"""
     return templates.TemplateResponse("student/index.html", {
         "request": request,
-        "user": current_user
+        "current_user": current_user
     })
 
 
@@ -34,7 +34,7 @@ async def student_practice(request: Request, current_user: User = Depends(requir
     subjects = await Subject.all().order_by("name")
     return templates.TemplateResponse("student/practice.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "subjects": subjects
     })
 
@@ -53,7 +53,7 @@ async def practice_by_subject(subject_id: int, request: Request, current_user: U
 
     return templates.TemplateResponse("student/practice_questions.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "subject": subject,
         "questions": questions
     })
@@ -70,7 +70,7 @@ async def student_exams(request: Request, current_user: User = Depends(require_s
     
     return templates.TemplateResponse("student/exams.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "exams": exams,
         "completed_exam_ids": list(submissions)
     })
@@ -93,15 +93,6 @@ async def take_exam(exam_id: int, request: Request, current_user: User = Depends
     ).first()
     
     if not submission:
-        # 检查是否已完成
-        attempt_count = await Submission.filter(
-            exam_id=exam_id,
-            user_id=current_user.id
-        ).count()
-        
-        if attempt_count >= exam.max_attempts:
-            raise HTTPException(status_code=400, detail="已达到最大答题次数")
-        
         submission = await Submission.create(
             exam=exam,
             user=current_user,
@@ -112,7 +103,7 @@ async def take_exam(exam_id: int, request: Request, current_user: User = Depends
     
     return templates.TemplateResponse("student/take_exam.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "exam": exam,
         "submission": submission,
         "questions": list(exam.questions)
@@ -191,7 +182,7 @@ async def exam_result(exam_id: int, submission_id: int, request: Request, curren
     
     return templates.TemplateResponse("student/exam_result.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "submission": submission,
         "exam": submission.exam
     })
@@ -205,6 +196,6 @@ async def student_history(request: Request, current_user: User = Depends(require
     
     return templates.TemplateResponse("student/history.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "submissions": submissions
     })

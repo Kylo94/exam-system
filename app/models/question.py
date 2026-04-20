@@ -30,6 +30,9 @@ class Question(Model):
     )
     difficulty = fields.IntField(default=1)  # 1-5难度
     order_num = fields.IntField(default=0)  # 题目顺序
+    has_image = fields.BooleanField(default=False)  # 题目是否包含图片
+    image_data = fields.CharField(max_length=500, null=True)  # 题目的图片路径或base64数据
+    question_metadata = fields.JSONField(default={})  # 题目元数据，包含选项图片等信息
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 

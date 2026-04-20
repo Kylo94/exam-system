@@ -1,485 +1,491 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    {% include "partials/head.html" %}
-    <title>{{ settings.APP_NAME }} - AI配置管理</title>
-</head>
-<body>
-    {% include "partials/navbar.html" %}
+{% extends "admin/admin_base.html" %}
 
-    <main class="container py-5">
-        <!-- 面包屑导航 -->
-        <nav aria-label="breadcrumb" class="mb-4">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ '/admin' }}">管理后台</a></li>
-                <li class="breadcrumb-item active">AI配置管理</li>
-            </ol>
-        </nav>
+{% block title %}AI配置 - {{ settings.APP_NAME }}{% endblock %}
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>AI配置管理</h1>
-            <button class="btn btn-primary" onclick="showCreateModal()">
-                <i class="bi bi-plus-circle me-1"></i>添加AI配置
-            </button>
-        </div>
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-cpu text-info"></i> AI配置管理</h2>
+    <button class="btn btn-primary" onclick="showCreateModal()">
+        <i class="bi bi-plus-circle"></i> 添加配置
+    </button>
+</div>
 
-        <!-- 配置列表 -->
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover" id="aiConfigsTable">
-                        <thead>
-                            <tr>
-                                <th>提供商</th>
-                                <th>模型</th>
-                                <th>API地址</th>
-                                <th>状态</th>
-                                <th>默认</th>
-                                <th>最后使用</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="7" class="text-center">加载中...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- 创建/编辑模态框 -->
-    <div class="modal fade" id="configModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="configModalTitle">添加AI配置</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="configForm">
-                        <input type="hidden" id="configId">
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="providerSelect" class="form-label">提供商 *</label>
-                                    <select class="form-select" id="providerSelect" required onchange="fillProviderDefaults()">
-                                        <option value="">请选择提供商</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="modelSelect" class="form-label">模型名称 *</label>
-                                    <select class="form-select" id="modelSelect" required>
-                                        <option value="">请先选择提供商</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="apiKeyInput" class="form-label">API密钥 *</label>
-                            <input type="password" class="form-control" id="apiKeyInput" required>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="apiUrlInput" class="form-label">API地址 *</label>
-                            <input type="url" class="form-control" id="apiUrlInput" required>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="maxTokensInput" class="form-label">最大Token数</label>
-                                    <input type="number" class="form-control" id="maxTokensInput" value="2000" min="1">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="temperatureInput" class="form-label">温度 (0-2)</label>
-                                    <input type="number" class="form-control" id="temperatureInput" value="0.7" min="0" max="2" step="0.1">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="descriptionInput" class="form-label">描述</label>
-                            <textarea class="form-control" id="descriptionInput" rows="2"></textarea>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="isActiveInput" checked>
-                            <label class="form-check-label" for="isActiveInput">
-                                启用此配置
-                            </label>
-                        </div>
-
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="isDefaultInput">
-                            <label class="form-check-label" for="isDefaultInput">
-                                设为默认配置
-                            </label>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="saveConfig()">保存</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 测试配置模态框 -->
-    <div class="modal fade" id="testModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">测试AI配置</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="testResult">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2">正在测试...</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% include "partials/footer.html" %}
-    {% include "partials/scripts.html" %}
-
-    <script>
-        let configModal;
-        let testModal;
-
-        // 页面加载
-        document.addEventListener('DOMContentLoaded', function() {
-            loadAIConfigs();
-            loadProviders();
-
-            configModal = new bootstrap.Modal(document.getElementById('configModal'));
-            testModal = new bootstrap.Modal(document.getElementById('testModal'));
-        });
-
-        // 加载AI配置列表
-        function loadAIConfigs() {
-            fetch('/api/ai-configs')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        renderConfigs(data.data.items || []);
-                    } else {
-                        showError('加载AI配置失败: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    showError('加载AI配置失败: ' + error);
-                });
-        }
-
-        // 渲染配置列表
-        function renderConfigs(configs) {
-            const tbody = document.querySelector('#aiConfigsTable tbody');
-            tbody.innerHTML = '';
-
-            if (configs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无AI配置</td></tr>';
-                return;
-            }
-
-            configs.forEach(config => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
+<div class="card">
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>提供商</th>
+                    <th>模型</th>
+                    <th>状态</th>
+                    <th>默认</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for config in ai_configs %}
+                <tr>
+                    <td><span class="badge bg-primary">{{ config.provider }}</span></td>
+                    <td>{{ config.model }}</td>
                     <td>
-                        <span class="badge bg-primary">${config.provider}</span>
-                    </td>
-                    <td>${config.model}</td>
-                    <td><code>${config.api_url.substring(0, 40)}${config.api_url.length > 40 ? '...' : ''}</code></td>
-                    <td>
-                        ${config.is_active ?
-                            '<span class="badge bg-success">已启用</span>' :
-                            '<span class="badge bg-secondary">已禁用</span>'}
+                        {% if config.is_active %}
+                        <span class="badge bg-success">启用</span>
+                        {% else %}
+                        <span class="badge bg-secondary">禁用</span>
+                        {% endif %}
                     </td>
                     <td>
-                        ${config.is_default ?
-                            '<span class="badge bg-warning text-dark">默认</span>' :
-                            ''}
+                        {% if config.is_default %}
+                        <span class="badge bg-warning text-dark">默认</span>
+                        {% endif %}
                     </td>
-                    <td>${config.last_used_at ? formatDate(config.last_used_at) : '未使用'}</td>
                     <td>
-                        <button class="btn btn-sm btn-info" onclick="testConfig(${config.id})" title="测试">
-                            <i class="bi bi-play-circle"></i>
-                        </button>
-                        <button class="btn btn-sm btn-warning" onclick="editConfig(${config.id})" title="编辑">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editConfig({{ config.id }})">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteConfig(${config.id})" title="删除">
+                        <button class="btn btn-sm btn-outline-success" onclick="testConfig({{ config.id }})">
+                            <i class="bi bi-plug"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteConfig({{ config.id }})">
                             <i class="bi bi-trash"></i>
                         </button>
                     </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
-        // 加载支持的提供商
-        function loadProviders() {
-            fetch('/api/ai-configs/providers')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const select = document.getElementById('providerSelect');
-                        data.data.forEach(provider => {
-                            const option = document.createElement('option');
-                            option.value = provider.id;
-                            option.dataset.models = JSON.stringify(provider.models || [provider.default_model]);
-                            option.dataset.apiUrl = provider.default_api_url;
-                            option.textContent = provider.name;
-                            select.appendChild(option);
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('加载提供商失败:', error);
-                });
-        }
-
-        // 填充提供商默认值
-        function fillProviderDefaults() {
-            const select = document.getElementById('providerSelect');
-            const selectedOption = select.options[select.selectedIndex];
-            const modelSelect = document.getElementById('modelSelect');
-
-            // 清空模型选择
-            modelSelect.innerHTML = '<option value="">请选择模型</option>';
-
-            if (selectedOption.value) {
-                try {
-                    const models = JSON.parse(selectedOption.dataset.models || '[]');
-                    models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model;
-                        option.textContent = model;
-                        modelSelect.appendChild(option);
-                    });
-
-                    // 默认选择第一个模型
-                    if (models.length > 0) {
-                        modelSelect.value = models[0];
-                    }
-                    // 自动设置max_tokens
-                    autoSetMaxTokens(models[0]);
-                } catch (e) {
-                    console.error('解析模型列表失败:', e);
-                }
-
-                // 填充 API URL
-                if (selectedOption.dataset.apiUrl) {
-                    document.getElementById('apiUrlInput').value = selectedOption.dataset.apiUrl;
-                }
-            }
-        }
-
-        // 根据模型名称自动设置max_tokens
-        function autoSetMaxTokens(modelName) {
-            const maxTokensInput = document.getElementById('maxTokensInput');
-            if (!modelName) return;
-
-            const model = modelName.toLowerCase();
-            // 推理模型（reasoning/reasoner/R1）支持更大的输出
-            if (model.includes('reason') || model.includes('r1')) {
-                maxTokensInput.value = 64000;
-                console.log('检测到推理模型，设置max_tokens=64000');
-            } else if (model.includes('chat')) {
-                // Chat模型默认8000（DeepSeek chat的最大限制）
-                maxTokensInput.value = 8000;
-                console.log('检测到Chat模型，设置max_tokens=8000');
-            } else {
-                // 其他模型默认2000
-                maxTokensInput.value = 2000;
-                console.log('使用默认max_tokens=2000');
-            }
-        }
-
-        // 监听模型选择变化，自动设置max_tokens
-        document.addEventListener('DOMContentLoaded', function() {
-            const modelSelect = document.getElementById('modelSelect');
-            if (modelSelect) {
-                modelSelect.addEventListener('change', function() {
-                    autoSetMaxTokens(this.value);
-                });
-            }
-        });
-
-        // 显示创建模态框
-        function showCreateModal() {
-            document.getElementById('configForm').reset();
-            document.getElementById('configId').value = '';
-            document.getElementById('configModalTitle').textContent = '添加AI配置';
-            document.getElementById('isActiveInput').checked = true;
-            document.getElementById('isDefaultInput').checked = false;
-            configModal.show();
-        }
-
-        // 编辑配置
-        function editConfig(configId) {
-            fetch(`/api/ai-configs/${configId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const config = data.data;
-                        document.getElementById('configId').value = config.id;
-                        document.getElementById('providerSelect').value = config.provider;
-                        // 填充模型列表
-                        fillProviderDefaults();
-                        // 选择当前模型
-                        document.getElementById('modelSelect').value = config.model;
-                        document.getElementById('apiKeyInput').value = config.api_key;
-                        document.getElementById('apiUrlInput').value = config.api_url;
-                        document.getElementById('maxTokensInput').value = config.max_tokens;
-                        document.getElementById('temperatureInput').value = config.temperature;
-                        document.getElementById('descriptionInput').value = config.description || '';
-                        document.getElementById('isActiveInput').checked = config.is_active;
-                        document.getElementById('isDefaultInput').checked = config.is_default;
-
-                        document.getElementById('configModalTitle').textContent = '编辑AI配置';
-                        configModal.show();
-                    } else {
-                        showError('加载配置失败: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    showError('加载配置失败: ' + error);
-                });
-        }
-
-        // 保存配置
-        function saveConfig() {
-            const configId = document.getElementById('configId').value;
-            const isUpdate = configId !== '';
-
-            const data = {
-                provider: document.getElementById('providerSelect').value,
-                model: document.getElementById('modelSelect').value,
-                api_key: document.getElementById('apiKeyInput').value,
-                api_url: document.getElementById('apiUrlInput').value,
-                max_tokens: parseInt(document.getElementById('maxTokensInput').value),
-                temperature: parseFloat(document.getElementById('temperatureInput').value),
-                description: document.getElementById('descriptionInput').value,
-                is_active: document.getElementById('isActiveInput').checked,
-                is_default: document.getElementById('isDefaultInput').checked
-            };
-
-            const url = isUpdate ? `/api/ai-configs/${configId}` : '/api/ai-configs';
-            const method = isUpdate ? 'PUT' : 'POST';
-
-            fetch(url, {
-                method: method,
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    configModal.hide();
-                    showSuccess(isUpdate ? '配置更新成功' : '配置创建成功');
-                    loadAIConfigs();
-                } else {
-                    showError('保存失败: ' + data.message);
-                }
-            })
-            .catch(error => {
-                showError('保存失败: ' + error);
-            });
-        }
-
-        // 删除配置
-        function deleteConfig(configId) {
-            if (!confirm('确定要删除这个AI配置吗？')) {
-                return;
-            }
-
-            fetch(`/api/ai-configs/${configId}`, {
-                method: 'DELETE'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showSuccess('配置删除成功');
-                    loadAIConfigs();
-                } else {
-                    showError('删除失败: ' + data.message);
-                }
-            })
-            .catch(error => {
-                showError('删除失败: ' + error);
-            });
-        }
-
-        // 测试配置
-        function testConfig(configId) {
-            const resultDiv = document.getElementById('testResult');
-            resultDiv.innerHTML = `
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status"></div>
-                    <p class="mt-2">正在测试...</p>
-                </div>
-            `;
-            testModal.show();
-
-            fetch(`/api/ai-configs/${configId}/test`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const usageText = data.data.usage ? JSON.stringify(data.data.usage, null, 2) : 'N/A';
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h6><i class="bi bi-check-circle me-2"></i>测试成功</h6>
-                            <hr>
-                            <p><strong>AI响应:</strong></p>
-                            <pre class="mb-0">${data.data.response}</pre>
-                            <hr>
-                            <small><strong>Token使用:</strong> <pre>${usageText}</pre></small>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-danger">
-                            <h6><i class="bi bi-x-circle me-2"></i>测试失败</h6>
-                            <p>${data.message}</p>
-                        </div>
-                    `;
-                }
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `
-                    <div class="alert alert-danger">
-                        <h6><i class="bi bi-x-circle me-2"></i>测试失败</h6>
-                        <p>${error}</p>
+<!-- Modal -->
+<div class="modal fade" id="configModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">添加AI配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="configForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">配置名称</label>
+                        <input type="text" class="form-control" name="name" required placeholder="如: 我的DeepSeek配置">
                     </div>
-                `;
-            });
-        }
+                    <div class="mb-3">
+                        <label class="form-label">提供商</label>
+                        <select class="form-select" name="provider" id="providerSelect" required>
+                            <option value="openai">OpenAI</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="minimax">MiniMax</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">模型</label>
+                        <select class="form-select" name="model" id="modelSelect">
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="mb-3" id="customModelGroup" style="display: none;">
+                        <label class="form-label">自定义模型名称</label>
+                        <input type="text" class="form-control" name="custom_model" id="customModelInput" placeholder="请输入模型名称">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-control" name="api_key" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API地址</label>
+                        <input type="url" class="form-control" name="api_url" id="apiUrlInput" placeholder="留空使用默认地址">
+                        <small class="text-secondary" id="apiUrlHint"></small>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_active" checked>
+                            <label class="form-check-label">启用</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_default">
+                            <label class="form-check-label">设为默认</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-        // 格式化日期
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleString('zh-CN');
+<!-- 编辑 Modal -->
+<div class="modal fade" id="editConfigModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑AI配置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editConfigForm">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="editConfigId">
+                    <div class="mb-3">
+                        <label class="form-label">配置名称</label>
+                        <input type="text" class="form-control" name="name" id="editConfigName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">提供商</label>
+                        <select class="form-select" name="provider" id="editProviderSelect" required>
+                            <option value="openai">OpenAI</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="minimax">MiniMax</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">模型</label>
+                        <select class="form-select" name="model" id="editModelSelect">
+                        </select>
+                    </div>
+                    <div class="mb-3" id="editCustomModelGroup" style="display: none;">
+                        <label class="form-label">自定义模型名称</label>
+                        <input type="text" class="form-control" name="custom_model" id="editCustomModelInput" placeholder="请输入模型名称">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API Key</label>
+                        <input type="password" class="form-control" name="api_key" id="editConfigApiKey" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">API地址</label>
+                        <input type="url" class="form-control" name="api_url" id="editApiUrlInput" placeholder="留空使用默认地址">
+                        <small class="text-secondary" id="editApiUrlHint"></small>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive">
+                            <label class="form-check-label">启用</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_default" id="editIsDefault">
+                            <label class="form-check-label">设为默认</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// 各提供商的模型列表
+const PROVIDER_MODELS = {
+    'openai': [
+        { value: 'gpt-4o', label: 'GPT-4o' },
+        { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+        { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
+    ],
+    'deepseek': [
+        { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+        { value: 'deepseek-coder', label: 'DeepSeek Coder' }
+    ],
+    'minimax': [
+        { value: 'MiniMax-M2', label: 'MiniMax-M2' },
+        { value: 'MiniMax-M2.1', label: 'MiniMax-M2.1' },
+        { value: 'MiniMax-M2.1-lightning', label: 'MiniMax-M2.1 Lightning' },
+        { value: 'MiniMax-M2.1-highspeed', label: 'MiniMax-M2.1 Highspeed' },
+        { value: 'MiniMax-M2.5', label: 'MiniMax-M2.5' },
+        { value: 'MiniMax-M2.5-lightning', label: 'MiniMax-M2.5 Lightning' },
+        { value: 'MiniMax-M2.5-highspeed', label: 'MiniMax-M2.5 Highspeed' },
+        { value: 'MiniMax-M2.7', label: 'MiniMax-M2.7' },
+        { value: 'MiniMax-M2.7-highspeed', label: 'MiniMax-M2.7 Highspeed' }
+    ]
+};
+
+function populateModelSelect() {
+    const provider = document.getElementById('providerSelect').value;
+    const modelSelect = document.getElementById('modelSelect');
+    const customModelGroup = document.getElementById('customModelGroup');
+
+    modelSelect.innerHTML = '';
+
+    if (PROVIDER_MODELS[provider]) {
+        // 添加预设模型选项
+        PROVIDER_MODELS[provider].forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.value;
+            option.textContent = model.label;
+            modelSelect.appendChild(option);
+        });
+    }
+
+    // 添加"自定义"选项
+    const customOption = document.createElement('option');
+    customOption.value = '__custom__';
+    customOption.textContent = '▼ 自定义模型...';
+    modelSelect.appendChild(customOption);
+}
+
+function updateModelSuggestions() {
+    const provider = document.getElementById('providerSelect').value;
+    const apiUrlInput = document.getElementById('apiUrlInput');
+    const apiUrlHint = document.getElementById('apiUrlHint');
+
+    // 设置默认API地址
+    const DEFAULT_URLS = {
+        'openai': 'https://api.openai.com/v1',
+        'deepseek': 'https://api.deepseek.com',
+        'minimax': 'https://api.minimaxi.com/anthropic'
+    };
+
+    apiUrlInput.placeholder = DEFAULT_URLS[provider] || '';
+    apiUrlHint.textContent = '留空使用默认值: ' + (DEFAULT_URLS[provider] || '');
+}
+
+// 监听提供商变化
+document.getElementById('providerSelect').addEventListener('change', () => {
+    populateModelSelect();
+    updateModelSuggestions();
+});
+
+// 监听模型选择变化，显示自定义输入框
+document.getElementById('modelSelect').addEventListener('change', (e) => {
+    const customModelGroup = document.getElementById('customModelGroup');
+    const customModelInput = document.getElementById('customModelInput');
+
+    if (e.target.value === '__custom__') {
+        customModelGroup.style.display = 'block';
+        customModelInput.focus();
+    } else {
+        customModelGroup.style.display = 'none';
+        customModelInput.value = '';
+    }
+});
+
+// Modal 显示时初始化
+document.getElementById('configModal').addEventListener('shown.bs.modal', () => {
+    populateModelSelect();
+    updateModelSuggestions();
+    // 重置自定义模型输入
+    document.getElementById('customModelGroup').style.display = 'none';
+    document.getElementById('customModelInput').value = '';
+});
+
+function showCreateModal() {
+    document.getElementById('configForm').reset();
+    populateModelSelect();
+    updateModelSuggestions();
+    new bootstrap.Modal(document.getElementById('configModal')).show();
+}
+
+async function deleteConfig(id) {
+    if (!confirm('确定要删除吗？')) return;
+    await fetch(`/api/ai-configs/${id}`, { method: 'DELETE', credentials: 'include' });
+    location.reload();
+}
+
+// 编辑配置
+async function editConfig(id) {
+    const response = await fetch(`/api/ai-configs/${id}`);
+    if (!response.ok) {
+        alert('获取配置信息失败');
+        return;
+    }
+    const data = await response.json();
+
+    const provider = data.data.provider;
+    const DEFAULT_URLS = {
+        'openai': 'https://api.openai.com/v1',
+        'deepseek': 'https://api.deepseek.com',
+        'minimax': 'https://api.minimaxi.com/anthropic'
+    };
+
+    document.getElementById('editConfigId').value = id;
+    document.getElementById('editConfigName').value = data.data.name;
+    document.getElementById('editProviderSelect').value = provider;
+    document.getElementById('editConfigApiKey').value = data.data.api_key || '';
+    document.getElementById('editApiUrlInput').value = data.data.base_url || '';
+    document.getElementById('editApiUrlInput').placeholder = DEFAULT_URLS[provider] || '';
+    document.getElementById('editIsActive').checked = data.data.is_active;
+    document.getElementById('editIsDefault').checked = data.data.is_default;
+
+    // 填充模型列表
+    populateEditModelSelect(provider, data.data.model);
+
+    // 更新API地址提示
+    updateEditApiUrlHint();
+
+    new bootstrap.Modal(document.getElementById('editConfigModal')).show();
+}
+
+function populateEditModelSelect(provider, currentModel) {
+    const modelSelect = document.getElementById('editModelSelect');
+    const customModelGroup = document.getElementById('editCustomModelGroup');
+    const customModelInput = document.getElementById('editCustomModelInput');
+
+    modelSelect.innerHTML = '';
+
+    const isCustomModel = !PROVIDER_MODELS[provider]?.some(m => m.value === currentModel);
+
+    if (PROVIDER_MODELS[provider]) {
+        PROVIDER_MODELS[provider].forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.value;
+            option.textContent = model.label;
+            if (model.value === currentModel) option.selected = true;
+            modelSelect.appendChild(option);
+        });
+    }
+
+    // 添加"自定义"选项
+    const customOption = document.createElement('option');
+    customOption.value = '__custom__';
+    customOption.textContent = '▼ 自定义模型...';
+    if (isCustomModel) customOption.selected = true;
+    modelSelect.appendChild(customOption);
+
+    // 显示或隐藏自定义输入框
+    if (isCustomModel && currentModel) {
+        customModelGroup.style.display = 'block';
+        customModelInput.value = currentModel;
+    } else {
+        customModelGroup.style.display = 'none';
+        customModelInput.value = '';
+    }
+}
+
+// 监听编辑模式下的提供商变化
+document.getElementById('editProviderSelect').addEventListener('change', (e) => {
+    populateEditModelSelect(e.target.value, '');
+    updateEditApiUrlHint();
+});
+
+// 监听编辑模式下的模型选择变化
+document.getElementById('editModelSelect').addEventListener('change', (e) => {
+    const customModelGroup = document.getElementById('editCustomModelGroup');
+    const customModelInput = document.getElementById('editCustomModelInput');
+
+    if (e.target.value === '__custom__') {
+        customModelGroup.style.display = 'block';
+        customModelInput.focus();
+    } else {
+        customModelGroup.style.display = 'none';
+        customModelInput.value = '';
+    }
+});
+
+function updateEditApiUrlHint() {
+    const provider = document.getElementById('editProviderSelect').value;
+    const apiUrlHint = document.getElementById('editApiUrlHint');
+    const DEFAULT_URLS = {
+        'openai': 'https://api.openai.com/v1',
+        'deepseek': 'https://api.deepseek.com',
+        'minimax': 'https://api.minimaxi.com/anthropic'
+    };
+    apiUrlHint.textContent = '留空使用默认值: ' + (DEFAULT_URLS[provider] || '');
+}
+
+// 测试配置
+async function testConfig(id) {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> 测试中...';
+
+    try {
+        const response = await fetch(`/api/ai-configs/${id}/test`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('✓ 连接成功！AI 响应: ' + data.message);
+        } else {
+            alert('✗ 连接失败: ' + (data.message || '未知错误'));
         }
-    </script>
-</body>
-</html>
+    } catch (e) {
+        alert('✗ 连接失败: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// 编辑表单提交
+document.getElementById('editConfigForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('editConfigId').value;
+    const formData = new FormData(e.target);
+
+    let modelValue = formData.get('model');
+    if (modelValue === '__custom__') {
+        modelValue = formData.get('custom_model');
+    }
+
+    const submitData = new FormData();
+    submitData.append('name', formData.get('name'));
+    submitData.append('provider', formData.get('provider'));
+    submitData.append('model', modelValue);
+    submitData.append('api_key', formData.get('api_key'));
+    const apiUrl = formData.get('api_url');
+    if (apiUrl) submitData.append('api_url', apiUrl);
+    submitData.append('is_active', formData.has('is_active') ? 'true' : 'false');
+    submitData.append('is_default', formData.has('is_default') ? 'true' : 'false');
+
+    const response = await fetch(`/api/ai-configs/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: submitData
+    });
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '更新失败');
+    }
+};
+
+document.getElementById('configForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    // 处理自定义模型
+    let modelValue = formData.get('model');
+    if (modelValue === '__custom__') {
+        modelValue = formData.get('custom_model');
+    }
+
+    const submitData = new FormData();
+    submitData.append('name', formData.get('name'));
+    submitData.append('provider', formData.get('provider'));
+    submitData.append('model', modelValue);
+    submitData.append('api_key', formData.get('api_key'));
+    const apiUrl = formData.get('api_url');
+    if (apiUrl) submitData.append('api_url', apiUrl);
+    submitData.append('is_active', formData.has('is_active') ? 'true' : 'false');
+    submitData.append('is_default', formData.has('is_default') ? 'true' : 'false');
+
+    const response = await fetch('/api/ai-configs', {
+        method: 'POST',
+        credentials: 'include',
+        body: submitData
+    });
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '创建失败');
+    }
+};
+</script>
+{% endblock admin_content %}

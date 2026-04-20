@@ -23,7 +23,7 @@ async def teacher_home(request: Request, current_user: User = Depends(require_te
     """教师首页"""
     return templates.TemplateResponse("teacher/index.html", {
         "request": request,
-        "user": current_user
+        "current_user": current_user
     })
 
 
@@ -35,7 +35,7 @@ async def teacher_students(request: Request, current_user: User = Depends(requir
 
     return templates.TemplateResponse("teacher/students.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "students": students
     })
 
@@ -48,7 +48,7 @@ async def teacher_exams(request: Request, current_user: User = Depends(require_t
 
     return templates.TemplateResponse("teacher/exams.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "exams": exams
     })
 
@@ -61,7 +61,7 @@ async def create_exam_page(request: Request, current_user: User = Depends(requir
 
     return templates.TemplateResponse("teacher/exam_form.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "subjects": subjects,
         "levels": levels,
         "exam": None
@@ -84,7 +84,7 @@ async def edit_exam_page(exam_id: int, request: Request, current_user: User = De
 
     return templates.TemplateResponse("teacher/exam_form.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "subjects": subjects,
         "levels": levels,
         "exam": exam,
@@ -102,7 +102,7 @@ async def teacher_submissions(request: Request, current_user: User = Depends(req
 
     return templates.TemplateResponse("teacher/submissions.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "submissions": submissions
     })
 
@@ -122,7 +122,7 @@ async def submission_detail(submission_id: int, request: Request, current_user: 
 
     return templates.TemplateResponse("teacher/submission_detail.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "submission": submission
     })
 
@@ -136,6 +136,6 @@ async def teacher_ai_configs(request: Request, current_user: User = Depends(requ
     
     return templates.TemplateResponse("teacher/ai_configs.html", {
         "request": request,
-        "user": current_user,
+        "current_user": current_user,
         "ai_configs": ai_configs
     })

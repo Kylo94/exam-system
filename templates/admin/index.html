@@ -1,26 +1,19 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
 {% block title %}管理控制台 - {{ settings.APP_NAME }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <!-- Page Header -->
-<div class="page-header mb-5">
-    <div class="d-flex align-items-center justify-content-between">
-        <div>
-            <h1 class="mb-2">
-                <i class="bi bi-speedometer2 me-2"></i>管理控制台
-            </h1>
-            <p class="text-purple mb-0">欢迎回来，{{ user.username }}</p>
-        </div>
-        <div class="text-end d-none d-md-block">
-            <i class="bi bi-shield-check text-purple fs-1"></i>
-        </div>
-    </div>
+<div class="page-header mb-4">
+    <h2 class="text-white">
+        <i class="bi bi-speedometer2 me-2"></i>欢迎回来，{{ current_user.username }}
+    </h2>
+    <p class="text-secondary mb-0">这是您的管理控制台</p>
 </div>
 
 <!-- Stats Row -->
-<div class="row mb-5">
-    <div class="col-md-3 col-sm-6 mb-4">
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-danger">
@@ -28,231 +21,177 @@
                 </div>
                 <span class="badge bg-danger">用户</span>
             </div>
-            <div class="stat-value">-</div>
+            <div class="stat-value">{{ stats.total_users }}</div>
             <div class="stat-label">总用户数</div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-4">
+    <div class="col-md-3 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-info">
-                    <i class="bi bi-file-text"></i>
+                    <i class="bi bi-journal-bookmark"></i>
                 </div>
-                <span class="badge bg-info">试卷</span>
+                <span class="badge bg-info">科目</span>
             </div>
-            <div class="stat-value">-</div>
-            <div class="stat-label">试卷数量</div>
+            <div class="stat-value">{{ stats.total_subjects }}</div>
+            <div class="stat-label">科目数量</div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-4">
+    <div class="col-md-3 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-success">
-                    <i class="bi bi-clipboard-check"></i>
+                    <i class="bi bi-bar-chart"></i>
                 </div>
-                <span class="badge bg-success">提交</span>
+                <span class="badge bg-success">等级</span>
             </div>
-            <div class="stat-value">-</div>
-            <div class="stat-label">总提交数</div>
+            <div class="stat-value">{{ stats.total_levels }}</div>
+            <div class="stat-label">难度等级</div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6 mb-4">
+    <div class="col-md-3 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-purple">
-                    <i class="bi bi-graph-up"></i>
+                    <i class="bi bi-file-earmark-text"></i>
                 </div>
-                <span class="badge bg-purple">已批改</span>
-            </div>
-            <div class="stat-value">-</div>
-            <div class="stat-label">已批改试卷</div>
-        </div>
-    </div>
-</div>
-
-<!-- Management Sections -->
-<div class="row mb-4">
-    <div class="col-12">
-        <h4 class="text-secondary mb-4">
-            <i class="bi bi-gear me-2"></i>管理中心
-        </h4>
-    </div>
-</div>
-
-<div class="admin-grid mb-5">
-    <a href="/admin/users" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-danger">
-                <i class="bi bi-people"></i>
-            </div>
-            <h5>用户管理</h5>
-            <p>管理系统用户账户、角色和权限</p>
-            <div class="mt-3">
-                <span class="badge bg-danger">用户</span>
-                <span class="badge bg-secondary">角色</span>
-                <span class="badge bg-dark">权限</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/subjects" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-success">
-                <i class="bi bi-journal-bookmark"></i>
-            </div>
-            <h5>科目管理</h5>
-            <p>管理考试科目和学科分类</p>
-            <div class="mt-3">
-                <span class="badge bg-success">科目</span>
-                <span class="badge bg-secondary">分类</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/levels" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-warning">
-                <i class="bi bi-bar-chart"></i>
-            </div>
-            <h5>难度等级</h5>
-            <p>设置和管理题目难度级别</p>
-            <div class="mt-3">
-                <span class="badge bg-warning text-dark">难度</span>
-                <span class="badge bg-secondary">等级</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/knowledge-points" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-info">
-                <i class="bi bi-diagram-3"></i>
-            </div>
-            <h5>知识点管理</h5>
-            <p>管理系统知识点和知识体系</p>
-            <div class="mt-3">
-                <span class="badge bg-info">知识</span>
-                <span class="badge bg-secondary">体系</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/exams" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-purple">
-                <i class="bi bi-file-earmark-text"></i>
-            </div>
-            <h5>试卷管理</h5>
-            <p>创建、编辑和管理考试试卷</p>
-            <div class="mt-3">
                 <span class="badge bg-purple">试卷</span>
-                <span class="badge bg-secondary">题目</span>
             </div>
+            <div class="stat-value">{{ stats.total_exams }}</div>
+            <div class="stat-label">试卷数量</div>
         </div>
-    </a>
-
-    <a href="/admin/submissions" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-success">
-                <i class="bi bi-clipboard-data"></i>
-            </div>
-            <h5>提交记录</h5>
-            <p>查看所有用户的答题提交记录</p>
-            <div class="mt-3">
-                <span class="badge bg-success">提交</span>
-                <span class="badge bg-secondary">记录</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/bind-requests" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-warning">
-                <i class="bi bi-person-check"></i>
-            </div>
-            <h5>绑定申请</h5>
-            <p>审批学生与教师的绑定关系</p>
-            <div class="mt-3">
-                <span class="badge bg-warning text-dark">绑定</span>
-                <span class="badge bg-secondary">申请</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/ai-configs" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-info">
-                <i class="bi bi-cpu"></i>
-            </div>
-            <h5>AI配置</h5>
-            <p>配置AI批改和题目生成服务</p>
-            <div class="mt-3">
-                <span class="badge bg-info">AI</span>
-                <span class="badge bg-secondary">配置</span>
-            </div>
-        </div>
-    </a>
-
-    <a href="/admin/statistics" class="text-decoration-none">
-        <div class="quick-action-card">
-            <div class="icon bg-danger">
-                <i class="bi bi-graph-up"></i>
-            </div>
-            <h5>数据统计</h5>
-            <p>查看系统使用情况和数据报表</p>
-            <div class="mt-3">
-                <span class="badge bg-danger">统计</span>
-                <span class="badge bg-secondary">报表</span>
-            </div>
-        </div>
-    </a>
+    </div>
 </div>
 
-<!-- Quick Links -->
+<!-- Quick Actions -->
 <div class="row">
     <div class="col-12">
-        <h4 class="text-secondary mb-4">
-            <i class="bi bi-box-arrow-up-right me-2"></i>快速访问
+        <h4 class="text-secondary mb-3">
+            <i class="bi bi-lightning me-2"></i>快捷操作
         </h4>
     </div>
-    <div class="col-md-4 mb-3">
-        <a href="/" class="text-decoration-none">
-            <div class="card bg-card-hover border-0">
-                <div class="card-body d-flex align-items-center">
-                    <i class="bi bi-house text-purple fs-4 me-3"></i>
-                    <div>
-                        <h6 class="mb-0">返回首页</h6>
-                        <small class="text-secondary">回到系统首页</small>
-                    </div>
+</div>
+<div class="row g-3">
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/users" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-danger">
+                    <i class="bi bi-people"></i>
                 </div>
+                <h5>用户管理</h5>
+                <p>管理系统用户账户</p>
             </div>
         </a>
     </div>
-    <div class="col-md-4 mb-3">
-        <a href="/auth/profile" class="text-decoration-none">
-            <div class="card bg-card-hover border-0">
-                <div class="card-body d-flex align-items-center">
-                    <i class="bi bi-person text-purple fs-4 me-3"></i>
-                    <div>
-                        <h6 class="mb-0">个人资料</h6>
-                        <small class="text-secondary">修改个人信息</small>
-                    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/subjects" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-success">
+                    <i class="bi bi-journal-bookmark"></i>
                 </div>
+                <h5>科目管理</h5>
+                <p>管理考试科目</p>
             </div>
         </a>
     </div>
-    <div class="col-md-4 mb-3">
-        <a href="/auth/logout" class="text-decoration-none">
-            <div class="card bg-card-hover border-0">
-                <div class="card-body d-flex align-items-center">
-                    <i class="bi bi-box-arrow-right text-danger fs-4 me-3"></i>
-                    <div>
-                        <h6 class="mb-0">退出登录</h6>
-                        <small class="text-secondary">安全退出系统</small>
-                    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/levels" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-warning">
+                    <i class="bi bi-bar-chart"></i>
                 </div>
+                <h5>难度等级</h5>
+                <p>设置题目难度</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/exams" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-purple">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <h5>试卷管理</h5>
+                <p>创建管理试卷</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/questions" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-info">
+                    <i class="bi bi-list-check"></i>
+                </div>
+                <h5>题目管理</h5>
+                <p>管理所有题目</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/knowledge-points" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-warning">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <h5>知识点管理</h5>
+                <p>管理系统知识点</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/bind-requests" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-warning">
+                    <i class="bi bi-person-check"></i>
+                </div>
+                <h5>绑定申请</h5>
+                <p>审批绑定关系</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/ai-configs" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-info">
+                    <i class="bi bi-cpu"></i>
+                </div>
+                <h5>AI配置</h5>
+                <p>配置AI服务</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/statistics" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-success">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+                <h5>数据统计</h5>
+                <p>查看统计图表</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/settings" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-secondary">
+                    <i class="bi bi-gear"></i>
+                </div>
+                <h5>系统设置</h5>
+                <p>配置系统参数</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <a href="/admin/audit-logs" class="text-decoration-none">
+            <div class="quick-action-card">
+                <div class="icon bg-warning">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+                <h5>审计日志</h5>
+                <p>查看操作记录</p>
             </div>
         </a>
     </div>
 </div>
-{% endblock %}
+{% endblock admin_content %}

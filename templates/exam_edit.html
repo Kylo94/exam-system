@@ -1,53 +1,52 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    {% include "partials/head.html" %}
-    <title>{{ settings.APP_NAME }} - 编辑试卷</title>
-    <style>
-        .question-card {
-            border: 1px solid #dee2e6;
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            position: relative;
-        }
-        .question-card:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .question-actions {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-        }
-        .option-item {
-            margin-bottom: 0.5rem;
-        }
-    </style>
-</head>
-<body>
-    {% include "partials/navbar.html" %}
+{% extends "admin/admin_base.html" %}
 
-    <main class="container py-5">
-        <!-- 面包屑导航 -->
-        <nav aria-label="breadcrumb" class="mb-4">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ '/admin/exams' }}">试卷管理</a></li>
-                <li class="breadcrumb-item active">编辑试卷</li>
-            </ol>
-        </nav>
+{% block title %}编辑试卷 - {{ settings.APP_NAME }}{% endblock %}
 
-        <h1 class="mb-4">编辑试卷</h1>
+{% block admin_content %}
+<style>
+    .question-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+    .question-card:hover {
+        border-color: var(--purple);
+    }
+    .question-actions {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+    }
+    .option-item {
+        margin-bottom: 0.5rem;
+    }
+</style>
 
-        <div class="card mb-4">
-            <div class="card-body">
-                <h5 class="card-title mb-4">试卷基本信息</h5>
-                <form id="examForm">
-                    <input type="hidden" id="examId" value="{{ exam_id }}">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1"><i class="bi bi-file-earmark-text text-purple"></i> 编辑试卷</h2>
+        <p class="text-secondary small mb-0">{{ exam.title }}</p>
+    </div>
+    <div>
+        <a href="/admin/exams" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+</div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">试卷名称 *</label>
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title mb-4">试卷基本信息</h5>
+        <form id="examForm">
+            <input type="hidden" id="examId" value="{{ exam.id }}">
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label">试卷名称 *</label>
                                 <input type="text" class="form-control" id="examTitle" required>
                             </div>
                         </div>
@@ -119,6 +118,13 @@
                     <p>暂无题目，点击上方按钮添加</p>
                 </div>
             </div>
+        </div>
+
+        <!-- 悬浮保存按钮 -->
+        <div id="floatingSaveBtn" style="position: fixed; bottom: 24px; right: 24px; z-index: 1000; display: none;">
+            <button type="button" class="btn btn-primary btn-lg shadow" onclick="document.getElementById('examForm').dispatchEvent(new Event('submit'))">
+                <i class="bi bi-save me-1"></i>保存试卷
+            </button>
         </div>
     </main>
 
@@ -246,15 +252,13 @@
         </div>
     </div>
 
-    {% include "partials/footer.html" %}
-    {% include "partials/scripts.html" %}
-
+    
     <script>
         // 加载试卷信息
         function loadExamInfo() {
             const examId = document.getElementById('examId').value;
             console.log('开始加载试卷信息，examId:', examId);
-            fetch(`/admin/api/exams/${examId}`)
+            fetch(`/admin/api/exams/${examId}`, { credentials: 'include' })
                 .then(response => response.json())
                 .then(data => {
                     console.log('试卷信息响应:', data);
@@ -262,14 +266,15 @@
                         const exam = data.data;
                         console.log('试卷数据:', exam);
                         document.getElementById('examTitle').value = exam.title;
-                        document.getElementById('examSubject').value = exam.subject_id;
                         document.getElementById('examDuration').value = exam.duration_minutes || '';
                         document.getElementById('examTotalPoints').value = exam.total_points || '';
-                        document.getElementById('examActive').checked = exam.is_active;
+                        document.getElementById('examActive').checked = exam.is_published;
 
-                        // 加载对应等级
+                        // 先加载科目，选中后加载等级
                         if (exam.subject_id) {
-                            loadLevelsForSubject(exam.subject_id, exam.level_id);
+                            loadSubjects(exam.subject_id, function() {
+                                loadLevelsForSubject(exam.subject_id, exam.level_id);
+                            });
                         }
 
                         // 加载题目
@@ -284,18 +289,24 @@
         }
 
         // 加载科目
-        function loadSubjects() {
-            fetch('/api/subjects/active')
+        function loadSubjects(selectedSubjectId, callback) {
+            const subjectSelect = document.getElementById('examSubject');
+            subjectSelect.innerHTML = '<option value="">请选择科目</option>';
+
+            fetch('/api/subjects', { credentials: 'include' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.data) {
-                        const subjectSelect = document.getElementById('examSubject');
                         data.data.forEach(subject => {
                             const option = document.createElement('option');
                             option.value = subject.id;
                             option.textContent = subject.name;
+                            if (selectedSubjectId && subject.id === selectedSubjectId) {
+                                option.selected = true;
+                            }
                             subjectSelect.appendChild(option);
                         });
+                        if (callback) callback();
                     }
                 });
         }
@@ -312,7 +323,7 @@
 
             if (!subjectId) return;
 
-            fetch(`/api/subjects/${subjectId}/levels`)
+            fetch(`/api/levels?subject_id=${subjectId}`, { credentials: 'include' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.data) {
@@ -342,7 +353,7 @@
                 level_id: parseInt(document.getElementById('examLevel').value),
                 duration_minutes: document.getElementById('examDuration').value || null,
                 total_points: document.getElementById('examTotalPoints').value ? parseInt(document.getElementById('examTotalPoints').value) : null,
-                is_active: document.getElementById('examActive').checked
+                is_published: document.getElementById('examActive').checked
             };
 
             document.getElementById('btnSaveExam').disabled = true;
@@ -350,6 +361,7 @@
 
             fetch(`/admin/api/exams/${examId}`, {
                 method: 'PUT',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             })
@@ -357,11 +369,12 @@
             .then(data => {
                 if (data.success) {
                     alert('保存成功！');
+                    window.location.href = '/admin/exams';
                 } else {
                     alert('保存失败：' + data.message);
+                    document.getElementById('btnSaveExam').disabled = false;
+                    document.getElementById('btnSaveExam').innerHTML = '<i class="bi bi-save me-1"></i>保存试卷信息';
                 }
-                document.getElementById('btnSaveExam').disabled = false;
-                document.getElementById('btnSaveExam').innerHTML = '<i class="bi bi-save me-1"></i>保存试卷信息';
             })
             .catch(error => {
                 console.error('保存失败:', error);
@@ -375,7 +388,7 @@
         function loadQuestions() {
             const examId = document.getElementById('examId').value;
             console.log('开始加载题目列表，examId:', examId);
-            fetch(`/admin/api/exams/${examId}/questions`)
+            fetch(`/admin/api/exams/${examId}/questions`, { credentials: 'include' })
                 .then(response => response.json())
                 .then(data => {
                     console.log('题目列表响应:', data);
@@ -418,7 +431,8 @@
                     if (q.image_data.startsWith('data:')) {
                         imageHtml = `<img src="${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
                     } else {
-                        const imageUrl = `/api/uploads/${q.image_data}`;
+                        const imagePath = q.image_data.replace('uploads/', '');
+                        const imageUrl = `/api/uploads/${imagePath}`;
                         console.log('图片URL:', imageUrl);
                         imageHtml = `<img src="${imageUrl}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
                     }
@@ -467,7 +481,8 @@
 
                     let imageHtml = '';
                     if (imageInfo && imageInfo.has_image && imageInfo.image_path) {
-                        imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
+                        const imagePath = imageInfo.image_path.replace('uploads/', '');
+                        imageHtml = `<img src="/api/uploads/${imagePath}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
                     }
 
                     return `<div class="text-muted small d-flex align-items-center" style="white-space: pre-wrap;"><span>${label}. ${text}</span>${imageHtml}</div>`;
@@ -480,7 +495,8 @@
 
                     let imageHtml = '';
                     if (imageInfo && imageInfo.has_image && imageInfo.image_path) {
-                        imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
+                        const imagePath = imageInfo.image_path.replace('uploads/', '');
+                        imageHtml = `<img src="/api/uploads/${imagePath}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
                     }
 
                     return `<div class="text-muted small d-flex align-items-center" style="white-space: pre-wrap;"><span>${label}. ${val}</span>${imageHtml}</div>`;
@@ -493,7 +509,8 @@
 
                     let imageHtml = '';
                     if (imageInfo && imageInfo.has_image && imageInfo.image_path) {
-                        imageHtml = `<img src="/api/uploads/${imageInfo.image_path}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
+                        const imagePath = imageInfo.image_path.replace('uploads/', '');
+                        imageHtml = `<img src="/api/uploads/${imagePath}" class="img-fluid rounded ms-2" alt="选项${label}图片" style="max-height: 80px;">`;
                     }
 
                     return `<div class="text-muted small d-flex align-items-center" style="white-space: pre-wrap;"><span>${label}. ${value}</span>${imageHtml}</div>`;
@@ -551,13 +568,16 @@
         }
 
         // 编辑题目
+        let currentQuestionData = null;
+
         function editQuestion(questionId) {
-            fetch(`/admin/api/questions/${questionId}`)
+            fetch(`/admin/api/questions/${questionId}`, { credentials: 'include' })
                 .then(response => response.json())
                 .then(data => {
                     console.log('编辑题目API响应:', data);
                     if (data.success && data.data) {
                         const q = data.data;
+                        currentQuestionData = q;  // 保存题目数据
                         console.log('题目详情:', q);
                         document.getElementById('questionModalTitle').textContent = '编辑题目';
                         document.getElementById('questionId').value = q.id;
@@ -574,7 +594,8 @@
                             if (q.image_data.startsWith('data:')) {
                                 currentImagePreview.src = q.image_data;
                             } else {
-                                currentImagePreview.src = `/api/uploads/${q.image_data}`;
+                                const imagePath = q.image_data.replace('uploads/', '');
+                                currentImagePreview.src = `/api/uploads/${imagePath}`;
                             }
                             currentImage.style.display = 'block';
                         } else {
@@ -618,7 +639,8 @@
                                 const preview = document.getElementById(`optionImagePreview${label}`);
                                 const img = preview.querySelector('img');
                                 if (optionsImages[label] && optionsImages[label].has_image && optionsImages[label].image_path) {
-                                    img.src = `/api/uploads/${optionsImages[label].image_path}`;
+                                    const imagePath = optionsImages[label].image_path.replace('uploads/', '');
+                                    img.src = `/api/uploads/${imagePath}`;
                                     preview.style.display = 'block';
                                 } else {
                                     img.src = '';
@@ -645,7 +667,8 @@
             if (!confirm('确定要删除这道题目吗？')) return;
 
             fetch(`/admin/api/questions/${questionId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             })
             .then(response => response.json())
             .then(data => {
@@ -717,10 +740,13 @@
                             };
                         }
                     } else if (img.src && img.src !== window.location.href) {
-                        // 保留现有图片
+                        // 保留现有图片 - 从URL中提取图片路径
+                        const src = img.src;
+                        const match = src.match(/\/api\/uploads\/(.+)$/);
+                        const imagePath = match ? match[1] : src;
                         optionsImages[label] = {
                             has_image: true,
-                            image_path: img.src.replace('/api/uploads/', '')
+                            image_path: imagePath
                         };
                     }
                 }
@@ -747,23 +773,38 @@
             } else {
                 // 如果删除了图片，则标记为无图片
                 const currentImage = document.getElementById('currentQuestionImage');
+                console.log('currentQuestionImage display:', currentImage.style.display);
                 if (currentImage.style.display === 'none') {
                     data.has_image = false;
                     data.image_data = '';
+                    console.log('Image marked for deletion');
+                } else if (currentQuestionData && currentQuestionData.has_image) {
+                    // 图片未删除，保留原图
+                    data.has_image = currentQuestionData.has_image;
+                    data.image_data = currentQuestionData.image_data;
+                    console.log('Keeping existing image:', data.image_data);
                 }
             }
 
+            console.log('Sending data:', JSON.stringify(data));
+
             fetch(url, {
                 method: method,
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('Response data:', data);
                 if (data.success || data.data) {
                     alert(isEdit ? '修改成功！' : '添加成功！');
                     bootstrap.Modal.getInstance(document.getElementById('questionModal')).hide();
                     loadQuestions();
+                    currentQuestionData = null;  // 清空保存的题目数据
                 } else {
                     alert('操作失败：' + data.message);
                 }
@@ -779,6 +820,7 @@
             try {
                 const response = await fetch('/admin/api/upload-image', {
                     method: 'POST',
+                    credentials: 'include',
                     body: formData
                 });
                 const result = await response.json();
@@ -796,9 +838,21 @@
 
         // 页面加载
         document.addEventListener('DOMContentLoaded', function() {
-            loadSubjects();
             loadExamInfo();
+
+            // 监听滚动，显示/隐藏悬浮保存按钮
+            const floatingBtn = document.getElementById('floatingSaveBtn');
+            const examForm = document.getElementById('examForm');
+            const mainSaveBtn = document.getElementById('btnSaveExam');
+
+            window.addEventListener('scroll', function() {
+                const rect = mainSaveBtn.getBoundingClientRect();
+                if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                    floatingBtn.style.display = 'block';
+                } else {
+                    floatingBtn.style.display = 'none';
+                }
+            });
         });
     </script>
-</body>
-</html>
+{% endblock admin_content %}

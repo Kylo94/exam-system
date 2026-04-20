@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # FastAPI应用
   app:
     build:
       context: .
@@ -11,13 +10,13 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/exam_system
-      - SECRET_KEY=your-secret-key-change-in-production
+      - SECRET_KEY=change-this-secret-key-in-production
       - DEBUG=false
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=admin123
     volumes:
       - ./uploads:/app/uploads
-      - ./logs:/app/logs
+      - ./data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -25,7 +24,6 @@ services:
     networks:
       - exam_network
 
-  # PostgreSQL数据库
   db:
     image: postgres:15-alpine
     container_name: exam_system_db
@@ -37,7 +35,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker-init-db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -47,7 +44,6 @@ services:
     networks:
       - exam_network
 
-  # Nginx反向代理（可选）
   nginx:
     image: nginx:alpine
     container_name: exam_system_nginx

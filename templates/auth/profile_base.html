@@ -12,19 +12,19 @@
         <div class="mb-3">
             <i class="bi bi-person-circle" style="font-size: 4rem; color: #6c757d;"></i>
         </div>
-        <h5>{{ user.username }}</h5>
+        <h5>{{ current_user.username }}</h5>
         <p class="text-muted mb-2">
             <i class="bi bi-star-fill me-1"></i>
             {{ role_name }}
         </p>
         <p class="text-muted mb-0">
             <i class="bi bi-calendar me-1"></i>
-            注册时间: {{ user.created_at.strftime('%Y-%m-%d') }}
+            注册时间: {{ current_user.created_at.strftime('%Y-%m-%d') }}
         </p>
-        {% if user.last_login_at %}
+        {% if current_user.last_login_at %}
         <p class="text-muted mb-0">
             <i class="bi bi-clock-history me-1"></i>
-            最后登录: {{ user.last_login_at.strftime('%Y-%m-%d %H:%M') }}
+            最后登录: {{ current_user.last_login_at.strftime('%Y-%m-%d %H:%M') }}
         </p>
         {% endif %}
     </div>
@@ -47,7 +47,7 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span>账户状态:</span>
-            {% if user.is_active %}
+            {% if current_user.is_active %}
                 <span class="badge bg-success">已激活</span>
             {% else %}
                 <span class="badge bg-danger">已停用</span>
@@ -55,7 +55,7 @@
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span>用户ID:</span>
-            <span class="text-muted">#{{ user.id }}</span>
+            <span class="text-muted">#{{ current_user.id }}</span>
         </div>
         {{ role_specific_status|safe }}
     </div>
@@ -73,7 +73,7 @@
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
                         <input type="text" class="form-control" id="editUsername"
-                               value="{{ user.username }}" minlength="3" maxlength="20">
+                               value="{{ current_user.username }}" minlength="3" maxlength="20">
                         <button class="btn btn-outline-secondary" type="button" id="checkEditUsernameBtn">
                             检查
                         </button>
@@ -93,7 +93,7 @@
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-envelope"></i></span>
                         <input type="email" class="form-control" id="editEmail"
-                               value="{{ user.email }}">
+                               value="{{ current_user.email }}">
                         <button class="btn btn-outline-secondary" type="button" id="checkEditEmailBtn">
                             检查
                         </button>
@@ -111,9 +111,9 @@
         <div class="mb-3">
             <label for="editRole" class="form-label">用户角色</label>
             <select class="form-select" id="editRole" disabled>
-                <option value="teacher" {% if user.role == 'teacher' %}selected{% endif %}>教师</option>
-                <option value="student" {% if user.role == 'student' %}selected{% endif %}>学生</option>
-                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>管理员</option>
+                <option value="teacher" {% if current_user.role == 'teacher' %}selected{% endif %}>教师</option>
+                <option value="student" {% if current_user.role == 'student' %}selected{% endif %}>学生</option>
+                <option value="admin" {% if current_user.role == 'admin' %}selected{% endif %}>管理员</option>
             </select>
             <div class="form-text">用户角色无法自行修改，请联系管理员</div>
         </div>
@@ -254,7 +254,7 @@
             </button>
 
             <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deactivateModal"
-                    {% if not user.is_active %}disabled{% endif %}>
+                    {% if not current_user.is_active %}disabled{% endif %}>
                 <i class="bi bi-person-x me-1"></i>停用账户
             </button>
         </div>
@@ -428,7 +428,7 @@
         if (checkEditUsernameBtn) {
             checkEditUsernameBtn.addEventListener('click', async function() {
                 const username = document.getElementById('editUsername').value.trim();
-                const currentUsername = "{{ user.username }}";
+                const currentUsername = "{{ current_user.username }}";
 
                 if (username === currentUsername) {
                     showFieldSuccess('editUsername', '用户名未更改');
@@ -472,7 +472,7 @@
         if (checkEditEmailBtn) {
             checkEditEmailBtn.addEventListener('click', async function() {
                 const email = document.getElementById('editEmail').value.trim();
-                const currentEmail = "{{ user.email }}";
+                const currentEmail = "{{ current_user.email }}";
 
                 if (email === currentEmail) {
                     showFieldSuccess('editEmail', '邮箱未更改');
@@ -520,8 +520,8 @@
 
                 const username = document.getElementById('editUsername').value.trim();
                 const email = document.getElementById('editEmail').value.trim();
-                const currentUsername = "{{ user.username }}";
-                const currentEmail = "{{ user.email }}";
+                const currentUsername = "{{ current_user.username }}";
+                const currentEmail = "{{ current_user.email }}";
 
                 if (username === currentUsername && email === currentEmail) {
                     showAlert('没有需要保存的更改', 'info');

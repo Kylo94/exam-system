@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block body_class %}admin-body{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="d-flex">
+    <!-- Left Sidebar -->
+    <nav class="sidebar" style="width: 240px; min-height: 100vh; position: fixed; left: 0; top: 0; z-index: 1000;">
+        <div class="p-3 text-center border-bottom" style="border-color: var(--border-color) !important;">
+            <i class="bi bi-shield-check text-purple fs-3"></i>
+            <h5 class="mt-2 mb-0 text-white">管理控制台</h5>
+            <small class="text-secondary">{{ current_user.username }}</small>
+        </div>
+        <ul class="nav flex-column py-2">
+            <li class="nav-item">
+                <a href="/admin" class="nav-link text-white-50 {% if request.url.path == '/admin' %}active{% endif %}">
+                    <i class="bi bi-house me-2"></i>首页
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/users" class="nav-link text-white-50 {% if '/admin/users' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-people me-2"></i>用户管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/subjects" class="nav-link text-white-50 {% if '/admin/subjects' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-journal-bookmark me-2"></i>科目与等级
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/knowledge-points" class="nav-link text-white-50 {% if '/admin/knowledge-points' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-diagram-3 me-2"></i>知识点管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/exams" class="nav-link text-white-50 {% if '/admin/exams' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-file-earmark-text me-2"></i>试卷管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/questions" class="nav-link text-white-50 {% if '/admin/questions' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-list-check me-2"></i>题目管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/bind-requests" class="nav-link text-white-50 {% if '/admin/bind-requests' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-person-check me-2"></i>绑定申请
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/submissions" class="nav-link text-white-50 {% if '/admin/submissions' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-clipboard-data me-2"></i>答题记录
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/ai-configs" class="nav-link text-white-50 {% if '/admin/ai-configs' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-cpu me-2"></i>AI配置
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/settings" class="nav-link text-white-50 {% if '/admin/settings' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-gear me-2"></i>系统设置
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/admin/audit-logs" class="nav-link text-white-50 {% if '/admin/audit-logs' in request.url.path %}active{% endif %}">
+                    <i class="bi bi-clock-history me-2"></i>审计日志
+                </a>
+            </li>
+            <li class="nav-item mt-3 pt-3 border-top" style="border-color: var(--border-color) !important;">
+                <a href="/" class="nav-link text-white-50">
+                    <i class="bi bi-house me-2"></i>返回首页
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/auth/logout" class="nav-link text-white-50">
+                    <i class="bi bi-box-arrow-right me-2"></i>退出登录
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="flex-grow-1" style="margin-left: 240px; padding: 24px; width: calc(100% - 240px); background-color: var(--bg-dark); min-height: 100vh;">
+        {% block admin_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

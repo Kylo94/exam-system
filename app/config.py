@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24小时
 
     # 数据库配置
-    DATABASE_URL: str = "sqlite://./exam_system.db"
+    DATABASE_URL: str = "sqlite://./data/exam_system.db"
     DB_ECHO: bool = False
 
     # 管理员配置

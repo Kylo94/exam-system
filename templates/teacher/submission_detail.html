@@ -12,7 +12,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <p><strong>学生：</strong>{{ submission.user.username if submission.user else '-' }}</p>
+                        <p><strong>学生：</strong>{{ submission.current_user.username if submission.user else '-' }}</p>
                         <p><strong>试卷：</strong>{{ submission.exam.title if submission.exam else '-' }}</p>
                     </div>
                     <div class="col-md-6">

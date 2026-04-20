@@ -5,6 +5,8 @@ from tortoise import fields
 from tortoise.models import Model
 from passlib.context import CryptContext
 
+from app.services.id_generator import format_display_id
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -34,6 +36,11 @@ class User(Model):
 
     class Meta:
         table = "users"
+
+    @property
+    def display_id(self) -> str:
+        """获取显示用的ID"""
+        return format_display_id(self.id, self.role)
 
     def verify_password(self, password: str) -> bool:
         """验证密码"""

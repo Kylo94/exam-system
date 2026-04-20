@@ -1,64 +1,168 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}用户管理 - {{ super() }}{% endblock %}
+{% block title %}用户管理 - {{ settings.APP_NAME }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-people"></i> 用户管理</h2>
-    <a href="/admin/users/create" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> 添加用户
-    </a>
+    <div>
+        <h2 class="mb-1"><i class="bi bi-people text-purple"></i> 用户管理</h2>
+        <p class="text-secondary small mb-0">共 {{ pagination.total }} 个用户</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="bi bi-plus-circle me-2"></i>添加用户
+    </button>
+</div>
+
+<!-- 搜索和筛选 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="search" placeholder="搜索用户名或邮箱" value="{{ filters.search or '' }}">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="role">
+                    <option value="">全部角色</option>
+                    <option value="admin" {% if filters.role=='admin' %}selected{% endif %}>管理员</option>
+                    <option value="teacher" {% if filters.role=='teacher' %}selected{% endif %}>教师</option>
+                    <option value="student" {% if filters.role=='student' %}selected{% endif %}>学生</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search me-2"></i>搜索
+                </button>
+                <a href="/admin/users" class="btn btn-secondary">
+                    <i class="bi bi-x-circle me-2"></i>重置
+                </a>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card">
-    <div class="card-body">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>用户名</th>
-                    <th>邮箱</th>
-                    <th>角色</th>
-                    <th>状态</th>
-                    <th>注册时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in users %}
-                <tr>
-                    <td>{{ u.id }}</td>
-                    <td>{{ u.username }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>
-                        <span class="badge bg-{{ 'primary' if u.is_admin else ('success' if u.is_teacher else 'info') }}">
-                            {{ '管理员' if u.is_admin else ('教师' if u.is_teacher else '学生') }}
-                        </span>
-                    </td>
-                    <td>
-                        {% if u.is_active %}
-                        <span class="badge bg-success">正常</span>
-                        {% else %}
-                        <span class="badge bg-danger">禁用</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '-' }}</td>
-                    <td>
-                        <button class="btn btn-sm btn-{{ 'secondary' if u.is_active else 'success' }}" 
-                                onclick="toggleActive({{ u.id }})">
-                            {{ '禁用' if u.is_active else '启用' }}
-                        </button>
-                        <select class="form-select form-select-sm d-inline-block w-auto" 
-                                onchange="changeRole({{ u.id }}, this.value)">
-                            <option value="admin" {{ 'selected' if u.is_admin else '' }}>管理员</option>
-                            <option value="teacher" {{ 'selected' if u.is_teacher else '' }}>教师</option>
-                            <option value="student" {{ 'selected' if u.is_student else '' }}>学生</option>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-purple">ID</th>
+                        <th class="text-purple">用户名</th>
+                        <th class="text-purple">邮箱</th>
+                        <th class="text-purple">角色</th>
+                        <th class="text-purple">状态</th>
+                        <th class="text-purple">注册时间</th>
+                        <th class="text-purple">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td><code>{{ u.display_id }}</code></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="rounded-circle bg-purple d-flex align-items-center justify-content-center" style="width:32px;height:32px;">
+                                    <i class="bi bi-person text-white"></i>
+                                </span>
+                                <strong>{{ u.username }}</strong>
+                            </div>
+                        </td>
+                        <td>{{ u.email }}</td>
+                        <td>
+                            <span class="badge {% if u.role == 'admin' %}bg-danger{% elif u.role == 'teacher' %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                {% if u.role == 'admin' %}管理员{% elif u.role == 'teacher' %}教师{% else %}学生{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                            <span class="badge bg-success">正常</span>
+                            {% else %}
+                            <span class="badge bg-secondary">禁用</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.created_at.strftime('%Y-%m-%d') if u.created_at else '-' }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm {% if u.is_active %}btn-outline-secondary{% else %}btn-outline-success{% endif %}" onclick="toggleActive({{ u.id }})">
+                                    {% if u.is_active %}<i class="bi bi-slash-circle"></i> 禁用{% else %}<i class="bi bi-check-circle"></i> 启用{% endif %}
+                                </button>
+                                <select class="form-select form-select-sm" style="width:auto;" onchange="changeRole({{ u.id }}, this.value)">
+                                    <option value="admin" {% if u.role=='admin' %}selected{% endif %}>管理员</option>
+                                    <option value="teacher" {% if u.role=='teacher' %}selected{% endif %}>教师</option>
+                                    <option value="student" {% if u.role=='student' %}selected{% endif %}>学生</option>
+                                </select>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">暂无用户数据</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 分页 -->
+{% if pagination.total_pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if pagination.page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ pagination.page - 1 }}&role={{ filters.role or '' }}&search={{ filters.search or '' }}">上一页</a>
+        </li>
+        {% for p in range(1, pagination.total_pages + 1) %}
+        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}&role={{ filters.role or '' }}&search={{ filters.search or '' }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if pagination.page >= pagination.total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ pagination.page + 1 }}&role={{ filters.role or '' }}&search={{ filters.search or '' }}">下一页</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+<!-- 添加用户 Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>添加用户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addUserForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">用户名</label>
+                        <input type="text" class="form-control" name="username" required minlength="3" maxlength="20">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">邮箱</label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">密码</label>
+                        <input type="password" class="form-control" name="password" required minlength="6">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">角色</label>
+                        <select class="form-select" name="role" required>
+                            <option value="student" selected>学生</option>
+                            <option value="teacher">教师</option>
+                            <option value="admin">管理员</option>
                         </select>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>创建
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -67,6 +171,9 @@ async function toggleActive(userId) {
     const response = await fetch(`/admin/users/${userId}/toggle-active`, { method: 'POST' });
     if (response.ok) {
         location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '操作失败');
     }
 }
 
@@ -74,7 +181,31 @@ async function changeRole(userId, role) {
     const response = await fetch(`/admin/users/${userId}/change-role?role=${role}`, { method: 'POST' });
     if (response.ok) {
         location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '操作失败');
     }
 }
+
+document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const response = await fetch('/admin/users/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(formData)
+    });
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '创建失败');
+    }
+});
 </script>
-{% endblock %}
+{% endblock admin_content %}

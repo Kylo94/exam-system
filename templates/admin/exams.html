@@ -8,9 +8,20 @@
         <h2 class="mb-1"><i class="bi bi-file-earmark-text text-purple"></i> 试卷管理</h2>
         <p class="text-secondary small mb-0">共 {{ pagination.total }} 份试卷</p>
     </div>
-    <button class="btn btn-primary" onclick="showCreateModal()">
-        <i class="bi bi-plus-circle me-2"></i>添加试卷
-    </button>
+    <div>
+        <button class="btn btn-outline-danger me-2" id="btnBatchDelete" style="display: none;" onclick="batchDeleteExams()">
+            <i class="bi bi-trash me-2"></i>批量删除 (<span id="selectedCount">0</span>)
+        </button>
+        <button class="btn btn-outline-success me-2" id="btnBatchPublish" style="display: none;" onclick="batchPublishExams(true)">
+            <i class="bi bi-check-circle me-2"></i>批量发布
+        </button>
+        <button class="btn btn-outline-secondary me-2" id="btnBatchUnpublish" style="display: none;" onclick="batchPublishExams(false)">
+            <i class="bi bi-x-circle me-2"></i>批量取消发布
+        </button>
+        <button class="btn btn-primary" onclick="showCreateModal()">
+            <i class="bi bi-plus-circle me-2"></i>添加试卷
+        </button>
+    </div>
 </div>
 
 <!-- 搜索和筛选 -->
@@ -61,6 +72,9 @@
             <table class="table table-hover mb-0">
                 <thead>
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
                         <th class="text-purple">ID</th>
                         <th class="text-purple">试卷名称</th>
                         <th class="text-purple">科目</th>
@@ -74,7 +88,11 @@
                 </thead>
                 <tbody>
                     {% for exam in exams %}
-                    <tr>
+                    <tr data-exam-id="{{ exam.id }}">
+                        <td>
+                            <input type="checkbox" class="form-check-input exam-checkbox"
+                                value="{{ exam.id }}" onchange="updateBatchButtons()">
+                        </td>
                         <td><code>{{ exam.display_id }}</code></td>
                         <td><strong>{{ exam.title }}</strong></td>
                         <td>{{ exam.subject.name if exam.subject else '-' }}</td>
@@ -504,6 +522,87 @@ async function initExamCreationData() {
         loadAiConfigs();
     } catch (error) {
         console.error('初始化数据失败:', error);
+    }
+}
+
+// 批量选择
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.exam-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+    updateBatchButtons();
+}
+
+function updateBatchButtons() {
+    const checked = document.querySelectorAll('.exam-checkbox:checked');
+    const count = checked.length;
+    document.getElementById('selectedCount').textContent = count;
+
+    const btnBatchDelete = document.getElementById('btnBatchDelete');
+    const btnBatchPublish = document.getElementById('btnBatchPublish');
+    const btnBatchUnpublish = document.getElementById('btnBatchUnpublish');
+
+    if (count > 0) {
+        btnBatchDelete.style.display = 'inline-block';
+        btnBatchPublish.style.display = 'inline-block';
+        btnBatchUnpublish.style.display = 'inline-block';
+    } else {
+        btnBatchDelete.style.display = 'none';
+        btnBatchPublish.style.display = 'none';
+        btnBatchUnpublish.style.display = 'none';
+    }
+}
+
+async function batchDeleteExams() {
+    const checked = document.querySelectorAll('.exam-checkbox:checked');
+    const ids = Array.from(checked).map(cb => parseInt(cb.value));
+
+    if (ids.length === 0) return;
+    if (!confirm(`确定要删除选中的 ${ids.length} 份试卷吗？此操作不可恢复！`)) return;
+
+    try {
+        const response = await fetch('/admin/api/exams/batch-delete', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(ids)
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('删除失败');
+        }
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+async function batchPublishExams(isPublished) {
+    const checked = document.querySelectorAll('.exam-checkbox:checked');
+    const ids = Array.from(checked).map(cb => parseInt(cb.value));
+
+    if (ids.length === 0) return;
+
+    const action = isPublished ? '发布' : '取消发布';
+    if (!confirm(`确定要${action}选中的 ${ids.length} 份试卷吗？`)) return;
+
+    try {
+        const response = await fetch('/admin/api/exams/batch-publish', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({exam_ids: ids, is_published: isPublished})
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert(`${action}失败`);
+        }
+    } catch (error) {
+        alert(`${action}失败: ` + error.message);
     }
 }
 

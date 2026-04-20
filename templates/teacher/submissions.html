@@ -25,7 +25,7 @@
                 {% for sub in submissions %}
                 <tr>
                     <td>{{ sub.id }}</td>
-                    <td>{{ sub.user.username if sub.user else '-' }}</td>
+                    <td>{{ sub.current_user.username if sub.user else '-' }}</td>
                     <td>{{ sub.exam.title if sub.exam else '已删除' }}</td>
                     <td>
                         <span class="badge bg-{{ 'success' if sub.is_passed else 'danger' }}">

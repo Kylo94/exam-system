@@ -25,6 +25,7 @@ pillow>=10.2.0
 
 # AI集成
 openai>=1.12.0
+anthropic>=0.25.0
 requests>=2.31.0
 
 # 环境配置
@@ -33,10 +34,14 @@ pydantic>=2.6.0
 pydantic-settings>=2.1.0
 email-validator>=2.1.0
 
-# 开发工具
-httpx>=0.26.0
-
 # 测试
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
 pytest-cov>=4.1.0
+
+# 开发工具
+httpx>=0.26.0
+black>=24.0.0
+isort>=5.13.0
+flake8>=7.0.0
+mypy>=1.8.0

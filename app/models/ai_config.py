@@ -10,13 +10,14 @@ class AIConfig(Model):
 
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=100)
-    provider = fields.CharField(max_length=50)  # deepseek, openai
+    provider = fields.CharField(max_length=50)  # deepseek, openai, minimax
     model = fields.CharField(max_length=100)
     api_key = fields.CharField(max_length=500, null=True)
     base_url = fields.CharField(max_length=255, null=True)
     temperature = fields.FloatField(default=0.7)
     max_tokens = fields.IntField(default=2000)
     is_active = fields.BooleanField(default=False)
+    is_default = fields.BooleanField(default=False)
     description = fields.TextField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)

@@ -1,67 +1,172 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}科目管理 - {{ super() }}{% endblock %}
+{% block title %}科目与等级管理 - {{ settings.APP_NAME }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-book"></i> 科目管理</h2>
-    <button class="btn btn-primary" onclick="showAddModal()">
-        <i class="bi bi-plus-circle"></i> 添加科目
+    <div>
+        <h2 class="mb-1"><i class="bi bi-journal-bookmark text-success"></i> 科目与等级管理</h2>
+        <p class="text-secondary small mb-0">共 {{ pagination.total }} 个科目</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSubjectModal">
+        <i class="bi bi-plus-circle me-2"></i>添加科目
     </button>
 </div>
 
-<div class="card">
+<!-- 搜索 -->
+<div class="card mb-4">
     <div class="card-body">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>科目名称</th>
-                    <th>描述</th>
-                    <th>创建时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for subject in subjects %}
-                <tr>
-                    <td>{{ subject.id }}</td>
-                    <td>{{ subject.name }}</td>
-                    <td>{{ subject.description or '-' }}</td>
-                    <td>{{ subject.created_at.strftime('%Y-%m-%d') if subject.created_at else '-' }}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="editSubject({{ subject.id }}, '{{ subject.name }}', '{{ subject.description or '' }}')">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteSubject({{ subject.id }})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="search" placeholder="搜索科目名称或描述" value="{{ filters.search or '' }}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search me-2"></i>搜索
+                </button>
+                <a href="/admin/subjects" class="btn btn-secondary">
+                    <i class="bi bi-x-circle me-2"></i>重置
+                </a>
+            </div>
+        </form>
     </div>
 </div>
 
-<!-- 添加/编辑Modal -->
-<div class="modal fade" id="subjectModal" tabindex="-1">
+<!-- 科目列表 -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-purple">ID</th>
+                        <th class="text-purple">科目名称</th>
+                        <th class="text-purple">描述</th>
+                        <th class="text-purple">等级</th>
+                        <th class="text-purple">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subject in subjects %}
+                    <tr>
+                        <td><code>{{ subject.display_id }}</code></td>
+                        <td><strong>{{ subject.name }}</strong></td>
+                        <td>{{ subject.description or '-' }}</td>
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for level in subject.levels %}
+                                <span class="badge bg-secondary" title="{{ level.description or '' }}">
+                                    {{ level.name }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="editSubject({{ subject.id }})">
+                                <i class="bi bi-pencil"></i> 编辑
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteSubject({{ subject.id }})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">暂无科目数据</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 分页 -->
+{% if pagination.total_pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if pagination.page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ pagination.page - 1 }}&search={{ filters.search or '' }}">上一页</a>
+        </li>
+        {% for p in range(1, pagination.total_pages + 1) %}
+        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}&search={{ filters.search or '' }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if pagination.page >= pagination.total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ pagination.page + 1 }}&search={{ filters.search or '' }}">下一页</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+<!-- 创建科目 Modal -->
+<div class="modal fade" id="createSubjectModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalTitle">添加科目</h5>
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>添加科目</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" id="subjectForm">
+            <form id="createSubjectForm">
                 <div class="modal-body">
-                    <input type="hidden" name="id" id="subjectId">
                     <div class="mb-3">
-                        <label for="subjectName" class="form-label">科目名称</label>
-                        <input type="text" class="form-control" id="subjectName" name="name" required>
+                        <label class="form-label">科目名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required placeholder="如：单片机">
                     </div>
                     <div class="mb-3">
-                        <label for="subjectDesc" class="form-label">描述</label>
-                        <textarea class="form-control" id="subjectDesc" name="description" rows="3"></textarea>
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="2" placeholder="如：青少年电子协会等级考试"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">等级数量</label>
+                        <input type="number" class="form-control" name="level_count" value="3" min="1" max="20">
+                        <small class="text-secondary">将自动创建等级：第1级、第2级...第N级</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">创建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑科目 Modal -->
+<div class="modal fade" id="editSubjectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>编辑科目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editSubjectForm">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="editSubjectId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">科目名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="name" id="editSubjectName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">描述</label>
+                                <input type="text" class="form-control" name="description" id="editSubjectDesc">
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">等级管理</h6>
+                        <button type="button" class="btn btn-sm btn-success" onclick="addLevel()">
+                            <i class="bi bi-plus-circle me-1"></i>添加等级
+                        </button>
+                    </div>
+                    <div id="levelsContainer" class="list-group">
+                        <!-- Levels will be loaded here -->
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -74,38 +179,144 @@
 </div>
 
 <script>
-function showAddModal() {
-    document.getElementById('modalTitle').textContent = '添加科目';
-    document.getElementById('subjectId').value = '';
-    document.getElementById('subjectName').value = '';
-    document.getElementById('subjectDesc').value = '';
-    new bootstrap.Modal(document.getElementById('subjectModal')).show();
-}
-
-function editSubject(id, name, desc) {
-    document.getElementById('modalTitle').textContent = '编辑科目';
-    document.getElementById('subjectId').value = id;
-    document.getElementById('subjectName').value = name;
-    document.getElementById('subjectDesc').value = desc;
-    new bootstrap.Modal(document.getElementById('subjectModal')).show();
-}
-
-async function deleteSubject(id) {
-    if (!confirm('确定要删除此科目吗？')) return;
-    await fetch(`/api/subjects/${id}`, { method: 'DELETE' });
-    location.reload();
-}
-
-document.getElementById('subjectForm').onsubmit = async (e) => {
+// 创建科目
+document.getElementById('createSubjectForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const id = formData.get('id');
-    const url = id ? `/api/subjects/${id}` : '/api/subjects';
-    await fetch(url, {
+
+    const response = await fetch('/admin/subjects', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            name: formData.get('name'),
+            description: formData.get('description') || '',
+            level_count: formData.get('level_count') || '3'
+        }),
+        credentials: 'include'
     });
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '创建失败');
+    }
+});
+
+// 编辑科目
+async function editSubject(subjectId) {
+    const response = await fetch(`/api/subjects/${subjectId}`);
+    if (!response.ok) {
+        alert('获取科目信息失败');
+        return;
+    }
+
+    const data = await response.json();
+
+    document.getElementById('editSubjectId').value = data.id;
+    document.getElementById('editSubjectName').value = data.name;
+    document.getElementById('editSubjectDesc').value = data.description || '';
+
+    // 渲染等级列表
+    const container = document.getElementById('levelsContainer');
+    container.innerHTML = data.levels.map(level => `
+        <div class="list-group-item d-flex justify-content-between align-items-center" style="background-color: var(--bg-card); border-color: var(--border-color);">
+            <div class="d-flex align-items-center gap-2">
+                <input type="hidden" name="level_id" value="${level.id}">
+                <input type="text" class="form-control form-control-sm" name="level_name" value="${level.name}" style="width: 100px;">
+                <input type="text" class="form-control form-control-sm" name="level_desc" value="${level.description || ''}" style="width: 150px;" placeholder="描述">
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteLevel(${level.id})">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `).join('');
+
+    new bootstrap.Modal(document.getElementById('editSubjectModal')).show();
+}
+
+// 添加新等级
+async function addLevel() {
+    const subjectId = document.getElementById('editSubjectId').value;
+    const name = prompt('请输入等级名称（如：第8级）：');
+    if (!name) return;
+
+    const response = await fetch(`/api/subjects/${subjectId}/levels`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ name: name })
+    });
+
+    if (response.ok) {
+        editSubject(subjectId); // 重新加载
+    } else {
+        alert('添加等级失败');
+    }
+}
+
+// 删除等级
+async function deleteLevel(levelId) {
+    if (!confirm('确定要删除此等级吗？')) return;
+
+    const response = await fetch(`/api/levels/${levelId}`, { method: 'DELETE' });
+    if (response.ok) {
+        const subjectId = document.getElementById('editSubjectId').value;
+        editSubject(subjectId); // 重新加载
+    } else {
+        alert('删除等级失败');
+    }
+}
+
+// 更新科目
+document.getElementById('editSubjectForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const subjectId = document.getElementById('editSubjectId').value;
+    const formData = new FormData(e.target);
+
+    // 更新科目信息
+    const subjectResponse = await fetch(`/api/subjects/${subjectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            name: formData.get('name'),
+            description: formData.get('description')
+        })
+    });
+
+    if (!subjectResponse.ok) {
+        alert('更新科目失败');
+        return;
+    }
+
+    // 更新等级信息
+    const levelIds = formData.getAll('level_id');
+    const levelNames = formData.getAll('level_name');
+    const levelDescs = formData.getAll('level_desc');
+
+    for (let i = 0; i < levelIds.length; i++) {
+        await fetch(`/api/levels/${levelIds[i]}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                name: levelNames[i],
+                description: levelDescs[i]
+            })
+        });
+    }
+
     location.reload();
-};
+});
+
+// 删除科目
+async function deleteSubject(subjectId) {
+    if (!confirm('确定要删除此科目吗？关联的等级也会被删除。')) return;
+
+    const response = await fetch(`/api/subjects/${subjectId}`, { method: 'DELETE' });
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('删除失败');
+    }
+}
 </script>
-{% endblock %}
+{% endblock admin_content %}

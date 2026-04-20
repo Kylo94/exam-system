@@ -1,45 +1,120 @@
-{% extends "base.html" %}
+{% extends "admin/admin_base.html" %}
 
-{% block title %}难度管理 - {{ super() }}{% endblock %}
+{% block title %}难度等级 - {{ settings.APP_NAME }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-bar-chart"></i> 难度等级管理</h2>
-    <button class="btn btn-primary" onclick="showAddModal()">
-        <i class="bi bi-plus-circle"></i> 添加等级
+    <div>
+        <h2 class="mb-1"><i class="bi bi-bar-chart text-success"></i> 难度等级管理</h2>
+        <p class="text-secondary small mb-0">共 {{ pagination.total }} 个等级</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLevelModal">
+        <i class="bi bi-plus-circle me-2"></i>添加等级
     </button>
 </div>
 
-<div class="card">
+<!-- 搜索 -->
+<div class="card mb-4">
     <div class="card-body">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>等级名称</th>
-                    <th>描述</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for level in levels %}
-                <tr>
-                    <td>{{ level.id }}</td>
-                    <td>
-                        <span class="badge bg-{{ 'success' if level.name == '简单' else ('warning' if level.name == '中等' else 'danger') }}">
-                            {{ level.name }}
-                        </span>
-                    </td>
-                    <td>{{ level.description or '-' }}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteLevel({{ level.id }})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" name="search" placeholder="搜索等级名称或描述" value="{{ filters.search or '' }}">
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search me-2"></i>搜索
+                </button>
+                <a href="/admin/levels" class="btn btn-secondary">
+                    <i class="bi bi-x-circle me-2"></i>重置
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-purple">ID</th>
+                        <th class="text-purple">等级名称</th>
+                        <th class="text-purple">描述</th>
+                        <th class="text-purple">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for level in levels %}
+                    <tr>
+                        <td><code>{{ level.display_id }}</code></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if level.name == '简单' else ('warning' if level.name == '中等' else 'danger') }}">
+                                {{ level.name }}
+                            </span>
+                        </td>
+                        <td>{{ level.description or '-' }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteLevel({{ level.id }})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">暂无等级数据</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 分页 -->
+{% if pagination.total_pages > 1 %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if pagination.page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ pagination.page - 1 }}&search={{ filters.search or '' }}">上一页</a>
+        </li>
+        {% for p in range(1, pagination.total_pages + 1) %}
+        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}&search={{ filters.search or '' }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if pagination.page >= pagination.total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ pagination.page + 1 }}&search={{ filters.search or '' }}">下一页</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+<!-- 添加等级 Modal -->
+<div class="modal fade" id="addLevelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>添加难度等级</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addLevelForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">等级名称</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -49,5 +124,21 @@ async function deleteLevel(id) {
     await fetch(`/api/levels/${id}`, { method: 'DELETE' });
     location.reload();
 }
+
+document.getElementById('addLevelForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const params = new URLSearchParams();
+    params.append('name', formData.get('name'));
+    if (formData.get('description')) {
+        params.append('description', formData.get('description'));
+    }
+    await fetch('/api/levels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+    });
+    location.reload();
+});
 </script>
-{% endblock %}
+{% endblock admin_content %}

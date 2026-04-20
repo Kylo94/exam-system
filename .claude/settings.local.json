@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from app.parsers import QuestionParser, AIParser, RuleParser, JsonHandler, DocxExtractor; print\\('All imports OK'\\)\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, content, has_image, image_data, question_metadata FROM questions WHERE exam_id = \\(SELECT id FROM exams ORDER BY id DESC LIMIT 1\\) LIMIT 3;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, content, has_image, image_data FROM questions WHERE exam_id = \\(SELECT id FROM exams ORDER BY id DESC LIMIT 1\\) AND has_image = 1 LIMIT 5;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, substr\\(content, 1, 50\\), image_data FROM questions WHERE exam_id = \\(SELECT id FROM exams ORDER BY id DESC LIMIT 1\\) LIMIT 5;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, content, image_data, question_metadata FROM questions WHERE exam_id = \\(SELECT id FROM exams ORDER BY id DESC LIMIT 1\\) AND image_data IS NOT NULL AND image_data != '' LIMIT 5;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, has_image, image_data FROM questions WHERE id = 816;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, has_image, image_data, question_metadata FROM questions WHERE id = 818;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, has_image, image_data FROM questions WHERE id = 818;\")",
+      "Bash(lsof -ti:54000,54001,54002)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:54000/api/subjects)",
+      "Bash(curl -s -X PUT http://localhost:54000/admin/api/questions/818 -H 'Content-Type: application/json' -d '{\"has_image\": false, \"image_data\": \"\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"UPDATE questions SET has_image = 0, image_data = NULL WHERE id = 818; SELECT id, has_image, image_data FROM questions WHERE id = 818;\")",
+      "Bash(sqlite3 /Users/kylo/Documents/Workspace/答题网站/data/exam_system.db \"SELECT id, order_num, has_image, image_data FROM questions WHERE exam_id = 18 AND order_num = 1;\")",
+      "Bash(curl -s -X PUT http://localhost:54000/admin/api/questions/816 -H 'Content-Type: application/json' -H 'Cookie: session=admin' -d '{\"has_image\": false, \"image_data\": \"\"}')",
+      "Bash(lsof -i:54000)",
+      "Bash(kill -9 90845)"
+    ]
+  }
+}
