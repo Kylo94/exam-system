@@ -32,6 +32,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+# 请求中间件 - 确保每次请求前数据库已初始化
+@app.middleware("http")
+async def db_init_middleware(request: Request, call_next):
+    from tortoise import Tortoise
+    if not Tortoise.is_inited():
+        print("[MIDDLEWARE] Re-initializing database...")
+        await init_db()
+    return await call_next(request)
+
+
 # CORS配置
 app.add_middleware(
     CORSMiddleware,
@@ -63,6 +74,8 @@ app.include_router(api.router, prefix="/api", tags=["API"])
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """通用异常处理"""
+    import traceback
+    traceback.print_exc()
     return templates.TemplateResponse(
         "error.html",
         {"request": request, "error": str(exc)},

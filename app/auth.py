@@ -90,6 +90,7 @@ async def get_optional_current_user(request: Request, token: str = Depends(oauth
 
 async def _get_user_from_token(token: str) -> Optional[User]:
     """从token获取用户"""
+    print("[DEBUG] _get_user_from_token called")
     payload = decode_token(token)
     if payload is None:
         return None
