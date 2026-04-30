@@ -3,152 +3,371 @@
 {% block title %}知识点管理 - {{ settings.APP_NAME }}{% endblock %}
 
 {% block admin_content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+.breadcrumb-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.5rem;
+}
+.breadcrumb-nav a {
+    color: var(--purple);
+    text-decoration: none;
+}
+.breadcrumb-nav a:hover {
+    text-decoration: underline;
+}
+.breadcrumb-nav .separator {
+    color: var(--text-muted);
+}
+.breadcrumb-nav .current {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.card-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+.card-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.card-item:hover {
+    border-color: var(--purple);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 59, 144, 0.15);
+}
+.card-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+.card-item-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+.card-item-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+.card-item-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.card-item-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.kp-table {
+    background: var(--bg-card);
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+.kp-table th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+    border: none;
+    padding: 0.75rem 1rem;
+}
+.kp-table td {
+    border-color: var(--border-color);
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+.kp-table tbody tr:hover {
+    background: var(--purple-ghost);
+}
+
+.btn-action {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+</style>
+
+<!-- 页面标题 -->
+<div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h2 class="mb-1"><i class="bi bi-diagram-3 text-info"></i> 知识点管理</h2>
-        <p class="text-secondary small mb-0">共 {{ pagination.total }} 个知识点</p>
+        <h2 class="mb-1">
+            {% if current_level %}
+            📝 {{ current_level.name }} - 知识点
+            {% elif current_subject %}
+            📊 {{ current_subject.name }} - 等级
+            {% else %}
+            📚 知识点管理
+            {% endif %}
+        </h2>
+        <p class="text-secondary small mb-0">
+            {% if current_level %}
+            共 {{ knowledge_points|length }} 个知识点
+            {% elif current_subject %}
+            共 {{ levels|length }} 个等级
+            {% else %}
+            共 {{ subjects|length }} 个科目
+            {% endif %}
+        </p>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKpModal">
-        <i class="bi bi-plus-circle me-2"></i>添加知识点
-    </button>
-</div>
-
-<!-- 搜索和筛选 -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="get" class="row g-3">
-            <div class="col-md-3">
-                <input type="text" class="form-control" name="search" placeholder="搜索知识点名称" value="{{ filters.search or '' }}">
-            </div>
-            <div class="col-md-2">
-                <select class="form-select" name="subject_id">
-                    <option value="">全部科目</option>
-                    {% for s in subjects %}
-                    <option value="{{ s.id }}" {% if filters.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select class="form-select" name="level_id">
-                    <option value="">全部难度</option>
-                    {% for l in levels %}
-                    <option value="{{ l.id }}" {% if filters.level_id == l.id %}selected{% endif %}>{{ l.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search me-2"></i>搜索
-                </button>
-                <a href="/admin/knowledge-points" class="btn btn-secondary">
-                    <i class="bi bi-x-circle me-2"></i>重置
-                </a>
-            </div>
-        </form>
+    <div>
+        {% if current_level %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKpModal">
+            ➕ 添加知识点
+        </button>
+        {% elif current_subject %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLevelModal">
+            ➕ 添加等级
+        </button>
+        {% else %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubjectModal">
+            ➕ 添加科目
+        </button>
+        {% endif %}
     </div>
 </div>
 
-<div class="card">
-    <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th class="text-purple">ID</th>
-                        <th class="text-purple">名称</th>
-                        <th class="text-purple">科目</th>
-                        <th class="text-purple">难度</th>
-                        <th class="text-purple">描述</th>
-                        <th class="text-purple">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for kp in knowledge_points %}
-                    <tr>
-                        <td><code>{{ kp.display_id }}</code></td>
-                        <td><strong>{{ kp.name }}</strong></td>
-                        <td>{{ kp.subject.name if kp.subject else '-' }}</td>
-                        <td>
-                            {% if kp.level %}
-                            <span class="badge bg-{{ 'success' if kp.level.name == '简单' else ('warning' if kp.level.name == '中等' else 'danger') }}">
-                                {{ kp.level.name }}
-                            </span>
-                            {% else %}-{% endif %}
-                        </td>
-                        <td>{{ kp.description or '-' }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="editKp({{ kp.id }})">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteKp({{ kp.id }})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center text-muted py-4">暂无知识点数据</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- 导航面包屑 -->
+<div class="breadcrumb-nav">
+    <a href="/admin/knowledge-points">🏠 知识点管理</a>
+    {% if current_level %}
+    <span class="separator">/</span>
+    <a href="/admin/knowledge-points?subject_id={{ current_subject.id }}">{{ current_subject.name }}</a>
+    <span class="separator">/</span>
+    <span class="current">{{ current_level.name }}</span>
+    {% elif current_subject %}
+    <span class="separator">/</span>
+    <span class="current">{{ current_subject.name }}</span>
+    {% endif %}
+</div>
+
+<!-- 层级内容 -->
+<div>
+    {% if current_level %}
+    <!-- 知识点列表 -->
+    {% if knowledge_points %}
+    <div class="kp-table">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">ID</th>
+                    <th>知识点名称</th>
+                    <th>描述</th>
+                    <th style="width: 100px;">题目数</th>
+                    <th style="width: 160px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for kp in knowledge_points %}
+                <tr>
+                    <td><code>{{ kp.display_id }}</code></td>
+                    <td><strong>{{ kp.name }}</strong></td>
+                    <td class="text-secondary">{{ kp.description or '-' }}</td>
+                    <td><span class="badge bg-secondary">{{ kp.question_count }}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary btn-action" onclick="editKp({{ kp.id }})">
+                            ✏️
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger btn-action" onclick="deleteKp({{ kp.id }})">
+                            🗑️
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; opacity: 0.4;">📝</div>
+        <h5>暂无知识点</h5>
+        <p class="text-muted mb-3">在该等级下添加第一个知识点</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKpModal">
+            ➕ 添加知识点
+        </button>
+    </div>
+    {% endif %}
+
+    {% elif current_subject %}
+    <!-- 等级列表 -->
+    {% if levels %}
+    <div class="card-list">
+        {% for level in levels %}
+        <div class="card-item" onclick="location.href='/admin/knowledge-points?subject_id={{ current_subject.id }}&level_id={{ level.id }}'">
+            <div class="card-item-header">
+                <div class="card-item-icon bg-warning bg-opacity-20 text-warning" style="font-size: 1.5rem;">
+                    📊
+                </div>
+                <div class="card-item-actions">
+                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteLevel({{ level.id }})">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            <div class="card-item-title">{{ level.name }}</div>
+            <div class="card-item-meta">
+                📝 {{ level.knowledge_point_count }} 个知识点
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; opacity: 0.4;">📂</div>
+        <h5>暂无等级</h5>
+        <p class="text-muted mb-3">在该科目下添加第一个等级</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLevelModal">
+            ➕ 添加等级
+        </button>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- 科目列表 -->
+    {% if subjects %}
+    <div class="card-list">
+        {% for subject in subjects %}
+        <div class="card-item" onclick="location.href='/admin/knowledge-points?subject_id={{ subject.id }}'">
+            <div class="card-item-header">
+                <div class="card-item-icon bg-primary bg-opacity-20 text-primary" style="font-size: 1.5rem;">
+                    📚
+                </div>
+                <div class="card-item-actions">
+                    <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); deleteSubject({{ subject.id }})">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+            <div class="card-item-title">{{ subject.name }}</div>
+            <div class="card-item-meta">
+                📊 {{ subject.level_count }} 个等级
+                📝 {{ subject.kp_count }} 个知识点
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div style="font-size: 3rem; opacity: 0.4;">📚</div>
+        <h5>暂无科目</h5>
+        <p class="text-muted mb-3">添加第一个科目来开始管理知识点</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubjectModal">
+            ➕ 添加科目
+        </button>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<!-- 添加科目 Modal -->
+<div class="modal fade" id="addSubjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📚 添加科目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addSubjectForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">科目名称</label>
+                        <input type="text" class="form-control" name="name" required placeholder="如：数学、英语、编程">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="2" placeholder="科目的简要描述"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">自动创建等级</label>
+                        <select class="form-select" name="level_count">
+                            <option value="0">不创建等级</option>
+                            <option value="3" selected>3个等级（第1级、第2级、第3级）</option>
+                            <option value="5">5个等级</option>
+                        </select>
+                        <small class="text-muted">等级用于对知识点进行难度分类</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
-<!-- 分页 -->
-{% if pagination.total_pages > 1 %}
-<nav class="mt-4">
-    <ul class="pagination justify-content-center">
-        <li class="page-item {% if pagination.page <= 1 %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ pagination.page - 1 }}&subject_id={{ filters.subject_id or '' }}&level_id={{ filters.level_id or '' }}&search={{ filters.search or '' }}">上一页</a>
-        </li>
-        {% for p in range(1, pagination.total_pages + 1) %}
-        <li class="page-item {% if p == pagination.page %}active{% endif %}">
-            <a class="page-link" href="?page={{ p }}&subject_id={{ filters.subject_id or '' }}&level_id={{ filters.level_id or '' }}&search={{ filters.search or '' }}">{{ p }}</a>
-        </li>
-        {% endfor %}
-        <li class="page-item {% if pagination.page >= pagination.total_pages %}disabled{% endif %}">
-            <a class="page-link" href="?page={{ pagination.page + 1 }}&subject_id={{ filters.subject_id or '' }}&level_id={{ filters.level_id or '' }}&search={{ filters.search or '' }}">下一页</a>
-        </li>
-    </ul>
-</nav>
-{% endif %}
+<!-- 添加等级 Modal -->
+<div class="modal fade" id="addLevelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📊 添加等级</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addLevelForm">
+                <div class="modal-body">
+                    <input type="hidden" name="subject_id" value="{{ current_subject.id }}">
+                    <div class="mb-3">
+                        <label class="form-label">等级名称</label>
+                        <input type="text" class="form-control" name="name" required placeholder="如：第1级、基础、进阶">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" name="description" rows="2" placeholder="等级的简要描述"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <!-- 添加知识点 Modal -->
 <div class="modal fade" id="addKpModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>添加知识点</h5>
+                <h5 class="modal-title">➕ 添加知识点</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="addKpForm">
                 <div class="modal-body">
+                    <input type="hidden" name="subject_id" value="{{ current_subject.id }}">
+                    <input type="hidden" name="level_id" value="{{ current_level.id }}">
                     <div class="mb-3">
-                        <label class="form-label">名称</label>
-                        <input type="text" class="form-control" name="name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">科目</label>
-                        <select class="form-select" name="subject_id" required>
-                            {% for s in subjects %}
-                            <option value="{{ s.id }}">{{ s.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">难度等级</label>
-                        <select class="form-select" name="level_id">
-                            <option value="">无</option>
-                            {% for l in levels %}
-                            <option value="{{ l.id }}">{{ l.name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label">知识点名称</label>
+                        <input type="text" class="form-control" name="name" required placeholder="如：三角函数、单词记忆">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">描述</label>
-                        <textarea class="form-control" name="description" rows="2"></textarea>
+                        <textarea class="form-control" name="description" rows="2" placeholder="知识点的简要描述"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -165,32 +384,17 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>编辑知识点</h5>
+                <h5 class="modal-title">✏️ 编辑知识点</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editKpForm">
                 <div class="modal-body">
                     <input type="hidden" name="id" id="editKpId">
+                    <input type="hidden" name="subject_id" id="editKpSubjectId">
+                    <input type="hidden" name="level_id" id="editKpLevelId">
                     <div class="mb-3">
-                        <label class="form-label">名称</label>
+                        <label class="form-label">知识点名称</label>
                         <input type="text" class="form-control" name="name" id="editKpName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">科目</label>
-                        <select class="form-select" name="subject_id" id="editKpSubject" required>
-                            {% for s in subjects %}
-                            <option value="{{ s.id }}">{{ s.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">难度等级</label>
-                        <select class="form-select" name="level_id" id="editKpLevel">
-                            <option value="">无</option>
-                            {% for l in levels %}
-                            <option value="{{ l.id }}">{{ l.name }}</option>
-                            {% endfor %}
-                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">描述</label>
@@ -210,11 +414,18 @@
 async function editKp(id) {
     const response = await fetch(`/api/knowledge-points/${id}`);
     const data = await response.json();
+
+    if (!data.success) {
+        alert('获取知识点信息失败');
+        return;
+    }
+
+    const kp = data.data;
     document.getElementById('editKpId').value = id;
-    document.getElementById('editKpName').value = data.data.name;
-    document.getElementById('editKpSubject').value = data.data.subject_id;
-    document.getElementById('editKpLevel').value = data.data.level_id || '';
-    document.getElementById('editKpDesc').value = data.data.description || '';
+    document.getElementById('editKpSubjectId').value = kp.subject_id;
+    document.getElementById('editKpLevelId').value = kp.level_id || '';
+    document.getElementById('editKpName').value = kp.name;
+    document.getElementById('editKpDesc').value = kp.description || '';
     new bootstrap.Modal(document.getElementById('editKpModal')).show();
 }
 
@@ -229,17 +440,51 @@ document.getElementById('editKpForm').addEventListener('submit', async (e) => {
         params.append('level_id', formData.get('level_id'));
     }
     params.append('description', formData.get('description'));
-    await fetch(`/api/knowledge-points/${id}`, {
+
+    const response = await fetch(`/api/knowledge-points/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params
     });
-    location.reload();
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('保存失败');
+    }
 });
+
 async function deleteKp(id) {
-    if (!confirm('确定要删除吗？')) return;
-    await fetch(`/api/knowledge-points/${id}`, { method: 'DELETE' });
-    location.reload();
+    if (!confirm('确定要删除这个知识点吗？')) return;
+
+    const response = await fetch(`/api/knowledge-points/${id}`, { method: 'DELETE' });
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('删除失败');
+    }
+}
+
+async function deleteSubject(id) {
+    if (!confirm('确定要删除此科目吗？\n这将同时删除该科目下的所有等级和知识点。\n此操作不可恢复！')) return;
+
+    const response = await fetch(`/api/subjects/${id}`, { method: 'DELETE' });
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('删除失败');
+    }
+}
+
+async function deleteLevel(id) {
+    if (!confirm('确定要删除此等级吗？\n这将同时删除该等级下的所有知识点。\n此操作不可恢复！')) return;
+
+    const response = await fetch(`/api/levels/${id}`, { method: 'DELETE' });
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('删除失败');
+    }
 }
 
 document.getElementById('addKpForm').addEventListener('submit', async (e) => {
@@ -254,12 +499,60 @@ document.getElementById('addKpForm').addEventListener('submit', async (e) => {
     if (formData.get('description')) {
         params.append('description', formData.get('description'));
     }
-    await fetch('/api/knowledge-points', {
+
+    const response = await fetch('/api/knowledge-points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: params
     });
-    location.reload();
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('添加失败');
+    }
+});
+
+document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const params = new URLSearchParams();
+    params.append('name', formData.get('name'));
+    params.append('description', formData.get('description') || '');
+    params.append('level_count', formData.get('level_count') || '0');
+
+    const response = await fetch('/api/subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+    });
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('添加失败');
+    }
+});
+
+document.getElementById('addLevelForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const subjectId = formData.get('subject_id');
+    const params = new URLSearchParams();
+    params.append('name', formData.get('name'));
+    params.append('description', formData.get('description') || '');
+
+    const response = await fetch(`/api/subjects/${subjectId}/levels`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params
+    });
+
+    if (response.ok) {
+        location.reload();
+    } else {
+        alert('添加失败');
+    }
 });
 </script>
 {% endblock admin_content %}

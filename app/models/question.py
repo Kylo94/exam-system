@@ -30,9 +30,18 @@ class Question(Model):
     )
     difficulty = fields.IntField(default=1)  # 1-5难度
     order_num = fields.IntField(default=0)  # 题目顺序
-    has_image = fields.BooleanField(default=False)  # 题目是否包含图片
-    image_data = fields.CharField(max_length=500, null=True)  # 题目的图片路径或base64数据
-    question_metadata = fields.JSONField(default={})  # 题目元数据，包含选项图片等信息
+    images = fields.JSONField(default=list)  # 题目内容中的多张图片路径列表 ["path1", "path2"]
+    question_metadata = fields.JSONField(default=dict)  # 题目元数据，包含选项图片等信息
+
+    @property
+    def has_image(self) -> bool:
+        """题目是否包含图片"""
+        return bool(self.images)
+
+    @property
+    def image_data(self) -> str:
+        """兼容旧接口，返回第一张图片"""
+        return self.images[0] if self.images else None
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
 

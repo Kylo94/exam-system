@@ -75,7 +75,8 @@
                         <label class="form-label">提供商</label>
                         <select class="form-select" name="provider" id="providerSelect" required>
                             <option value="openai">OpenAI</option>
-                            <option value="deepseek">DeepSeek</option>
+                            <option value="deepseek">DeepSeek (OpenAI格式)</option>
+                            <option value="deepseek_anthropic">DeepSeek (Anthropic格式)</option>
                             <option value="minimax">MiniMax</option>
                         </select>
                     </div>
@@ -139,7 +140,8 @@
                         <label class="form-label">提供商</label>
                         <select class="form-select" name="provider" id="editProviderSelect" required>
                             <option value="openai">OpenAI</option>
-                            <option value="deepseek">DeepSeek</option>
+                            <option value="deepseek">DeepSeek (OpenAI格式)</option>
+                            <option value="deepseek_anthropic">DeepSeek (Anthropic格式)</option>
                             <option value="minimax">MiniMax</option>
                         </select>
                     </div>
@@ -193,6 +195,14 @@ const PROVIDER_MODELS = {
         { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
     ],
     'deepseek': [
+        { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
+        { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
+        { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+        { value: 'deepseek-coder', label: 'DeepSeek Coder' }
+    ],
+    'deepseek_anthropic': [
+        { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
+        { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
         { value: 'deepseek-chat', label: 'DeepSeek Chat' },
         { value: 'deepseek-coder', label: 'DeepSeek Coder' }
     ],
@@ -242,6 +252,7 @@ function updateModelSuggestions() {
     const DEFAULT_URLS = {
         'openai': 'https://api.openai.com/v1',
         'deepseek': 'https://api.deepseek.com',
+        'deepseek_anthropic': 'https://api.deepseek.com/anthropic',
         'minimax': 'https://api.minimaxi.com/anthropic'
     };
 
@@ -304,6 +315,7 @@ async function editConfig(id) {
     const DEFAULT_URLS = {
         'openai': 'https://api.openai.com/v1',
         'deepseek': 'https://api.deepseek.com',
+        'deepseek_anthropic': 'https://api.deepseek.com/anthropic',
         'minimax': 'https://api.minimaxi.com/anthropic'
     };
 
@@ -387,6 +399,7 @@ function updateEditApiUrlHint() {
     const DEFAULT_URLS = {
         'openai': 'https://api.openai.com/v1',
         'deepseek': 'https://api.deepseek.com',
+        'deepseek_anthropic': 'https://api.deepseek.com/anthropic',
         'minimax': 'https://api.minimaxi.com/anthropic'
     };
     apiUrlHint.textContent = '留空使用默认值: ' + (DEFAULT_URLS[provider] || '');

@@ -13,7 +13,7 @@
 
 <!-- Stats Row -->
 <div class="row g-3 mb-4">
-    <div class="col-md-3 col-sm-6">
+    <div class="col-md-4 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-danger">
@@ -25,7 +25,7 @@
             <div class="stat-label">总用户数</div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6">
+    <div class="col-md-4 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-info">
@@ -37,19 +37,7 @@
             <div class="stat-label">科目数量</div>
         </div>
     </div>
-    <div class="col-md-3 col-sm-6">
-        <div class="stat-card">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <div class="stat-icon bg-success">
-                    <i class="bi bi-bar-chart"></i>
-                </div>
-                <span class="badge bg-success">等级</span>
-            </div>
-            <div class="stat-value">{{ stats.total_levels }}</div>
-            <div class="stat-label">难度等级</div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6">
+    <div class="col-md-4 col-sm-6">
         <div class="stat-card">
             <div class="d-flex align-items-center justify-content-between mb-3">
                 <div class="stat-icon bg-purple">
@@ -59,6 +47,42 @@
             </div>
             <div class="stat-value">{{ stats.total_exams }}</div>
             <div class="stat-label">试卷数量</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="stat-icon bg-success">
+                    <i class="bi bi-list-check"></i>
+                </div>
+                <span class="badge bg-success">题目</span>
+            </div>
+            <div class="stat-value">{{ stats.total_questions }}</div>
+            <div class="stat-label">题目数量</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="stat-icon bg-warning">
+                    <i class="bi bi-diagram-3"></i>
+                </div>
+                <span class="badge bg-warning">知识点</span>
+            </div>
+            <div class="stat-value">{{ stats.total_knowledge_points }}</div>
+            <div class="stat-label">知识点数量</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+        <div class="stat-card">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <div class="stat-icon bg-info">
+                    <i class="bi bi-pen"></i>
+                </div>
+                <span class="badge bg-info">答题</span>
+            </div>
+            <div class="stat-value">{{ stats.total_submissions }}</div>
+            <div class="stat-label">提交记录</div>
         </div>
     </div>
 </div>
@@ -91,17 +115,6 @@
                 </div>
                 <h5>科目管理</h5>
                 <p>管理考试科目</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-3 col-sm-6">
-        <a href="/admin/levels" class="text-decoration-none">
-            <div class="quick-action-card">
-                <div class="icon bg-warning">
-                    <i class="bi bi-bar-chart"></i>
-                </div>
-                <h5>难度等级</h5>
-                <p>设置题目难度</p>
             </div>
         </a>
     </div>

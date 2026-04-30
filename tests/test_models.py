@@ -71,13 +71,16 @@ async def test_subject_creation(test_db):
 @pytest.mark.asyncio
 async def test_level_creation(test_db):
     """测试难度创建"""
+    subject = await Subject.create(name="数学", code="MATH")
     level = await Level.create(
         name="基础",
-        description="基础难度"
+        description="基础难度",
+        subject=subject
     )
-    
+
     assert level.id is not None
     assert level.name == "基础"
+    assert level.subject_id == subject.id
 
 
 @pytest.mark.asyncio

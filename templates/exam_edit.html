@@ -104,9 +104,14 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="card-title mb-0">试卷题目</h5>
-                    <button class="btn btn-success" onclick="showAddQuestionModal()">
-                        <i class="bi bi-plus-circle me-1"></i>添加题目
-                    </button>
+                    <div>
+                        <button class="btn btn-outline-primary me-2" onclick="showKpAssignmentModal()">
+                            <i class="bi bi-magic me-1"></i>智能分配知识点
+                        </button>
+                        <button class="btn btn-success" onclick="showAddQuestionModal()">
+                            <i class="bi bi-plus-circle me-1"></i>添加题目
+                        </button>
+                    </div>
                 </div>
 
                 <div id="questionsList">
@@ -252,7 +257,97 @@
         </div>
     </div>
 
-    
+    <!-- 智能分配知识点 Modal -->
+    <div class="modal fade" id="kpAssignmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-magic me-2"></i>智能分配知识点</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        AI将分析题目内容，自动匹配到已创建的知识点。如果现有知识点都不合适，会建议创建新知识点。
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">选择AI配置</label>
+                        <select class="form-select" id="kpAiConfig">
+                            <option value="">使用默认配置</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">选择要分配的题目</label>
+                        <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                            <div id="kpQuestionList"></div>
+                        </div>
+                        <div class="form-text">
+                            已选择 <span id="kpSelectedCount">0</span> 道题目
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-2" onclick="selectAllQuestions()">全选</button>
+                        </div>
+                    </div>
+
+                    <div id="kpAssignmentResults" style="display: none;">
+                        <hr>
+                        <h6>分配结果</h6>
+                        <div id="kpResultsList"></div>
+                    </div>
+
+                    <div id="kpAssignmentProgress" style="display: none;">
+                        <hr>
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary me-2" role="status"></div>
+                            <span>AI正在分析题目，请稍候...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" id="btnStartKpAssignment" onclick="startKpAssignment()">
+                        <i class="bi bi-magic me-1"></i>开始分配
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建新知识点 Modal -->
+    <div class="modal fade" id="createKpModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>创建新知识点</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning" id="createKpAlert"></div>
+                    <input type="hidden" id="createKpQuestionId">
+                    <input type="hidden" id="createKpSubjectId">
+                    <div class="mb-3">
+                        <label class="form-label">知识点名称</label>
+                        <input type="text" class="form-control" id="createKpName">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">等级</label>
+                        <select class="form-select" id="createKpLevel">
+                            <option value="">无</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">描述</label>
+                        <textarea class="form-control" id="createKpDesc" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmCreateKp()">创建并分配</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 加载试卷信息
         function loadExamInfo() {
@@ -424,16 +519,27 @@
                     case 'short_answer': typeText = '简答题'; break;
                 }
 
-                // 构建题目图片HTML
+                // 构建题目图片HTML（支持多张图片）
                 let imageHtml = '';
-                if (q.has_image && q.image_data) {
-                    console.log('题目图片:', q.id, q.image_data);
+                const images = q.images || [];
+                if (images.length > 0) {
+                    imageHtml = images.map(img => {
+                        if (!img) return '';
+                        if (img.startsWith('data:')) {
+                            return `<img src="${img}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
+                        } else {
+                            const imagePath = img.replace('uploads/', '');
+                            const imageUrl = `/api/uploads/${imagePath}`;
+                            return `<img src="${imageUrl}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
+                        }
+                    }).join('');
+                } else if (q.image_data) {
+                    // 兼容旧格式
                     if (q.image_data.startsWith('data:')) {
                         imageHtml = `<img src="${q.image_data}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
                     } else {
                         const imagePath = q.image_data.replace('uploads/', '');
                         const imageUrl = `/api/uploads/${imagePath}`;
-                        console.log('图片URL:', imageUrl);
                         imageHtml = `<img src="${imageUrl}" class="img-fluid rounded mb-2" alt="题目图片" style="max-height: 200px;">`;
                     }
                 }
@@ -810,6 +916,268 @@
                 }
             });
         }
+
+        // ========== 智能知识点分配 ==========
+        let examQuestions = [];
+
+        async function showKpAssignmentModal() {
+            const modal = new bootstrap.Modal(document.getElementById('kpAssignmentModal'));
+            document.getElementById('kpAssignmentResults').style.display = 'none';
+            document.getElementById('kpAssignmentProgress').style.display = 'none';
+            document.getElementById('kpResultsList').innerHTML = '';
+            document.getElementById('kpSelectedCount').textContent = '0';
+
+            // 加载AI配置
+            const aiConfigSelect = document.getElementById('kpAiConfig');
+            aiConfigSelect.innerHTML = '<option value="">使用默认配置</option>';
+            try {
+                const aiResponse = await fetch('/api/ai-configs', { credentials: 'include' });
+                const aiData = await aiResponse.json();
+                if (aiData.success && aiData.data) {
+                    aiData.data.forEach(config => {
+                        const option = document.createElement('option');
+                        option.value = config.id;
+                        option.textContent = `${config.name} (${config.provider})`;
+                        aiConfigSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载AI配置失败:', error);
+            }
+
+            // 加载题目列表
+            const questionList = document.getElementById('kpQuestionList');
+            questionList.innerHTML = '';
+
+            // 先获取题目
+            if (examQuestions.length === 0) {
+                await loadQuestionsForKp();
+            }
+
+            examQuestions.forEach(q => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input kp-question-checkbox" type="checkbox" value="${q.id}" id="kp_q_${q.id}">
+                    <label class="form-check-label" for="kp_q_${q.id}">
+                        <span class="badge bg-secondary me-1">${q.type_display || q.type}</span>
+                        ${q.content.substring(0, 60)}${q.content.length > 60 ? '...' : ''}
+                        ${q.knowledge_point ? '<span class="badge bg-success ms-1">已有: ' + q.knowledge_point + '</span>' : '<span class="badge bg-warning ms-1">未分配</span>'}
+                    </label>
+                `;
+                questionList.appendChild(div);
+            });
+
+            // 绑定选择事件
+            document.querySelectorAll('.kp-question-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateKpSelectedCount);
+            });
+
+            modal.show();
+        }
+
+        async function loadQuestionsForKp() {
+            const examId = document.getElementById('examId').value;
+            try {
+                const response = await fetch(`/admin/api/exams/${examId}/questions`, { credentials: 'include' });
+                const data = await response.json();
+                if (data.success) {
+                    examQuestions = data.data || [];
+                }
+            } catch (error) {
+                console.error('加载题目失败:', error);
+            }
+        }
+
+        function updateKpSelectedCount() {
+            const count = document.querySelectorAll('.kp-question-checkbox:checked').length;
+            document.getElementById('kpSelectedCount').textContent = count;
+        }
+
+        function selectAllQuestions() {
+            const checkboxes = document.querySelectorAll('.kp-question-checkbox');
+            const allChecked = checkboxes.length > 0 && checkboxes[0].checked;
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+            updateKpSelectedCount();
+        }
+
+        async function startKpAssignment() {
+            const selectedIds = Array.from(document.querySelectorAll('.kp-question-checkbox:checked')).map(cb => parseInt(cb.value));
+
+            if (selectedIds.length === 0) {
+                alert('请选择要分配的题目');
+                return;
+            }
+
+            const aiConfigId = document.getElementById('kpAiConfig').value;
+
+            document.getElementById('kpAssignmentProgress').style.display = 'block';
+            document.getElementById('kpAssignmentResults').style.display = 'none';
+            document.getElementById('btnStartKpAssignment').disabled = true;
+
+            try {
+                const response = await fetch('/admin/api/questions/assign-knowledge-points', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question_ids: selectedIds,
+                        ai_config_id: aiConfigId ? parseInt(aiConfigId) : null
+                    })
+                });
+
+                const result = await response.json();
+
+                document.getElementById('kpAssignmentProgress').style.display = 'none';
+                document.getElementById('kpAssignmentResults').style.display = 'block';
+
+                if (result.success) {
+                    displayKpAssignmentResults(result.data);
+                } else {
+                    document.getElementById('kpResultsList').innerHTML = `
+                        <div class="alert alert-danger">${result.message || '分配失败'}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('kpAssignmentProgress').style.display = 'none';
+                document.getElementById('kpAssignmentResults').style.display = 'block';
+                document.getElementById('kpResultsList').innerHTML = `
+                    <div class="alert alert-danger">请求失败: ${error.message}</div>
+                `;
+            }
+
+            document.getElementById('btnStartKpAssignment').disabled = false;
+        }
+
+        function displayKpAssignmentResults(data) {
+            const resultsList = document.getElementById('kpResultsList');
+            const { results, summary } = data;
+
+            let html = `<div class="alert alert-success mb-3">
+                <strong>分配完成！</strong> 共 ${summary.total} 道题目，
+                成功分配 ${summary.assigned} 道，
+                建议创建新知识点 ${summary.suggest_new} 道
+            </div>`;
+
+            results.forEach(r => {
+                const statusClass = r.status === 'assigned' ? 'success' : (r.status === 'suggest_new' ? 'warning' : 'secondary');
+                const statusText = r.status === 'assigned' ? '已分配' : (r.status === 'suggest_new' ? '建议新建' : (r.status === 'no_kp' ? '无知识点' : (r.status === 'skip' ? '跳过' : '失败')));
+
+                html += `<div class="card mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-${statusClass}">${statusText}</span>
+                                <span class="ms-2">${r.question_content || ('题目 #' + r.id)}</span>
+                            </div>
+                            ${r.status === 'assigned' ? `<span class="text-success">${r.knowledge_point_name} (${Math.round(r.confidence * 100)}%)</span>` : ''}
+                            ${r.status === 'suggest_new' ? `
+                                <button class="btn btn-sm btn-warning" onclick="showCreateKpModal(${r.id}, '${escapeHtml(r.suggested_kp_name)}', '${escapeHtml(r.reason || '')}')">
+                                    <i class="bi bi-plus"></i>创建: ${r.suggested_kp_name}
+                                </button>
+                            ` : ''}
+                        </div>
+                        ${r.reason ? `<div class="text-muted small mt-1">理由: ${r.reason}</div>` : ''}
+                    </div>
+                </div>`;
+            });
+
+            resultsList.innerHTML = html;
+        }
+
+        async function showCreateKpModal(questionId, suggestedName, reason) {
+            const examId = document.getElementById('examId').value;
+            try {
+                const examResponse = await fetch(`/admin/api/exams/${examId}`, { credentials: 'include' });
+                const examData = await examResponse.json();
+                const subjectId = examData.data.subject_id;
+
+                document.getElementById('createKpSubjectId').value = subjectId;
+                document.getElementById('createKpQuestionId').value = questionId;
+                document.getElementById('createKpName').value = suggestedName;
+                document.getElementById('createKpAlert').textContent = reason ? `AI建议理由: ${reason}` : '';
+                document.getElementById('createKpAlert').style.display = reason ? 'block' : 'none';
+
+                // 加载等级
+                const levelSelect = document.getElementById('createKpLevel');
+                levelSelect.innerHTML = '<option value="">无</option>';
+                try {
+                    const levelResponse = await fetch(`/api/levels?subject_id=${subjectId}`, { credentials: 'include' });
+                    const levelData = await levelResponse.json();
+                    if (levelData.success && levelData.data) {
+                        levelData.data.forEach(level => {
+                            const option = document.createElement('option');
+                            option.value = level.id;
+                            option.textContent = level.name;
+                            levelSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('加载等级失败:', error);
+                }
+
+                new bootstrap.Modal(document.getElementById('createKpModal')).show();
+            } catch (error) {
+                console.error('获取试卷信息失败:', error);
+                alert('获取试卷信息失败');
+            }
+        }
+
+        async function confirmCreateKp() {
+            const questionId = document.getElementById('createKpQuestionId').value;
+            const subjectId = document.getElementById('createKpSubjectId').value;
+            const name = document.getElementById('createKpName').value;
+            const levelId = document.getElementById('createKpLevel').value;
+            const description = document.getElementById('createKpDesc').value;
+
+            if (!name) {
+                alert('请输入知识点名称');
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams();
+                params.append('name', name);
+                params.append('subject_id', subjectId);
+                if (levelId) params.append('level_id', levelId);
+                if (description) params.append('description', description);
+
+                const createResponse = await fetch('/api/knowledge-points', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                const createResult = await createResponse.json();
+
+                if (createResult.success) {
+                    const kpId = createResult.data.id;
+                    await fetch(`/admin/api/questions/${questionId}`, {
+                        method: 'PUT',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ knowledge_point_id: kpId })
+                    });
+
+                    bootstrap.Modal.getInstance(document.getElementById('createKpModal')).hide();
+                    alert('知识点创建并分配成功！');
+                    loadQuestions();
+                } else {
+                    alert('创建失败: ' + (createResult.message || '未知错误'));
+                }
+            } catch (error) {
+                alert('创建失败: ' + error.message);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========== 原有函数 ==========
 
         // 上传图片
         async function uploadImage(file) {

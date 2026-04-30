@@ -66,12 +66,6 @@ class TestSettings:
         """测试最大内容长度为正数"""
         assert settings.MAX_CONTENT_LENGTH > 0
 
-    def test_ai_base_urls_exist(self):
-        """测试AI配置URL存在"""
-        assert settings.DEEPSEEK_BASE_URL is not None
-        assert settings.OPENAI_BASE_URL is not None
-        assert "https://" in settings.DEEPSEEK_BASE_URL
-
     def test_settings_case_sensitive(self):
         """测试配置大小写敏感"""
         s = Settings()

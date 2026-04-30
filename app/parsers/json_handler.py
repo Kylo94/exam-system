@@ -4,7 +4,6 @@ import re
 import json
 from typing import Dict, List, Any, Optional
 
-# 尝试导入json5库
 try:
     import json5
     HAS_JSON5 = True
@@ -16,7 +15,6 @@ class JsonHandler:
     """JSON 处理和标准化"""
 
     def __init__(self):
-        """初始化 JSON 处理器"""
         pass
 
     def parse_json_response(self, response: str) -> List[Dict[str, Any]]:
@@ -32,25 +30,107 @@ class JsonHandler:
         # 预处理响应
         response = self._fix_json_format(response)
 
-        # 检查是否以 [ 开头
-        if not response.startswith('[') or not response.rstrip().endswith(']'):
+        # 尝试解析为 JSON 对象（{...}）
+        stripped = response.strip()
+        if stripped.startswith('{'):
+            # 先尝试直接解析（处理 JSON 后面无额外内容的情况）
+            try:
+                data = json.loads(stripped)
+                if 'type' in data or 'content' in data:
+                    return [data]
+            except json.JSONDecodeError:
+                pass
+
+            # 直接解析失败，尝试提取 JSON 对象部分
+            json_str = self._extract_json_object(stripped)
+            if json_str:
+                try:
+                    data = json.loads(json_str)
+                    if 'type' in data or 'content' in data:
+                        return [data]
+                except json.JSONDecodeError:
+                    pass
+
+        # 尝试解析为 JSON 数组（[...]）
+        if not stripped.startswith('[') or not stripped.endswith(']'):
             # 尝试找到 JSON 数组的位置
-            json_start = response.find('[')
+            json_start = stripped.find('[')
             if json_start >= 0:
-                response = response[json_start:]
+                stripped = stripped[json_start:]
 
         # 尝试使用 json5 解析（更宽松）
         if HAS_JSON5:
             try:
-                return self._normalize_questions(json5.loads(response))
+                return self._normalize_questions(json5.loads(stripped))
             except Exception:
                 pass
 
         # 回退到标准 JSON 解析
         try:
-            return self._normalize_questions(json.loads(response))
+            return self._normalize_questions(json.loads(stripped))
         except json.JSONDecodeError as e:
             raise Exception(f"JSON解析失败: {str(e)}")
+
+    def parse_batch_response(self, response: str, expected_count: int) -> List[Dict[str, Any]]:
+        """解析批量AI返回的JSON响应，增强容错性"""
+        response = self._fix_json_format(response)
+        stripped = response.strip()
+
+        # 移除markdown代码块
+        if stripped.startswith('```'):
+            stripped = re.sub(r'^```(?:json)?\s*', '', stripped)
+            stripped = re.sub(r'\s*```$', '', stripped)
+
+        # 尝试找到JSON数组开始位置
+        if not stripped.startswith('['):
+            json_start = stripped.find('[')
+            if json_start >= 0:
+                stripped = stripped[json_start:]
+
+        # 尝试json5（更宽松）
+        if HAS_JSON5:
+            try:
+                result = json5.loads(stripped)
+                if isinstance(result, list):
+                    return self._normalize_questions(result)
+            except Exception:
+                pass
+
+        # 尝试标准JSON
+        try:
+            result = json.loads(stripped)
+            if isinstance(result, list):
+                return self._normalize_questions(result)
+        except json.JSONDecodeError:
+            pass
+
+        # 如果JSON解析失败，尝试逐个提取题目
+        extracted = self._extract_questions_from_text(stripped, expected_count)
+        if extracted:
+            return extracted
+
+        return []
+
+    def _extract_questions_from_text(self, text: str, expected_count: int) -> List[Dict[str, Any]]:
+        """从文本中逐个提取题目（当JSON解析失败时的备用方案）"""
+        results = []
+
+        # 尝试用正则提取每个题目的JSON对象
+        # 匹配 {"order": N, ...} 或 {"type": "...", ...}
+        pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        matches = re.findall(pattern, text)
+
+        for match in matches:
+            try:
+                data = json.loads(match)
+                if isinstance(data, dict) and ('content' in data or 'type' in data):
+                    results.append(data)
+            except json.JSONDecodeError:
+                continue
+
+        if results:
+            return self._normalize_questions(results)
+        return []
 
     def _fix_json_format(self, json_str: str) -> str:
         """
@@ -74,6 +154,36 @@ class JsonHandler:
         json_str = json_str.strip()
 
         return json_str
+
+    def _extract_json_object(self, json_str: str) -> str:
+        """提取 JSON 对象部分，正确处理嵌套括号"""
+        if not json_str.startswith('{'):
+            return None
+
+        depth = 0
+        in_string = False
+        escape = False
+
+        for i, char in enumerate(json_str):
+            if escape:
+                escape = False
+                continue
+            if char == '\\' and in_string:
+                escape = True
+                continue
+            if char == '"' and not escape:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    return json_str[:i+1]
+
+        return None
 
     def _normalize_questions(self, questions: Any) -> List[Dict[str, Any]]:
         """
@@ -103,12 +213,16 @@ class JsonHandler:
                 '简答题': 'short_answer',
                 'judgment': 'true_false',
                 'subjective': 'short_answer',
+                'judge': 'true_false',
+                'true-false': 'true_false',
+                'choice': 'single_choice',
+                'multiple': 'multiple_choice',
             }
             q_type = q.get('type', 'single_choice')
             q_type = type_map.get(q_type, q_type) if isinstance(q_type, str) else 'single_choice'
 
             # 确保是有效类型
-            valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer']
+            valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer', 'coding']
             if q_type not in valid_types:
                 q_type = 'single_choice'
 

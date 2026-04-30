@@ -41,19 +41,27 @@ class DeepSeekProvider(BaseProvider):
         Raises:
             Exception: API调用失败
         """
-        model = kwargs.get('model', 'deepseek-chat')
-        temperature = kwargs.get('temperature', 0.7)
-        max_tokens = kwargs.get('max_tokens', 2000)
+        model = kwargs.get('model', 'deepseek-v4-pro')
+        temperature = kwargs.get('temperature', 0.3)
+        max_tokens = kwargs.get('max_tokens', 4096)  # 默认使用4096，让API决定上限
+
+        # 构建请求参数
+        request_kwargs = {
+            'model': model,
+            'messages': messages,
+            'temperature': temperature,
+            'max_tokens': max_tokens,
+            'stream': False
+        }
+
+        # 对于deepseek-v4-flash模型，支持thinking参数
+        if 'deepseek-v4-flash' in model:
+            request_kwargs['extra_body'] = {
+                'thinking': {'type': 'enabled'}
+            }
 
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=False
-            )
-
+            response = self.client.chat.completions.create(**request_kwargs)
             return response.choices[0].message.content
         except Exception as e:
             raise Exception(f'DeepSeek API调用失败: {str(e)}')

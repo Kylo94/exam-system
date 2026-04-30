@@ -36,7 +36,7 @@ async def dashboard(request: Request, current_user: User = Depends(get_current_u
             "total_exams": await Exam.all().count(),
             "total_submissions": await Submission.all().count(),
         }
-        return templates.TemplateResponse("admin/dashboard.html", context)
+        return templates.TemplateResponse("admin/index.html", context)
     
     elif current_user.is_teacher:
         # 教师仪表盘

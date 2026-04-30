@@ -163,21 +163,21 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 let currentPage = 1;
 let selectedQuestions = new Set();
 let questionsData = [];
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadQuestions(1);
+// 直接执行，不要等待 DOMContentLoaded
+console.log('[DEBUG] Script loaded, calling loadQuestions');
+loadQuestions(1);
 
-    // 回车搜索
-    document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            loadQuestions(1);
-        }
-    });
+// 回车搜索
+document.getElementById('searchKeyword').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        loadQuestions(1);
+    }
 });
 
 async function loadQuestions(page) {
@@ -201,10 +201,13 @@ async function loadQuestions(page) {
     if (hasImage) params.append('has_image', hasImage);
 
     try {
+        console.log('[DEBUG] Fetching questions...');
         const response = await fetch(`/admin/api/questions?${params.toString()}`, {
             credentials: 'include'
         });
+        console.log('[DEBUG] Response status:', response.status);
         const result = await response.json();
+        console.log('[DEBUG] Result:', result);
 
         if (result.success) {
             renderQuestions(result.data);
@@ -362,6 +365,20 @@ function showQuestionDetail(id) {
         optionsHtml += '</ul></div>';
     }
 
+    // 构建图片HTML
+    let imagesHtml = '';
+    const images = q.images || [];
+    if (images.length > 0) {
+        imagesHtml = '<div class="mb-3"><strong>题目图片：</strong><div class="row g-2 mt-1">';
+        images.forEach(img => {
+            if (img) {
+                const imgPath = img.startsWith('data:') ? img : `/api/uploads/${img.replace('uploads/', '')}`;
+                imagesHtml += `<div class="col-auto"><img src="${imgPath}" class="img-fluid rounded" style="max-height: 150px;" alt="题目图片"></div>`;
+            }
+        });
+        imagesHtml += '</div></div>';
+    }
+
     document.getElementById('questionDetailContent').innerHTML = `
         <div class="row mb-3">
             <div class="col-md-4"><strong>题型：</strong>${q.type_display || q.type}</div>
@@ -370,13 +387,15 @@ function showQuestionDetail(id) {
         </div>
         <div class="mb-3">
             <strong>题目内容：</strong>
-            <div class="p-3 bg-light rounded">${escapeHtml(q.content)}</div>
+            <div class="p-3 bg-light rounded" style="white-space: pre-wrap;">${escapeHtml(q.content)}</div>
         </div>
+        ${imagesHtml}
         ${optionsHtml}
         <div class="mb-3">
             <strong>正确答案：</strong>
             <code class="text-success fs-5">${q.correct_answer}</code>
         </div>
+        ${q.explanation ? `<div class="mb-3"><strong>解析：</strong><div class="p-2 bg-light rounded">${escapeHtml(q.explanation)}</div></div>` : ''}
         ${q.exam_id ? `<div class="mb-3"><strong>所属试卷：</strong><a href="/admin/exams/${q.exam_id}/edit">${q.exam_title}</a></div>` : ''}
         ${q.knowledge_point ? `<div class="mb-3"><strong>知识点：</strong>${q.knowledge_point}</div>` : ''}
         ${q.created_at ? `<div class="text-muted small"><strong>创建时间：</strong>${new Date(q.created_at).toLocaleString()}</div>` : ''}

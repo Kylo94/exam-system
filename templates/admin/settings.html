@@ -5,226 +5,155 @@
 {% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2 class="mb-1"><i class="bi bi-gear text-secondary"></i> 系统设置</h2>
+        <h2 class="mb-1">⚙️ 系统设置</h2>
         <p class="text-secondary small mb-0">配置系统各项参数</p>
     </div>
 </div>
 
-<!-- 设置分类 -->
-<ul class="nav nav-tabs mb-4" id="settingsTabs">
-    <li class="nav-item">
-        <a class="nav-link active" data-bs-toggle="tab" href="#generalSettings">
-            <i class="bi bi-house me-2"></i>基本设置
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="tab" href="#securitySettings">
-            <i class="bi bi-shield me-2"></i>安全设置
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="tab" href="#examSettings">
-            <i class="bi bi-file-earmark-text me-2"></i>考试设置
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" data-bs-toggle="tab" href="#aiSettings">
-            <i class="bi bi-cpu me-2"></i>AI设置
-        </a>
-    </li>
-</ul>
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    ✅ 设置保存成功
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 
-<div class="tab-content">
+<!-- 设置卡片 -->
+<div class="row g-4">
     <!-- 基本设置 -->
-    <div class="tab-pane fade show active" id="generalSettings">
-        <div class="card">
+    <div class="col-md-6">
+        <div class="card h-100">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-house me-2"></i>基本设置</h5>
+                <h5 class="mb-0">📝 基本设置</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    {% for setting in general_settings %}
-                    <div class="col-md-6 mb-3">
-                        <div class="form-group">
-                            <label class="form-label">
-                                <strong>{{ setting.description or setting.key }}</strong>
-                                <code class="ms-2">{{ setting.key }}</code>
-                            </label>
-                            {% if setting.value_type == "bool" %}
-                            <select class="form-select" id="setting_{{ setting.key }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                                <option value="true" {{ 'selected' if setting.value == 'true' else '' }}>是</option>
-                                <option value="false" {{ 'selected' if setting.value == 'false' else '' }}>否</option>
-                            </select>
-                            {% elif setting.value_type == "int" %}
-                            <input type="number" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% else %}
-                            <input type="text" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% endif %}
+                <form method="POST" action="/admin/api/settings">
+                    <input type="hidden" name="category" value="general">
+                    <div class="mb-3">
+                        <label class="form-label">系统名称</label>
+                        <input type="text" class="form-control" name="app_name" value="{{ system_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">系统版本</label>
+                        <input type="text" class="form-control" value="4.0" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label d-block">允许新用户注册</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="allow_register" id="allow_register_yes" value="true" {% if allow_register == 'true' %}checked{% endif %}>
+                            <label class="btn btn-outline-success" for="allow_register_yes">✅ 是</label>
+                            <input type="radio" class="btn-check" name="allow_register" id="allow_register_no" value="false" {% if allow_register == 'false' %}checked{% endif %}>
+                            <label class="btn btn-outline-danger" for="allow_register_no">❌ 否</label>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 安全设置 -->
-    <div class="tab-pane fade" id="securitySettings">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-shield me-2"></i>安全设置</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    {% for setting in security_settings %}
-                    <div class="col-md-6 mb-3">
-                        <div class="form-group">
-                            <label class="form-label">
-                                <strong>{{ setting.description or setting.key }}</strong>
-                                <code class="ms-2">{{ setting.key }}</code>
-                            </label>
-                            {% if setting.value_type == "bool" %}
-                            <select class="form-select" id="setting_{{ setting.key }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                                <option value="true" {{ 'selected' if setting.value == 'true' else '' }}>是</option>
-                                <option value="false" {{ 'selected' if setting.value == 'false' else '' }}>否</option>
-                            </select>
-                            {% elif setting.value_type == "int" %}
-                            <input type="number" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% else %}
-                            <input type="text" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </form>
             </div>
         </div>
     </div>
 
     <!-- 考试设置 -->
-    <div class="tab-pane fade" id="examSettings">
-        <div class="card">
+    <div class="col-md-6">
+        <div class="card h-100">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>考试设置</h5>
+                <h5 class="mb-0">📋 考试设置</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    {% for setting in exam_settings %}
-                    <div class="col-md-6 mb-3">
-                        <div class="form-group">
-                            <label class="form-label">
-                                <strong>{{ setting.description or setting.key }}</strong>
-                                <code class="ms-2">{{ setting.key }}</code>
-                            </label>
-                            {% if setting.value_type == "bool" %}
-                            <select class="form-select" id="setting_{{ setting.key }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                                <option value="true" {{ 'selected' if setting.value == 'true' else '' }}>是</option>
-                                <option value="false" {{ 'selected' if setting.value == 'false' else '' }}>否</option>
-                            </select>
-                            {% elif setting.value_type == "int" %}
-                            <input type="number" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% else %}
-                            <input type="text" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% endif %}
-                        </div>
+                <form method="POST" action="/admin/api/settings">
+                    <input type="hidden" name="category" value="exam">
+                    <div class="mb-3">
+                        <label class="form-label">默认考试时长（分钟）</label>
+                        <input type="number" class="form-control" name="exam_default_duration" value="{{ exam_default_duration }}" min="1" max="300">
                     </div>
-                    {% endfor %}
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label">默认试卷总分</label>
+                        <input type="number" class="form-control" name="exam_default_total_points" value="{{ exam_default_total_points }}" min="1" max="500">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">默认及格分数</label>
+                        <input type="number" class="form-control" name="exam_default_pass_score" value="{{ exam_default_pass_score }}" min="1" max="100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">每人每天最大提交次数</label>
+                        <input type="number" class="form-control" name="submission_max_per_day" value="{{ submission_max_per_day }}" min="1" max="100">
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </form>
             </div>
         </div>
     </div>
 
     <!-- AI设置 -->
-    <div class="tab-pane fade" id="aiSettings">
-        <div class="card">
+    <div class="col-md-6">
+        <div class="card h-100">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-cpu me-2"></i>AI设置</h5>
+                <h5 class="mb-0">🤖 AI设置</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    {% for setting in ai_settings %}
-                    <div class="col-md-6 mb-3">
-                        <div class="form-group">
-                            <label class="form-label">
-                                <strong>{{ setting.description or setting.key }}</strong>
-                                <code class="ms-2">{{ setting.key }}</code>
-                            </label>
-                            {% if setting.value_type == "bool" %}
-                            <select class="form-select" id="setting_{{ setting.key }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                                <option value="true" {{ 'selected' if setting.value == 'true' else '' }}>是</option>
-                                <option value="false" {{ 'selected' if setting.value == 'false' else '' }}>否</option>
-                            </select>
-                            {% elif setting.value_type == "int" %}
-                            <input type="number" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% else %}
-                            <input type="text" class="form-control" id="setting_{{ setting.key }}"
-                                value="{{ setting.value }}" onchange="updateSetting('{{ setting.key }}', this.value)">
-                            {% endif %}
+                <form method="POST" action="/admin/api/settings">
+                    <input type="hidden" name="category" value="ai">
+                    <div class="mb-3">
+                        <label class="form-label d-block">启用AI功能</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="ai_enabled" id="ai_enabled_yes" value="true" {% if ai_enabled == 'true' %}checked{% endif %}>
+                            <label class="btn btn-outline-success" for="ai_enabled_yes">✅ 启用</label>
+                            <input type="radio" class="btn-check" name="ai_enabled" id="ai_enabled_no" value="false" {% if ai_enabled == 'false' %}checked{% endif %}>
+                            <label class="btn btn-outline-danger" for="ai_enabled_no">❌ 禁用</label>
                         </div>
                     </div>
-                    {% endfor %}
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label d-block">AI自动批改简答题</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="auto_grade_essay" id="auto_grade_yes" value="true" {% if auto_grade_essay == 'true' %}checked{% endif %}>
+                            <label class="btn btn-outline-success" for="auto_grade_yes">✅ 是</label>
+                            <input type="radio" class="btn-check" name="auto_grade_essay" id="auto_grade_no" value="false" {% if auto_grade_essay == 'false' %}checked{% endif %}>
+                            <label class="btn btn-outline-secondary" for="auto_grade_no">❌ 否</label>
+                        </div>
+                    </div>
+                    <div class="alert alert-info small">
+                        <strong>💡 说明：</strong>AI功能包括智能解析题目、自动生成试题答案解析、AI辅助批改等。
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 安全设置 -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">🔒 安全设置</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/admin/api/settings">
+                    <input type="hidden" name="category" value="security">
+                    <div class="mb-3">
+                        <label class="form-label d-block">注册需邮箱验证</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="require_email_verification" id="email_verify_yes" value="true" {% if require_email_verification == 'true' %}checked{% endif %}>
+                            <label class="btn btn-outline-success" for="email_verify_yes">✅ 是</label>
+                            <input type="radio" class="btn-check" name="require_email_verification" id="email_verify_no" value="false" {% if require_email_verification == 'false' %}checked{% endif %}>
+                            <label class="btn btn-outline-secondary" for="email_verify_no">❌ 否</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">JWT Token 过期时间</label>
+                        <select class="form-select" name="token_expire_hours">
+                            <option value="1">1 小时</option>
+                            <option value="6">6 小时</option>
+                            <option value="12">12 小时</option>
+                            <option value="24" selected>24 小时</option>
+                            <option value="72">3 天</option>
+                            <option value="168">7 天</option>
+                        </select>
+                    </div>
+                    <div class="alert alert-warning small">
+                        <strong>⚠️ 注意：</strong>修改安全设置后，用户可能需要重新登录。
+                    </div>
+                    <button type="submit" class="btn btn-primary">保存设置</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
-
-<!-- 操作结果提示 -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="saveToast" class="toast align-items-center text-white bg-success" role="alert">
-        <div class="d-flex">
-            <div class="toast-body" id="toastMessage">
-                保存成功
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-async function updateSetting(key, value) {
-    try {
-        const response = await fetch(`/admin/api/settings/${key}`, {
-            method: 'PUT',
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ value: value })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            showToast('保存成功', 'success');
-        } else {
-            showToast('保存失败', 'danger');
-        }
-    } catch (error) {
-        console.error('保存设置失败:', error);
-        showToast('保存失败: ' + error.message, 'danger');
-    }
-}
-
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('saveToast');
-    const toastMessage = document.getElementById('toastMessage');
-
-    toast.classList.remove('bg-success', 'bg-danger');
-    toast.classList.add(`bg-${type}`);
-    toastMessage.textContent = message;
-
-    const bsToast = new bootstrap.Toast(toast, { delay: 2000 });
-    bsToast.show();
-}
-</script>
 {% endblock %}

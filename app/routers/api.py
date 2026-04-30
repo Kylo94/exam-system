@@ -201,10 +201,10 @@ async def get_knowledge_point(kp_id: int):
 
 @router.post("/knowledge-points")
 async def create_knowledge_point(
-    name: str,
-    subject_id: int,
-    level_id: int = None,
-    description: str = None,
+    name: str = Form(...),
+    subject_id: int = Form(...),
+    level_id: int = Form(None),
+    description: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """创建知识点"""
@@ -220,10 +220,10 @@ async def create_knowledge_point(
 @router.put("/knowledge-points/{kp_id}")
 async def update_knowledge_point(
     kp_id: int,
-    name: str,
-    subject_id: int,
-    level_id: int = None,
-    description: str = None,
+    name: str = Form(...),
+    subject_id: int = Form(...),
+    level_id: int = Form(None),
+    description: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """更新知识点"""

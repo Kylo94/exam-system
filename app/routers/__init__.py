@@ -1,6 +1,6 @@
 """
 路由包
 """
-from app.routers import auth, main, admin, teacher, student, api
+from app.routers import auth, main, teacher, student, api
 
-__all__ = ["auth", "main", "admin", "teacher", "student", "api"]
+__all__ = ["auth", "main", "teacher", "student", "api"]

@@ -4,6 +4,7 @@ import json
 from typing import Any, Dict, List, Optional
 from .base import BaseAIService
 from .providers.deepseek import DeepSeekProvider
+from .providers.deepseek_anthropic import DeepSeekAnthropicProvider
 from .providers.openai import OpenAIProvider
 from .providers.minimax import MiniMaxProvider
 
@@ -15,7 +16,7 @@ class LLMService(BaseAIService):
         """初始化LLM服务
 
         Args:
-            provider: AI提供商（deepseek/openai/minimax）
+            provider: AI提供商（deepseek/deepseek_anthropic/openai/minimax）
         """
         super().__init__(provider)
         self._provider_instance = None
@@ -33,6 +34,7 @@ class LLMService(BaseAIService):
             # 默认API地址
             DEFAULT_URLS = {
                 'deepseek': 'https://api.deepseek.com',
+                'deepseek_anthropic': 'https://api.deepseek.com/anthropic',
                 'openai': 'https://api.openai.com/v1',
                 'minimax': 'https://api.minimaxi.com/anthropic'
             }
@@ -43,6 +45,8 @@ class LLMService(BaseAIService):
 
             if self.provider == 'deepseek':
                 self._provider_instance = DeepSeekProvider(api_key, base_url)
+            elif self.provider == 'deepseek_anthropic':
+                self._provider_instance = DeepSeekAnthropicProvider(api_key, base_url)
             elif self.provider == 'openai':
                 self._provider_instance = OpenAIProvider(api_key, base_url)
             elif self.provider == 'minimax':

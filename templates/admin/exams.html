@@ -379,15 +379,20 @@
                             </div>
                         </div>
                         <div id="uploadProgress" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small id="uploadStatus" class="text-secondary"></small>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnCancelUpload" onclick="cancelUpload()">
+                                    <i class="bi bi-x-circle me-1"></i>取消上传
+                                </button>
+                            </div>
                             <div class="progress mb-2" style="height: 20px;">
                                 <div class="progress-bar" role="progressbar" style="width: 0%"></div>
                             </div>
-                            <small id="uploadStatus" class="text-secondary"></small>
-                            <div id="uploadLog" class="mt-2 small text-muted" style="max-height: 150px; overflow-y: auto;"></div>
+                            <div id="uploadLog" class="small text-muted" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 8px;"></div>
                         </div>
                         <div id="uploadResult" class="d-none"></div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnModalClose">关闭</button>
                             <button type="submit" class="btn btn-primary" id="btnUpload">
                                 <i class="bi bi-cloud-upload me-1"></i>上传并解析
                             </button>
@@ -478,16 +483,21 @@
                         </div>
                         <!-- 批量处理进度 -->
                         <div id="batchProgress" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small id="batchStatus" class="text-secondary"></small>
+                                <button type="button" class="btn btn-sm btn-outline-danger" id="btnCancelBatch" onclick="cancelBatchUpload()">
+                                    <i class="bi bi-x-circle me-1"></i>取消全部
+                                </button>
+                            </div>
                             <div class="progress mb-2" style="height: 20px;">
                                 <div class="progress-bar" role="progressbar" style="width: 0%"></div>
                             </div>
-                            <small id="batchStatus" class="text-secondary"></small>
-                            <div id="batchLog" class="mt-2 small" style="max-height: 200px; overflow-y: auto;"></div>
+                            <div id="batchLog" class="small" style="max-height: 250px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 8px;"></div>
                         </div>
                         <div class="d-flex justify-content-between align-items-center">
                             <div id="batchSummary" class="text-muted small"></div>
                             <div>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnBatchModalClose">关闭</button>
                                 <button type="button" class="btn btn-primary" id="btnBatchUpload" disabled>
                                     <i class="bi bi-cloud-upload-fill me-1"></i>开始批量处理
                                 </button>
@@ -627,10 +637,16 @@ function updateModelSelect(selectId, configs) {
     const select = document.getElementById(selectId);
     select.innerHTML = '';
 
-    configs.forEach(config => {
+    // 默认配置排在最前面
+    const sortedConfigs = [...configs].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
+
+    sortedConfigs.forEach(config => {
         const option = document.createElement('option');
         option.value = config.id;
         option.textContent = `${config.name} (${config.provider} - ${config.model})`;
+        if (config.is_default) {
+            option.textContent += ' ⭐';
+        }
         select.appendChild(option);
     });
 
@@ -982,6 +998,8 @@ document.getElementById('createExamForm').addEventListener('submit', async (e) =
 });
 
 // 文件上传表单提交 - 使用SSE实时进度
+let currentTaskId = null;
+
 document.getElementById('uploadExamForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -1005,13 +1023,28 @@ document.getElementById('uploadExamForm').addEventListener('submit', async (e) =
     logDiv.innerHTML = '';
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>解析中...';
+    currentTaskId = null;
 
     // 添加日志
-    const addLog = (msg, type = 'info') => {
+    const addLog = (msg, type = 'info', details = null) => {
         const colors = { info: 'text-muted', success: 'text-success', error: 'text-danger', warning: 'text-warning' };
-        logDiv.innerHTML += `<div class="${colors[type]}"><i class="bi bi-${type === 'success' ? 'check' : type === 'error' ? 'x' : 'info'}-circle me-1"></i>${msg}</div>`;
+        let icon = 'info';
+        if (type === 'success') icon = 'check';
+        else if (type === 'error') icon = 'x';
+        else if (type === 'warning') icon = 'exclamation';
+
+        let html = `<div class="${colors[type]}"><i class="bi bi-${icon}-circle me-1"></i>${msg}`;
+        if (details) {
+            html += `<div class="ms-4 mt-1 text-${type}" style="font-size: 0.85em;">${details}</div>`;
+        }
+        html += '</div>';
+        logDiv.innerHTML += html;
         logDiv.scrollTop = logDiv.scrollHeight;
     };
+
+    // 清除进度条颜色
+    progressBar.classList.remove('bg-danger', 'bg-success');
+    progressBar.style.width = '0%';
 
     try {
         // 使用SSE端点获取实时进度
@@ -1032,23 +1065,44 @@ document.getElementById('uploadExamForm').addEventListener('submit', async (e) =
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop(); // 保留未完成的行
+            buffer = lines.pop();
 
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.substring(6));
 
+                        // 保存task_id用于取消
+                        if (data.task_id) {
+                            currentTaskId = data.task_id;
+                        }
+
                         // 更新进度条
                         if (data.progress !== undefined) {
                             progressBar.style.width = data.progress + '%';
+                            progressBar.setAttribute('aria-valuenow', data.progress);
                         }
 
-                        // 更新状态文本
-                        if (data.message) {
-                            statusText.textContent = data.message;
+                        // 显示当前/总数
+                        let statusMsg = data.message || '';
+                        if (data.current && data.total) {
+                            statusMsg = `[${data.current}/${data.total}] ${data.message || ''}`;
+                            // 显示每个题目的详细状态
+                            if (data.details && data.details.question) {
+                                const q = data.details.question;
+                                const qNum = data.current;
+                                const qType = q.type_display || q.type || '未知';
+                                const qContent = q.content ? q.content.substring(0, 50) + (q.content.length > 50 ? '...' : '') : '无内容';
+                                statusMsg = `<strong>解析第 ${qNum}/${data.total} 题</strong> (${qType})`;
+                                addLog(statusMsg, data.level || 'info', qContent);
+                            } else {
+                                addLog(statusMsg, data.level || 'info');
+                            }
+                        } else if (data.message) {
                             addLog(data.message, data.level || 'info');
                         }
+
+                        statusText.innerHTML = statusMsg || data.message;
 
                         // 如果是最终结果，保存它
                         if (data.success && data.data?.exam_id) {
@@ -1064,11 +1118,20 @@ document.getElementById('uploadExamForm').addEventListener('submit', async (e) =
         // 处理最终结果
         if (finalResult && finalResult.success) {
             progressBar.style.width = '100%';
+            progressBar.classList.add('bg-success');
             statusText.textContent = '解析完成！';
-            addLog('文件解析成功！', 'success');
+            addLog('✓ 试卷创建成功！', 'success');
+            if (finalResult.data?.questions) {
+                const q = finalResult.data.questions;
+                addLog(`共导入 ${q.created || 0} 道题目，成功 ${q.success || 0} 道${q.failed > 0 ? `，失败 ${q.failed} 道` : ''}`, q.failed > 0 ? 'warning' : 'success');
+            }
             resultDiv.classList.remove('d-none');
             resultDiv.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>试卷创建成功！共导入 ${finalResult.data?.questions?.created || 0} 道题目</div>`;
             btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>完成';
+            btn.disabled = false;
+            // 隐藏取消按钮
+            const cancelBtn = document.getElementById('btnCancelUpload');
+            if (cancelBtn) cancelBtn.classList.add('d-none');
             setTimeout(() => location.reload(), 2000);
         } else if (finalResult) {
             throw new Error(finalResult.message || '解析失败');
@@ -1084,10 +1147,42 @@ document.getElementById('uploadExamForm').addEventListener('submit', async (e) =
         resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>上传失败: ${error.message}</div>`;
         btn.disabled = false;
         btn.innerHTML = '上传并解析';
+        // 隐藏取消按钮
+        const cancelBtn = document.getElementById('btnCancelUpload');
+        if (cancelBtn) cancelBtn.classList.add('d-none');
     }
 });
 
-// 批量上传处理
+// 取消上传
+window.cancelUpload = async function() {
+    if (!currentTaskId) return;
+
+    if (!confirm('确定要取消当前上传吗？取消后试卷将被删除！')) return;
+
+    // 禁用取消按钮，防止重复点击
+    const cancelBtn = document.getElementById('btnCancelUpload');
+    cancelBtn.disabled = true;
+    cancelBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>取消中...';
+
+    try {
+        const response = await fetch(`/admin/api/upload/cancel/${currentTaskId}`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            document.getElementById('uploadStatus').innerHTML = '<span class="text-danger fw-bold">⚠️ 取消中，请稍候...</span>';
+        }
+    } catch (error) {
+        console.error('取消失败:', error);
+        cancelBtn.disabled = false;
+        cancelBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>取消上传';
+    }
+};
+
+// 批量上传处理 - 使用SSE流式进度
+let batchTaskId = null;
+
 document.getElementById('btnBatchUpload').addEventListener('click', async function() {
     const files = Array.from(document.getElementById('batchExamFiles').files);
     if (files.length === 0) return;
@@ -1101,66 +1196,200 @@ document.getElementById('btnBatchUpload').addEventListener('click', async functi
     progressDiv.classList.remove('d-none');
     this.disabled = true;
     this.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>处理中...';
+    logDiv.innerHTML = '';
+    batchTaskId = null;
 
-    const addLog = (msg, type = 'info') => {
-        const colors = { info: 'text-muted', success: 'text-success', error: 'text-danger' };
-        logDiv.innerHTML += `<div class="${colors[type] || ''}">${msg}</div>`;
+    // 清除进度条颜色
+    progressBar.classList.remove('bg-danger', 'bg-success');
+    progressBar.style.width = '0%';
+
+    const addLog = (msg, type = 'info', details = null) => {
+        const colors = { info: 'text-muted', success: 'text-success', error: 'text-danger', warning: 'text-warning' };
+        let icon = 'info';
+        if (type === 'success') icon = 'check';
+        else if (type === 'error') icon = 'x';
+        else if (type === 'warning') icon = 'exclamation';
+
+        let html = `<div class="${colors[type]}"><i class="bi bi-${icon}-circle me-1"></i>${msg}`;
+        if (details) {
+            html += `<div class="ms-4 mt-1 text-${type}" style="font-size: 0.85em;">${details}</div>`;
+        }
+        html += '</div>';
+        logDiv.innerHTML += html;
         logDiv.scrollTop = logDiv.scrollHeight;
     };
 
-    let successCount = 0;
-    let failCount = 0;
+    try {
+        // 收集批量上传参数
+        const subjectId = document.getElementById('batchSubjectSelect').value;
+        const levelId = document.getElementById('batchLevelSelect').value;
+        const parseMethod = document.getElementById('batchParseMethod').value;
+        const aiConfigId = document.getElementById('batchAiModelSelect').value;
+        const isPublished = document.getElementById('batchPublished').checked;
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const parsed = parseFilename(file.name);
-        const percent = Math.round((i / files.length) * 100);
+        // 准备文件列表
+        const fileList = files.map((file, idx) => {
+            const parsed = parseFilename(file.name);
+            return {
+                name: file.name,
+                title: parsed.title || file.name.replace(/\.[^.]+$/, ''),
+                subject_id: subjectId || parsed.subjectId || null,
+                level_id: levelId || parsed.levelId || null
+            };
+        });
 
-        progressBar.style.width = percent + '%';
-        statusText.textContent = `处理中 (${i + 1}/${files.length}): ${file.name}`;
-        addLog(`<strong>处理文件 ${i + 1}:</strong> ${file.name}`);
+        const response = await fetch('/admin/api/upload/batch/stream', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                files: fileList,
+                file_data: await Promise.all(files.map(async f => ({
+                    name: f.name,
+                    data: await fileToBase64(f)
+                }))),
+                parse_method: parseMethod,
+                ai_config_id: aiConfigId,
+                is_published: isPublished
+            })
+        });
 
-        try {
-            // 创建FormData
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', parsed.title || file.name.replace(/\.[^.]+$/, ''));
-            formData.append('subject_id', document.getElementById('batchSubjectSelect').value || parsed.subjectId || '');
-            formData.append('level_id', document.getElementById('batchLevelSelect').value || parsed.levelId || '');
-            formData.append('parse_method', document.getElementById('batchParseMethod').value);
-            formData.append('ai_config_id', document.getElementById('batchAiModelSelect').value);
-            formData.append('is_published', document.getElementById('batchPublished').checked ? 'true' : 'false');
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-            const response = await fetch('/admin/api/upload/parse', {
-                method: 'POST',
-                credentials: 'include',
-                body: formData
-            });
+        let totalFiles = files.length;
+        let processedFiles = 0;
+        let successCount = 0;
+        let failCount = 0;
 
-            const data = await response.json();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-            if (data.success) {
-                successCount++;
-                addLog(`✓ 成功: ${parsed.title || file.name}`, 'success');
-            } else {
-                failCount++;
-                addLog(`✗ 失败: ${parsed.title || file.name} - ${data.message}`, 'error');
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.substring(6));
+
+                        // 保存task_id用于取消
+                        if (data.task_id) {
+                            batchTaskId = data.task_id;
+                        }
+
+                        // 更新总体进度条
+                        if (data.progress !== undefined) {
+                            progressBar.style.width = data.progress + '%';
+                        }
+
+                        // 处理文件级别消息
+                        if (data.file_index !== undefined) {
+                            processedFiles = data.file_index + 1;
+                            const filePercent = Math.round((processedFiles / totalFiles) * 100);
+                            statusText.innerHTML = `<strong>处理文件 ${processedFiles}/${totalFiles}:</strong> ${data.message || ''}`;
+                            progressBar.style.width = filePercent + '%';
+
+                            if (data.level === 'success') {
+                                addLog(`✓ 文件 ${processedFiles}: ${data.message}`, 'success');
+                                successCount++;
+                            } else if (data.level === 'error') {
+                                addLog(`✗ 文件 ${processedFiles}: ${data.message}`, 'error');
+                                failCount++;
+                            } else if (data.level === 'warning') {
+                                addLog(`⚠ 文件 ${processedFiles}: ${data.message}`, 'warning');
+                            } else {
+                                addLog(`处理文件 ${processedFiles}: ${data.message || '进行中...'}`);
+                            }
+                        }
+
+                        // 处理题目级别详情
+                        if (data.details) {
+                            if (data.details.question && data.current && data.total) {
+                                const q = data.details.question;
+                                const qNum = data.current;
+                                const qType = q.type_display || q.type || '未知';
+                                statusText.innerHTML = `<strong>文件 ${processedFiles}/${totalFiles}</strong> - 解析第 ${qNum}/${data.total} 题 (${qType})`;
+
+                                // 在文件日志下显示题目详情
+                                const qContent = q.content ? q.content.substring(0, 60) + (q.content.length > 60 ? '...' : '') : '无内容';
+                                addLog(`  └─ [${qNum}/${data.total}] ${qType}`, 'info', qContent.substring(0, 100));
+                            }
+                        }
+
+                        // 汇总消息
+                        if (data.message && data.file_index === undefined) {
+                            addLog(data.message, data.level || 'info');
+                        }
+                    } catch (e) {
+                        console.error('解析SSE数据失败:', e);
+                    }
+                }
             }
-        } catch (error) {
-            failCount++;
-            addLog(`✗ 异常: ${parsed.title || file.name} - ${error.message}`, 'error');
         }
-    }
 
-    progressBar.style.width = '100%';
-    statusText.textContent = '处理完成';
-    summaryDiv.innerHTML = `<span class="text-success">成功: ${successCount}</span> | <span class="text-danger">失败: ${failCount}</span>`;
-    this.innerHTML = '<i class="bi bi-check-circle me-1"></i>处理完成';
-    this.disabled = false;
+        // 处理完成
+        progressBar.style.width = '100%';
+        if (failCount === 0) {
+            progressBar.classList.add('bg-success');
+        }
+        statusText.innerHTML = '<strong>处理完成</strong>';
+        summaryDiv.innerHTML = `<span class="text-success">成功: ${successCount}</span> | <span class="text-danger">失败: ${failCount}</span>`;
+        this.innerHTML = '<i class="bi bi-check-circle me-1"></i>处理完成';
+        this.disabled = false;
 
-    if (failCount === 0) {
-        setTimeout(() => location.reload(), 1500);
+        if (failCount === 0) {
+            setTimeout(() => location.reload(), 1500);
+        }
+    } catch (error) {
+        progressBar.style.width = '100%';
+        progressBar.classList.add('bg-danger');
+        statusText.textContent = '处理失败';
+        addLog('处理失败: ' + error.message, 'error');
+        summaryDiv.innerHTML = '<span class="text-danger">处理异常终止</span>';
+        this.innerHTML = '<i class="bi bi-x-circle me-1"></i>处理失败';
+        this.disabled = false;
     }
 });
+
+// 将文件转为base64
+async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// 取消批量上传
+window.cancelBatchUpload = async function() {
+    if (!batchTaskId) return;
+
+    if (!confirm('确定要取消批量上传吗？取消后已创建的试卷将被删除！')) return;
+
+    // 禁用取消按钮，防止重复点击
+    const cancelBtn = document.getElementById('btnCancelBatch');
+    cancelBtn.disabled = true;
+    cancelBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>取消中...';
+
+    try {
+        const response = await fetch(`/admin/api/upload/cancel/${batchTaskId}`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            document.getElementById('batchStatus').innerHTML = '<span class="text-danger fw-bold">⚠️ 取消中，请稍候...</span>';
+        }
+    } catch (error) {
+        console.error('取消失败:', error);
+        cancelBtn.disabled = false;
+        cancelBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>取消全部';
+    }
+};
 </script>
 {% endblock admin_content %}

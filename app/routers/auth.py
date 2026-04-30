@@ -88,7 +88,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
 
     # 根据角色重定向到对应页面
     if user.role == "admin":
-        redirect_url = "/admin"
+        redirect_url = "/dashboard"
     elif user.role == "teacher":
         redirect_url = "/teacher"
     else:

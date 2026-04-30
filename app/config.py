@@ -1,8 +1,11 @@
 """
 应用配置 - FastAPI版本
+
+注意：AI配置（API Key等）请在系统管理页面 /admin/ai-configs 中配置
+这些配置存储在数据库中，支持多账号管理
 """
 import os
-from typing import Set, List
+from typing import Set
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +19,7 @@ class Settings(BaseSettings):
     )
 
     # 应用配置
-    APP_NAME: str = "在线答题系统 v4.0"
+    APP_NAME: str = "在线答题系统"
     DEBUG: bool = True
     HOST: str = "0.0.0.0"
     PORT: int = 8000
@@ -39,11 +42,8 @@ class Settings(BaseSettings):
     MAX_CONTENT_LENGTH: int = 16 * 1024 * 1024  # 16MB
     UPLOAD_FOLDER: str = "uploads"
 
-    # AI配置
-    DEEPSEEK_API_KEY: str = ""
-    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
-    OPENAI_API_KEY: str = ""
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    # CORS配置
+    ALLOWED_ORIGINS: Set[str] = {"*"}
 
 
 def get_settings() -> Settings:
