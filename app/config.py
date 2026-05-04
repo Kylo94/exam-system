@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    # 日志配置
+    LOG_LEVEL: str = "DEBUG"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    LOG_DIR: str = "logs"
+    LOG_MAX_BYTES: int = 10 * 1024 * 1024  # 10MB
+    LOG_BACKUP_COUNT: int = 5
+
     # 密钥配置
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
@@ -32,6 +38,7 @@ class Settings(BaseSettings):
     # 数据库配置
     DATABASE_URL: str = f"sqlite://{os.path.abspath('./data/exam_system.db')}"
     DB_ECHO: bool = False
+    GENERATE_SCHEMA: bool = True  # 开发环境开启，生产环境应关闭
 
     # 管理员配置
     ADMIN_USERNAME: str = "admin"
