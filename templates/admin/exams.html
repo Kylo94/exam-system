@@ -1,6 +1,6 @@
 {% extends "admin/admin_base.html" %}
 
-{% block title %}试卷管理 - {{ settings.APP_NAME }}{% endblock %}
+{% block title %}试卷管理 - {{ get_app_name() }}{% endblock %}
 
 {% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -115,10 +115,10 @@
                         <td>{{ exam.created_at.strftime('%Y-%m-%d') if exam.created_at else '-' }}</td>
                         <td>
                             <a href="/admin/exams/{{ exam.id }}/edit" class="btn btn-sm btn-outline-success" title="编辑题目">
-                                <i class="bi bi-list-check"></i>
+                                <i class="bi bi-pencil"></i> 编辑题目
                             </a>
                             <button class="btn btn-sm btn-outline-primary" onclick="editExam({{ exam.id }})">
-                                <i class="bi bi-pencil"></i>
+                                <i class="bi bi-gear"></i> 基本信息
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteExam({{ exam.id }})">
                                 <i class="bi bi-trash"></i>
@@ -305,7 +305,7 @@
                             </div>
                         </div>
                         <div id="aiConfigSection">
-                            <div class="row">
+                            <div class="row align-items-end">
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">AI模型</label>
@@ -314,10 +314,10 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-3">
                                     <div class="mb-3">
                                         <label class="form-label">&nbsp;</label>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="testAiConfig()">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="testAiConfig()">
                                             <i class="bi bi-plug me-1"></i>测试连接
                                         </button>
                                     </div>
@@ -391,10 +391,33 @@
                             <div id="uploadLog" class="small text-muted" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 8px;"></div>
                         </div>
                         <div id="uploadResult" class="d-none"></div>
+                        <div id="previewSection" class="d-none mb-3">
+                            <div class="card" style="background: var(--bg-tertiary);">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="bi bi-eye me-2"></i>解析预览（可编辑）</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKnowledgePoints()">
+                                        <i class="bi bi-tags me-1"></i>编辑知识点
+                                    </button>
+                                </div>
+                                <div class="card-body p-0">
+                                    <textarea id="previewJson" class="form-control mb-0" style="min-height: 400px; max-height: 600px; overflow-y: auto; font-size: 0.8rem; font-family: 'Consolas', monospace; padding: 12px; background: var(--bg-dark); color: var(--text-primary); border: 1px solid var(--border-color);" rows="15"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="loadingOverlay" class="d-none text-center py-4">
+                            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <div class="text-muted">AI正在解析试卷，请耐心等待...</div>
+                            <div class="small text-muted mt-2">预计需要30秒至2分钟</div>
+                        </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnModalClose">关闭</button>
                             <button type="submit" class="btn btn-primary" id="btnUpload">
                                 <i class="bi bi-cloud-upload me-1"></i>上传并解析
+                            </button>
+                            <button type="button" class="btn btn-success d-none" id="btnSavePreview" onclick="savePreview()">
+                                <i class="bi bi-check-circle me-1"></i>确认创建题目
                             </button>
                         </div>
                     </form>
@@ -1046,110 +1069,114 @@ document.getElementById('uploadExamForm').addEventListener('submit', async (e) =
     progressBar.classList.remove('bg-danger', 'bg-success');
     progressBar.style.width = '0%';
 
+    // 显示加载动画，隐藏其他区域
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const previewSection = document.getElementById('previewSection');
+    loadingOverlay.classList.remove('d-none');
+    previewSection.classList.add('d-none');
+    resultDiv.classList.add('d-none');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>解析中...';
+
+    // 如果有预览数据，先显示加载状态，然后调用保存
+    if (window.currentPreviewData) {
+        progressDiv.classList.remove('d-none');
+        logDiv.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split me-1"></i>保存中...</div>';
+        loadingOverlay.classList.add('d-none');
+
+        try {
+            const response = await fetch('/admin/api/upload/parse/save', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({data: window.currentPreviewData})
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                progressBar.classList.add('bg-success');
+                progressBar.style.width = '100%';
+                logDiv.innerHTML = '<div class="text-success"><i class="bi bi-check-circle me-1"></i>保存成功！</div>';
+                resultDiv.classList.remove('d-none');
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>保存成功！
+                        <ul class="mb-0 mt-2">
+                            <li>试卷ID: ${result.data.exam_id}</li>
+                            <li>创建题目: ${result.data.questions.created} 道</li>
+                            <li>新建知识点: ${result.data.knowledge_points_created} 个</li>
+                        </ul>
+                    </div>
+                `;
+                btn.classList.add('d-none');
+                document.getElementById('btnSavePreview').classList.add('d-none');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            progressBar.classList.add('bg-danger');
+            progressBar.style.width = '100%';
+            logDiv.innerHTML = `<div class="text-danger"><i class="bi bi-x-circle me-1"></i>保存失败: ${error.message}</div>`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>上传并解析';
+        }
+        return;
+    }
+
+    // 没有预览数据，先调用预览API获取JSON
     try {
-        // 使用SSE端点获取实时进度
-        const response = await fetch('/admin/api/upload/parse/stream', {
+        // 构建预览用的formData
+        const previewFormData = new FormData();
+        previewFormData.append('file', file);
+        previewFormData.append('title', formData.get('title') || '预览试卷');
+        previewFormData.append('subject_id', formData.get('subject_id') || '');
+        if (formData.get('level_id')) previewFormData.append('level_id', formData.get('level_id'));
+        previewFormData.append('parse_method', formData.get('parse_method') || 'ai');
+        if (formData.get('ai_config_id')) previewFormData.append('ai_config_id', formData.get('ai_config_id'));
+
+        addLog('开始AI解析...', 'info');
+
+        const response = await fetch('/admin/api/upload/parse/preview', {
             method: 'POST',
             credentials: 'include',
-            body: formData
+            body: previewFormData
         });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let finalResult = null;
+        const result = await response.json();
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+        loadingOverlay.classList.add('d-none');
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop();
+        if (result.success) {
+            // 保存预览数据到全局变量
+            window.currentPreviewData = result.data;
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.substring(6));
+            // 显示预览JSON
+            previewSection.classList.remove('d-none');
+            const previewJson = document.getElementById('previewJson');
+            previewJson.value = JSON.stringify(result.data, null, 2);
 
-                        // 保存task_id用于取消
-                        if (data.task_id) {
-                            currentTaskId = data.task_id;
-                        }
+            // 显示确认保存按钮
+            document.getElementById('btnSavePreview').classList.remove('d-none');
+            btn.classList.add('d-none');
 
-                        // 更新进度条
-                        if (data.progress !== undefined) {
-                            progressBar.style.width = data.progress + '%';
-                            progressBar.setAttribute('aria-valuenow', data.progress);
-                        }
-
-                        // 显示当前/总数
-                        let statusMsg = data.message || '';
-                        if (data.current && data.total) {
-                            statusMsg = `[${data.current}/${data.total}] ${data.message || ''}`;
-                            // 显示每个题目的详细状态
-                            if (data.details && data.details.question) {
-                                const q = data.details.question;
-                                const qNum = data.current;
-                                const qType = q.type_display || q.type || '未知';
-                                const qContent = q.content ? q.content.substring(0, 50) + (q.content.length > 50 ? '...' : '') : '无内容';
-                                statusMsg = `<strong>解析第 ${qNum}/${data.total} 题</strong> (${qType})`;
-                                addLog(statusMsg, data.level || 'info', qContent);
-                            } else {
-                                addLog(statusMsg, data.level || 'info');
-                            }
-                        } else if (data.message) {
-                            addLog(data.message, data.level || 'info');
-                        }
-
-                        statusText.innerHTML = statusMsg || data.message;
-
-                        // 如果是最终结果，保存它
-                        if (data.success && data.data?.exam_id) {
-                            finalResult = data;
-                        }
-                    } catch (e) {
-                        console.error('解析SSE数据失败:', e);
-                    }
-                }
+            addLog('解析完成！共 ' + result.data.total_questions + ' 道题目', 'success');
+            if (result.data.suggested_knowledge_points?.length > 0) {
+                addLog('发现 ' + result.data.suggested_knowledge_points.length + ' 个知识点', 'info');
             }
-        }
-
-        // 处理最终结果
-        if (finalResult && finalResult.success) {
             progressBar.style.width = '100%';
             progressBar.classList.add('bg-success');
-            statusText.textContent = '解析完成！';
-            addLog('✓ 试卷创建成功！', 'success');
-            if (finalResult.data?.questions) {
-                const q = finalResult.data.questions;
-                addLog(`共导入 ${q.created || 0} 道题目，成功 ${q.success || 0} 道${q.failed > 0 ? `，失败 ${q.failed} 道` : ''}`, q.failed > 0 ? 'warning' : 'success');
-            }
-            resultDiv.classList.remove('d-none');
-            resultDiv.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i>试卷创建成功！共导入 ${finalResult.data?.questions?.created || 0} 道题目</div>`;
-            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>完成';
-            btn.disabled = false;
-            // 隐藏取消按钮
-            const cancelBtn = document.getElementById('btnCancelUpload');
-            if (cancelBtn) cancelBtn.classList.add('d-none');
-            setTimeout(() => location.reload(), 2000);
-        } else if (finalResult) {
-            throw new Error(finalResult.message || '解析失败');
         } else {
-            throw new Error('解析未完成');
+            throw new Error(result.message);
         }
     } catch (error) {
+        loadingOverlay.classList.add('d-none');
         progressBar.style.width = '100%';
         progressBar.classList.add('bg-danger');
-        statusText.textContent = '上传失败';
-        addLog('上传失败: ' + error.message, 'error');
-        resultDiv.classList.remove('d-none');
-        resultDiv.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>上传失败: ${error.message}</div>`;
+        logDiv.innerHTML = `<div class="text-danger"><i class="bi bi-x-circle me-1"></i>解析失败: ${error.message}</div>`;
         btn.disabled = false;
-        btn.innerHTML = '上传并解析';
-        // 隐藏取消按钮
-        const cancelBtn = document.getElementById('btnCancelUpload');
-        if (cancelBtn) cancelBtn.classList.add('d-none');
+        btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>上传并解析';
     }
 });
 
@@ -1389,6 +1416,146 @@ window.cancelBatchUpload = async function() {
         console.error('取消失败:', error);
         cancelBtn.disabled = false;
         cancelBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>取消全部';
+    }
+};
+
+// 预览解析
+window.previewParse = async function() {
+    const fileInput = document.getElementById('uploadExamFile');
+    const titleInput = document.getElementById('uploadExamTitle');
+    const subjectSelect = document.getElementById('uploadExamSubject');
+    const levelSelect = document.getElementById('uploadExamLevel');
+    const parseMethod = document.getElementById('parseMethod');
+    const aiModelSelect = document.getElementById('aiModelSelect');
+
+    if (!fileInput.files[0]) {
+        alert('请先选择文件');
+        return;
+    }
+    if (!titleInput.value) {
+        alert('请输入试卷名称');
+        return;
+    }
+    if (!subjectSelect.value) {
+        alert('请选择科目');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('title', titleInput.value);
+    formData.append('subject_id', subjectSelect.value);
+    if (levelSelect.value) formData.append('level_id', levelSelect.value);
+    formData.append('parse_method', parseMethod.value);
+    if (aiModelSelect.value) formData.append('ai_config_id', aiModelSelect.value);
+
+    const btn = document.getElementById('btnUpload');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>解析中...';
+
+    try {
+        const response = await fetch('/admin/api/upload/parse/preview', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // 保存预览数据到全局变量
+            window.currentPreviewData = result.data;
+
+            // 显示预览区域
+            const previewSection = document.getElementById('previewSection');
+            const previewJson = document.getElementById('previewJson');
+            previewSection.classList.remove('d-none');
+            previewJson.value = JSON.stringify(result.data, null, 2);
+
+            // 启用确认保存按钮
+            document.getElementById('btnSavePreview').classList.remove('d-none');
+            document.getElementById('btnUpload').disabled = false;
+            document.getElementById('btnUpload').innerHTML = '<i class="bi bi-arrow-right me-1"></i>开始解析并保存';
+
+            addLog('预览生成成功，共 ' + result.data.total_questions + ' 道题目', 'success');
+        } else {
+            alert('预览失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('预览失败: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload me-1"></i>上传并解析';
+    }
+};
+
+// 保存预览数据
+window.savePreview = async function() {
+    if (!window.currentPreviewData) {
+        alert('没有可保存的数据');
+        return;
+    }
+
+    const btn = document.getElementById('btnSavePreview');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>保存中...';
+
+    try {
+        const response = await fetch('/admin/api/upload/parse/save', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({data: window.currentPreviewData})
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            document.getElementById('uploadResult').classList.remove('d-none');
+            document.getElementById('uploadResult').innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>保存成功！
+                    <ul class="mb-0 mt-2">
+                        <li>试卷ID: ${result.data.exam_id}</li>
+                        <li>创建题目: ${result.data.questions.created} 道</li>
+                        <li>新建知识点: ${result.data.knowledge_points_created} 个</li>
+                    </ul>
+                </div>
+            `;
+            document.getElementById('btnSavePreview').classList.add('d-none');
+            document.getElementById('btnUpload').classList.add('d-none');
+            document.getElementById('btnUpload').classList.add('d-none');
+
+            setTimeout(() => location.reload(), 3000);
+        } else {
+            alert('保存失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('保存失败: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>确认保存';
+    }
+};
+
+// 编辑知识点（弹窗编辑JSON）
+window.editKnowledgePoints = function() {
+    if (!window.currentPreviewData) {
+        alert('没有可编辑的数据');
+        return;
+    }
+
+    const jsonStr = JSON.stringify(window.currentPreviewData, null, 2);
+    const newJsonStr = prompt('请编辑JSON中的知识点（knowledge_point_names字段），完成后点击确定：\n\n提示：每道题可以有多个知识点，用逗号分隔', jsonStr);
+
+    if (newJsonStr) {
+        try {
+            window.currentPreviewData = JSON.parse(newJsonStr);
+            document.getElementById('previewJson').value = newJsonStr;
+            addLog('知识点已更新', 'info');
+        } catch (e) {
+            alert('JSON格式错误: ' + e.message);
+        }
     }
 };
 </script>

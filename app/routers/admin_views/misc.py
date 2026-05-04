@@ -1,6 +1,7 @@
 """管理员 - 其他页面"""
+import os
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 
 from app.auth import require_admin
 from app.models.user import User
@@ -10,9 +11,19 @@ from app.models.teacher_bind_request import TeacherBindRequest
 from app.models.ai_config import AIConfig
 from app.models.audit_log import AuditLog
 from app.models.system_settings import SystemSettings
-from app.templating import templates
+from app.templating import templates, clear_app_name_cache, load_app_name_async
+from app.config import settings
 
 router = APIRouter()
+
+# 日志文件映射
+LOG_FILES = {
+    "app": "app.log",
+    "error": "error.log",
+    "access": "access.log",
+    "ai": "ai.log",
+    "knowledge_point": "knowledge_point.log",
+}
 
 
 # API: 更新设置
@@ -31,6 +42,7 @@ async def update_settings(
         "exam": ["exam_default_duration", "exam_default_total_points", "exam_default_pass_score", "submission_max_per_day"],
         "ai": ["ai_enabled", "auto_grade_essay"],
         "security": ["require_email_verification", "token_expire_hours"],
+        "logging": ["log_level", "log_backup_count"],
     }
 
     fields = setting_fields.get(category, [])
@@ -41,12 +53,66 @@ async def update_settings(
             value_type = "string"
             if key in ["allow_register", "ai_enabled", "auto_grade_essay", "require_email_verification"]:
                 value_type = "bool"
-            elif key in ["exam_default_duration", "exam_default_total_points", "exam_default_pass_score", "submission_max_per_day", "token_expire_hours"]:
+            elif key in ["exam_default_duration", "exam_default_total_points", "exam_default_pass_score", "submission_max_per_day", "token_expire_hours", "log_backup_count"]:
                 value_type = "int"
 
             await SystemSettings.set_value(key, value, value_type=value_type, category=category)
 
+            # 如果更新了应用名称，清除并重新加载缓存
+            if key == "app_name":
+                clear_app_name_cache()
+                await load_app_name_async()
+
     return RedirectResponse(url="/admin/settings?success=1", status_code=303)
+
+
+# API: 获取日志内容
+@router.get("/api/logs/{log_type}")
+async def get_log_content(
+    log_type: str,
+    lines: int = 200,
+    current_user: User = Depends(require_admin)
+):
+    """获取日志文件内容"""
+    if log_type not in LOG_FILES:
+        return JSONResponse({"success": False, "message": "无效的日志类型"}, status_code=400)
+
+    log_path = os.path.join(settings.LOG_DIR, LOG_FILES[log_type])
+
+    if not os.path.exists(log_path):
+        return JSONResponse({"success": True, "content": "", "message": "日志文件不存在"})
+
+    try:
+        with open(log_path, 'r', encoding='utf-8') as f:
+            all_lines = f.readlines()
+            # 获取最后N行
+            content = ''.join(all_lines[-lines:])
+        return JSONResponse({"success": True, "content": content})
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
+
+
+# API: 清空日志文件
+@router.delete("/api/logs/{log_type}")
+async def clear_log_file(
+    log_type: str,
+    current_user: User = Depends(require_admin)
+):
+    """清空日志文件"""
+    if log_type not in LOG_FILES:
+        return JSONResponse({"success": False, "message": "无效的日志类型"}, status_code=400)
+
+    log_path = os.path.join(settings.LOG_DIR, LOG_FILES[log_type])
+
+    if not os.path.exists(log_path):
+        return JSONResponse({"success": True, "message": "日志文件不存在"})
+
+    try:
+        with open(log_path, 'w', encoding='utf-8') as f:
+            f.write("")
+        return JSONResponse({"success": True, "message": "日志已清空"})
+    except Exception as e:
+        return JSONResponse({"success": False, "message": str(e)}, status_code=500)
 
 
 @router.get("/bind-requests", response_class=HTMLResponse)
@@ -145,6 +211,9 @@ async def admin_settings(request: Request, current_user: User = Depends(require_
     all_settings = await SystemSettings.all()
     settings_dict = {s.key: s.value for s in all_settings}
 
+    # 获取AI配置列表
+    ai_configs = await AIConfig.all().prefetch_related("creator").order_by("-created_at")
+
     return templates.TemplateResponse("admin/settings.html", {
         "request": request,
         "current_user": current_user,
@@ -159,8 +228,12 @@ async def admin_settings(request: Request, current_user: User = Depends(require_
         # AI设置
         "ai_enabled": settings_dict.get("ai_enabled", "true"),
         "auto_grade_essay": settings_dict.get("auto_grade_essay", "false"),
+        "ai_configs": ai_configs,
         # 安全设置
         "require_email_verification": settings_dict.get("require_email_verification", "false"),
+        # 日志设置
+        "log_level": settings_dict.get("log_level", settings.LOG_LEVEL),
+        "log_backup_count": settings_dict.get("log_backup_count", str(settings.LOG_BACKUP_COUNT)),
     })
 
 
