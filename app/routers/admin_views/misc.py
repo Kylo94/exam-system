@@ -11,6 +11,7 @@ from app.models.teacher_bind_request import TeacherBindRequest
 from app.models.ai_config import AIConfig
 from app.models.audit_log import AuditLog
 from app.models.system_settings import SystemSettings
+from app.services.teacher_bind_service import TeacherBindService
 from app.templating import templates, clear_app_name_cache, load_app_name_async
 from app.config import settings
 
@@ -129,34 +130,21 @@ async def admin_bind_requests(request: Request, current_user: User = Depends(req
 @router.post("/bind-requests/{request_id}/approve")
 async def approve_bind_request(request_id: int, current_user: User = Depends(require_admin)):
     """批准绑定申请"""
-    from fastapi import HTTPException
-    bind_request = await TeacherBindRequest.get_or_none(id=request_id)
-    if not bind_request:
-        raise HTTPException(status_code=404, detail="申请不存在")
-
-    student = await User.get_or_none(id=bind_request.student_id)
-    if student:
-        student.teacher_id = bind_request.teacher_id
-        await student.save()
-
-    bind_request.status = "approved"
-    await bind_request.save()
-
-    return {"success": True}
+    try:
+        await TeacherBindService.approve_bind_request(request_id)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/bind-requests/{request_id}/reject")
 async def reject_bind_request(request_id: int, current_user: User = Depends(require_admin)):
     """拒绝绑定申请"""
-    from fastapi import HTTPException
-    bind_request = await TeacherBindRequest.get_or_none(id=request_id)
-    if not bind_request:
-        raise HTTPException(status_code=404, detail="申请不存在")
-
-    bind_request.status = "rejected"
-    await bind_request.save()
-
-    return {"success": True}
+    try:
+        await TeacherBindService.reject_bind_request(request_id)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/submissions", response_class=HTMLResponse)
@@ -261,6 +249,61 @@ async def admin_audit_logs(
             "total": total,
             "total_pages": total_pages
         }
+    })
+
+
+@router.get("/api/audit-logs")
+async def api_get_audit_logs(
+    page: int = 1,
+    page_size: int = 50,
+    action: str = None,
+    resource: str = None,
+    status: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    current_user: User = Depends(require_admin)
+):
+    """获取审计日志（API）"""
+    query = AuditLog.all()
+
+    if action:
+        query = query.filter(action=action)
+    if resource:
+        query = query.filter(resource=resource)
+    if status:
+        query = query.filter(status=status)
+    if start_date:
+        query = query.filter(created_at__gte=start_date)
+    if end_date:
+        query = query.filter(created_at__lte=end_date)
+
+    total = await query.count()
+    offset = (page - 1) * page_size
+    logs = await query.order_by("-created_at").offset(offset).limit(page_size)
+
+    # 转换为JSON格式
+    logs_data = []
+    for log in logs:
+        logs_data.append({
+            "id": log.id,
+            "user_id": log.user_id,
+            "username": log.username,
+            "action": log.action,
+            "resource": log.resource,
+            "resource_id": log.resource_id,
+            "description": log.description,
+            "ip_address": log.ip_address,
+            "status": log.status,
+            "details": log.details,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+
+    return JSONResponse({
+        "success": True,
+        "data": logs_data,
+        "total": total,
+        "page": page,
+        "page_size": page_size
     })
 
 

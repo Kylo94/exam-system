@@ -16,18 +16,21 @@ class Question(Model):
         on_delete=fields.CASCADE,
         null=True,
     )
-    type = fields.CharField(max_length=20)  # single_choice, multiple_choice, true_false, fill_blank, essay, coding
+    type = fields.CharField(max_length=20)  # single_choice, multiple_choice, true_false, fill_blank, short_answer, coding
     content = fields.TextField()
     options = fields.JSONField(default={})  # 存储选项 {"A": "...", "B": "...", ...}
     correct_answer = fields.TextField()  # 正确答案
     points = fields.IntField(default=10)
     explanation = fields.TextField(null=True)
+    # 主知识点（保留用于兼容）
     knowledge_point = fields.ForeignKeyField(
         "models.KnowledgePoint",
         related_name="questions",
         null=True,
         on_delete=fields.SET_NULL,
     )
+    # 多知识点标签（存储ID列表）
+    knowledge_point_ids = fields.JSONField(default=list)
     difficulty = fields.IntField(default=1)  # 1-5难度
     order_num = fields.IntField(default=0)  # 题目顺序
     images = fields.JSONField(default=list)  # 题目内容中的多张图片路径列表 ["path1", "path2"]
@@ -76,7 +79,12 @@ class Question(Model):
 
     def check_answer(self, user_answer: str) -> bool:
         """检查答案是否正确"""
-        if self.type in ["single_choice", "multiple_choice", "true_false"]:
+        if self.type in ["single_choice", "true_false"]:
             return user_answer.strip().upper() == self.correct_answer.strip().upper()
+        elif self.type == "multiple_choice":
+            # 多选题：比较答案集合
+            user_set = set(u.strip().upper() for u in user_answer.split(","))
+            correct_set = set(c.strip().upper() for c in self.correct_answer.split(","))
+            return user_set == correct_set
         # 其他题型需要AI批改
         return False

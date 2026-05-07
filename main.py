@@ -90,37 +90,8 @@ app.include_router(api.router, prefix="/api", tags=["API"])
 
 
 # 全局异常处理
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    """通用异常处理"""
-    error_logger = get_logger("error")
-    import traceback
-    error_logger.exception(f"未处理的异常 | 请求: {request.url.path} | 错误: {str(exc)}")
-    return templates.TemplateResponse(
-        "error.html",
-        {"request": request, "error": str(exc)},
-        status_code=500
-    )
-
-
-# 服务层异常处理
-from app.services.exceptions import AppException as AppSvcException
-
-@app.exception_handler(AppSvcException)
-async def app_exception_handler(request: Request, exc: AppSvcException):
-    """服务层异常处理"""
-    from fastapi import status
-    code = getattr(exc, 'code', 'APP_ERROR')
-    status_code = status.HTTP_400_BAD_REQUEST
-    if code == "NOT_FOUND":
-        status_code = status.HTTP_404_NOT_FOUND
-    elif code == "PERMISSION_DENIED":
-        status_code = status.HTTP_403_FORBIDDEN
-    return {"success": False, "message": exc.message, "code": code}
-
-
-# 401 认证失败处理
-from fastapi import status
+from app.middleware import register_exception_handlers
+register_exception_handlers(app)
 
 
 @app.get("/api/health", tags=["系统"])
@@ -131,20 +102,6 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "version": "4.0.0"
     })
-
-
-@app.exception_handler(status.HTTP_401_UNAUTHORIZED)
-async def http_unauthorized_handler(request: Request, exc):
-    """HTTP 401 认证失败 - 显示认证失败页面"""
-    return templates.TemplateResponse(
-        "auth/auth_failed.html",
-        {
-            "request": request,
-            "message": exc.detail if hasattr(exc, 'detail') else "认证失败，请重新登录",
-            "next": str(request.url) if request.url else None
-        },
-        status_code=401
-    )
 
 
 if __name__ == "__main__":

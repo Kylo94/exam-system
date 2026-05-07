@@ -52,7 +52,9 @@ class AIParser:
 4. 如果题目有代码，保持代码的缩进格式不变
 5. 保持原始题型不变，不要修改题目的类型
 6. 返回标准化的JSON数组格式，每道题必须包含：type, content, options, correct_answer, points, explanation
-7. **重要**：确保返回的JSON数组长度与输入题目数量一致，顺序保持一致"""
+7. **重要**：确保返回的JSON数组长度与输入题目数量一致，顺序保持一致
+8. 如果提供了知识点列表，请为每道题目匹配最相关的知识点（可能多个，用逗号分隔）
+9. 如果现有知识点都不匹配且题目涉及新概念，可以建议创建新知识点（格式："新建:知识点名称"）"""
             },
             {"role": "user", "content": prompt}
         ]
@@ -174,8 +176,14 @@ class AIParser:
             result = {**local_q}
 
             if ai_q and isinstance(ai_q, dict):
-                if ai_q.get('type'):
-                    result['type'] = ai_q.get('type')
+                # 只接受有效题型，不信任AI返回的type
+                valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer', 'coding']
+                ai_type = ai_q.get('type', '')
+                if ai_type in valid_types:
+                    result['type'] = ai_type
+                elif ai_q.get('type'):
+                    # 如果AI返回无效type，保留本地解析结果
+                    pass
                 if ai_q.get('content'):
                     result['content'] = ai_q.get('content')
                 if ai_q.get('options'):

@@ -211,12 +211,15 @@ class JsonHandler:
                 '判断题': 'true_false',
                 '填空题': 'fill_blank',
                 '简答题': 'short_answer',
+                '编程题': 'coding',
                 'judgment': 'true_false',
                 'subjective': 'short_answer',
                 'judge': 'true_false',
                 'true-false': 'true_false',
                 'choice': 'single_choice',
                 'multiple': 'multiple_choice',
+                'code': 'coding',
+                'programming': 'coding',
             }
             q_type = q.get('type', 'single_choice')
             q_type = type_map.get(q_type, q_type) if isinstance(q_type, str) else 'single_choice'

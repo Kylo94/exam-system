@@ -135,7 +135,7 @@ class RuleParser:
                     'content_has_image': has_image,
                     'images': images
                 }
-                current_section = None  # 重置章节，以便下题自动检测
+                # 不要在这里重置 current_section，保持section状态让后续题目使用同一个类型
 
             elif current_question:
                 # 检查是否是选项
@@ -261,16 +261,23 @@ class RuleParser:
                 '判断题': 'true_false',
                 '填空题': 'fill_blank',
                 '简答题': 'short_answer',
+                '编程题': 'coding',
                 'single_choice': 'single_choice',
                 'multiple_choice': 'multiple_choice',
                 'judgment': 'true_false',
                 'subjective': 'short_answer',
                 'true_false': 'true_false',
                 'fill_blank': 'fill_blank',
-                'short_answer': 'short_answer'
+                'short_answer': 'short_answer',
+                'coding': 'coding',
             }
             q_type = q.get('type', 'single_choice')
-            q_type = type_map.get(q_type, 'single_choice')
+            q_type = type_map.get(q_type, q_type) if isinstance(q_type, str) else 'single_choice'
+
+            # 确保是有效类型
+            valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer', 'coding']
+            if q_type not in valid_types:
+                q_type = 'single_choice'
 
             # 标准化选项
             options = q.get('options', [])
