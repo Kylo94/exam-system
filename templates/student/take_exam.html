@@ -12,13 +12,62 @@
     .question-card {
         margin-bottom: 1.5rem;
         border-left: 4px solid #0d6efd;
+        transition: all 0.3s ease;
+    }
+    .question-card.current {
+        border-left: 4px solid #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.3);
+    }
+    .question-nav-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+    .question-nav-btn {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .nav-section-title {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        padding: 0.25rem 0;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.25rem;
+    }
+    .code-content {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--text-primary);
+        margin: 0.5rem 0;
+    }
+    .question-content {
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+    .question-content pre {
+        background: var(--bg-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0.5rem 0;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="row">
-    <!-- 左侧：题目列表 -->
+    <!-- 左侧：答题卡 -->
     <div class="col-md-3">
         <div class="card sticky-top" style="top: 20px;">
             <div class="card-header bg-primary text-white">
@@ -27,15 +76,41 @@
                     <span class="timer" id="timer">{{ exam.duration_minutes }}:00</span>
                 </div>
             </div>
-            <div class="card-body">
-                <h6>题目导航</h6>
-                <div class="d-flex flex-wrap gap-2" id="question-nav">
+            <div class="card-body" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                <h6 class="mb-3">答题卡</h6>
+
+                {% set type_groups = {
+                    'single_choice': '单选题',
+                    'multiple_choice': '多选题',
+                    'true_false': '判断题',
+                    'fill_blank': '填空题',
+                    'essay': '简答题',
+                    'coding': '编程题'
+                } %}
+
+                {% for type, type_name in type_groups.items() %}
+                    {% set type_questions = [] %}
                     {% for q in questions %}
-                    <button type="button" class="btn btn-sm btn-outline-primary question-nav-btn"
-                            data-question="{{ loop.index }}" onclick="scrollToQuestion({{ loop.index }})">
-                        {{ loop.index }}
-                    </button>
+                        {% if q.type == type %}
+                            {% set _ = type_questions.append(q) %}
+                        {% endif %}
                     {% endfor %}
+                    {% if type_questions %}
+                    <div class="nav-section-title">{{ type_name }} ({{ type_questions|length }})</div>
+                    <div class="question-nav-grid mb-3" id="nav-{{ type }}">
+                        {% for q in type_questions %}
+                        <button type="button" class="btn btn-sm btn-outline-primary question-nav-btn"
+                                data-question="{{ loop.index }}" onclick="scrollToQuestion({{ loop.index }})">
+                            {{ loop.index }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+
+                <hr>
+                <div class="mb-2 small">
+                    <span class="badge bg-success">●</span> 已答
                 </div>
                 <hr>
                 <div class="d-grid">
@@ -46,7 +121,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- 右侧：答题区域 -->
     <div class="col-md-9">
         <div class="card mb-3">
@@ -55,56 +130,70 @@
                 <small class="text-muted">{{ exam.subject.name if exam.subject else '' }} | 共{{ questions|length }}题 | 满分{{ exam.total_points }}</small>
             </div>
         </div>
-        
-        <form id="exam-form" method="POST" action="/student/exam/{{ exam.id }}/submit">
+
+        <form id="exam-form">
+
             {% for q in questions %}
-            <div class="card question-card" id="question-{{ loop.index }}">
+            <div class="card question-card" id="question-{{ loop.index }}" data-question-index="{{ loop.index }}">
                 <div class="card-body">
-                    <h6 class="card-title">
-                        <span class="badge bg-primary me-2">{{ loop.index }}</span>
+                    <h6 class="card-title d-flex align-items-center flex-wrap gap-2">
+                        <span class="badge bg-primary">{{ loop.index }}</span>
                         <span class="badge bg-secondary">{{ q.type_display }}</span>
                         <span class="badge bg-warning text-dark">{{ q.points }}分</span>
                     </h6>
-                    
-                    <p class="card-text mt-3">{{ q.content }}</p>
-                    
+
+                    <div class="question-content mt-3">
+                        {% if '\n' in q.content or '```' in q.content or 'def ' in q.content or 'class ' in q.content or 'public ' in q.content or 'function ' in q.content %}
+                        <pre class="code-content">{{ q.content }}</pre>
+                        {% else %}
+                        <p class="mb-0">{{ q.content }}</p>
+                        {% endif %}
+                    </div>
+
                     {% if q.type == 'single_choice' or q.type == 'multiple_choice' %}
-                    <div class="ms-4">
+                    <div class="options-list mt-3 p-2">
                         {% for opt in q.get_options_list() %}
-                        <div class="form-check mb-2">
+                        <div class="form-check mb-2 p-3 rounded">
                             <input class="form-check-input" type="{{ 'checkbox' if q.type == 'multiple_choice' else 'radio' }}"
                                    name="answer_{{ q.id }}"
                                    id="opt_{{ q.id }}_{{ opt.key }}"
-                                   value="{{ opt.key }}"
-                                   {{ 'required' if q.type == 'single_choice' else '' }}>
-                            <label class="form-check-label" for="opt_{{ q.id }}_{{ opt.key }}">
+                                   value="{{ opt.key }}">
+                            <label class="form-check-label w-100" for="opt_{{ q.id }}_{{ opt.key }}">
                                 <strong>{{ opt.key }}.</strong> {{ opt.value }}
                             </label>
                         </div>
                         {% endfor %}
                     </div>
                     {% elif q.type == 'true_false' %}
-                    <div class="ms-4">
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="answer_{{ q.id }}" id="true_{{ q.id }}" value="true" required>
+                    <div class="d-flex gap-3 mt-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="answer_{{ q.id }}" id="true_{{ q.id }}" value="true">
                             <label class="form-check-label" for="true_{{ q.id }}">正确</label>
                         </div>
-                        <div class="form-check mb-2">
+                        <div class="form-check">
                             <input class="form-check-input" type="radio" name="answer_{{ q.id }}" id="false_{{ q.id }}" value="false">
                             <label class="form-check-label" for="false_{{ q.id }}">错误</label>
                         </div>
                     </div>
-                    {% elif q.type == 'fill_blank' or q.type == 'essay' %}
-                    <div class="ms-4 mt-3">
-                        <textarea class="form-control" name="answer_{{ q.id }}" rows="4" 
-                                  placeholder="请输入答案..."></textarea>
+                    {% elif q.type == 'fill_blank' %}
+                    <div class="mt-3">
+                        <input type="text" class="form-control" name="answer_{{ q.id }}" placeholder="请输入答案...">
+                    </div>
+                    {% elif q.type == 'essay' %}
+                    <div class="mt-3">
+                        <textarea class="form-control" name="answer_{{ q.id }}" rows="4" placeholder="请输入简答题答案..."></textarea>
+                    </div>
+                    {% elif q.type == 'coding' %}
+                    <div class="mt-3">
+                        <label class="form-label text-muted small">代码作答区：</label>
+                        <textarea class="form-control font-monospace" name="answer_{{ q.id }}" rows="10" style="font-size: 0.9rem;" placeholder="请在此输入代码..."></textarea>
                     </div>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
-            
-            <div class="text-center mb-5">
+
+            <div class="text-center mb-5 mt-4">
                 <button type="button" class="btn btn-success btn-lg" onclick="submitExam()">
                     <i class="bi bi-check-circle"></i> 提交试卷
                 </button>
@@ -124,7 +213,7 @@
             <div class="modal-body">
                 <p>确定要提交试卷吗？提交后将无法修改答案。</p>
                 <div id="unanswered-warning" class="alert alert-warning d-none">
-                    <i class="bi bi-exclamation-triangle"></i> 
+                    <i class="bi bi-exclamation-triangle"></i>
                     还有 <span id="unanswered-count">0</span> 道题目未作答
                 </div>
             </div>
@@ -139,37 +228,252 @@
 
 {% block extra_js %}
 <script>
-let timeLeft = {{ exam.duration_minutes * 60 }};
+let timeLeft = {{ remaining_seconds if remaining_seconds is not none else exam.duration_minutes * 60 }};
 let timerInterval;
 
 function updateTimer() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    document.getElementById('timer').textContent = 
+    document.getElementById('timer').textContent =
         `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
+
     if (timeLeft <= 0) {
         clearInterval(timerInterval);
         alert('时间到！系统将自动提交试卷。');
-        document.getElementById('exam-form').submit();
+        confirmSubmit();
     }
     timeLeft--;
 }
 
 timerInterval = setInterval(updateTimer, 1000);
 
+// 恢复已有答案
+const existingAnswers = {{ existing_answers | tojson if existing_answers else '{}' }};
+console.log('恢复答案:', existingAnswers);
+Object.entries(existingAnswers).forEach(([questionId, answer]) => {
+    // 解析字符串形式的数组
+    let answerArr = answer;
+    if (typeof answer === 'string') {
+        try {
+            answerArr = JSON.parse(answer);
+        } catch (e) {
+            answerArr = [answer];
+        }
+    }
+    if (!Array.isArray(answerArr)) answerArr = [answerArr];
+
+    const inputs = document.querySelectorAll(`input[name="answer_${questionId}"]`);
+    inputs.forEach(input => {
+        if (input.type === 'checkbox' || input.type === 'radio') {
+            if (answerArr.includes(input.value)) {
+                input.checked = true;
+            }
+        }
+    });
+    const textarea = document.querySelector(`textarea[name="answer_${questionId}"]`);
+    if (textarea && answerArr[0]) {
+        textarea.value = answerArr[0];
+    }
+    const textInput = document.querySelector(`input[type="text"][name="answer_${questionId}"]`);
+    if (textInput && answerArr[0]) {
+        textInput.value = answerArr[0];
+    }
+});
+
+// 更新答题状态显示
+function updateAnswerStatus() {
+    const questionCards = document.querySelectorAll('.question-card');
+    questionCards.forEach((q) => {
+        const questionIndex = q.getAttribute('data-question-index');
+        const navBtn = document.querySelector(`.question-nav-btn[data-question="${questionIndex}"]`);
+        if (!navBtn) return;
+
+        const inputs = q.querySelectorAll('input:checked');
+        const textareas = q.querySelectorAll('textarea');
+        const textInputs = q.querySelectorAll('input[type="text"]');
+
+        let answered = inputs.length > 0;
+        if (!answered) {
+            textareas.forEach(t => {
+                if (t.value.trim()) answered = true;
+            });
+        }
+        if (!answered) {
+            textInputs.forEach(t => {
+                if (t.value.trim()) answered = true;
+            });
+        }
+
+        navBtn.classList.remove('btn-outline-primary', 'btn-success', 'btn-danger');
+        if (answered) {
+            navBtn.classList.add('btn-success');
+        } else {
+            navBtn.classList.add('btn-outline-primary');
+        }
+    });
+}
+
+// 初始化答题状态
+updateAnswerStatus();
+
+// 跟踪当前题目
+let currentQuestionIndex = 1;
+const questionCards = document.querySelectorAll('.question-card');
+
+function setCurrentQuestion(index) {
+    questionCards.forEach(q => q.classList.remove('current'));
+    const card = document.querySelector(`.question-card[data-question-index="${index}"]`);
+    if (card) card.classList.add('current');
+    currentQuestionIndex = index;
+}
+
+// 滚动到指定题目
+function scrollToQuestion(num) {
+    const card = document.querySelector(`.question-card[data-question-index="${num}"]`);
+    if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setCurrentQuestion(num);
+    }
+}
+
+// 使用 IntersectionObserver 监听当前可见题目
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const index = entry.target.getAttribute('data-question-index');
+            if (index) {
+                // 更新答题卡导航按钮高亮
+                document.querySelectorAll('.question-nav-btn').forEach(btn => {
+                    btn.classList.remove('btn-danger');
+                });
+                const navBtn = document.querySelector(`.question-nav-btn[data-question="${index}"]`);
+                if (navBtn) {
+                    navBtn.classList.add('btn-danger');
+                }
+                currentQuestionIndex = parseInt(index);
+            }
+        }
+    });
+}, { threshold: 0.5, rootMargin: '-100px 0px -50% 0px' });
+
+questionCards.forEach(card => observer.observe(card));
+setCurrentQuestion(1);
+
+// 添加答案变化监听
+document.querySelectorAll('input, textarea').forEach(el => {
+    el.addEventListener('change', () => updateAnswerStatus());
+    el.addEventListener('input', () => updateAnswerStatus());
+    el.addEventListener('click', () => updateAnswerStatus());
+});
+
+let autosaveTimer;
+let lastSavedAnswers = null;
+
+// 启动自动保存（每30秒）
+autosaveTimer = setInterval(autosave, 30000);
+
+// 自动保存函数
+async function autosave() {
+    console.log('自动保存触发...');
+    const answers = collectAnswers();
+    const answersStr = JSON.stringify(answers);
+
+    console.log('当前答案:', answers);
+
+    // 如果答案没有变化，不保存
+    if (answersStr === lastSavedAnswers) {
+        console.log('答案无变化，跳过保存');
+        return;
+    }
+
+    try {
+        const url = `/student/exam/{{ exam.id }}/autosave`;
+        console.log('保存到:', url);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({answers: answers})
+        });
+        const result = await response.json();
+        console.log('保存结果:', result);
+        if (result.success) {
+            lastSavedAnswers = answersStr;
+            showAutosaveIndicator();
+        }
+    } catch (e) {
+        console.error('自动保存失败:', e);
+    }
+}
+
+// 显示保存指示器
+function showAutosaveIndicator() {
+    let indicator = document.getElementById('autosave-indicator');
+    if (!indicator) {
+        indicator = document.createElement('span');
+        indicator.id = 'autosave-indicator';
+        indicator.className = 'badge bg-success ms-2';
+        indicator.innerHTML = '<i class="bi bi-check-circle"></i> 已保存';
+        document.querySelector('.card-header h5').appendChild(indicator);
+    }
+    indicator.innerHTML = '<i class="bi bi-check-circle"></i> 已保存';
+    indicator.className = 'badge bg-success ms-2';
+
+    // 3秒后隐藏
+    setTimeout(() => {
+        if (indicator) indicator.style.display = 'none';
+    }, 3000);
+}
+
+// 收集所有答案
+function collectAnswers() {
+    const answers = {};
+    document.querySelectorAll('input[name^="answer_"]').forEach(input => {
+        const name = input.name;
+        const qId = name.replace('answer_', '');
+        if (input.type === 'checkbox' || input.type === 'radio') {
+            if (input.checked) {
+                if (!answers[qId]) answers[qId] = [];
+                if (Array.isArray(answers[qId])) {
+                    answers[qId].push(input.value);
+                }
+            }
+        }
+    });
+    document.querySelectorAll('textarea[name^="answer_"]').forEach(textarea => {
+        const qId = textarea.name.replace('answer_', '');
+        if (textarea.value.trim()) {
+            answers[qId] = textarea.value;
+        }
+    });
+    document.querySelectorAll('input[type="text"][name^="answer_"]').forEach(input => {
+        const qId = input.name.replace('answer_', '');
+        if (input.value.trim()) {
+            answers[qId] = input.value;
+        }
+    });
+    console.log('收集到的答案:', answers);
+    return answers;
+}
+
+// 启动自动保存（每30秒）
+autosaveTimer = setInterval(autosave, 30000);
+
 function scrollToQuestion(num) {
     document.getElementById(`question-${num}`).scrollIntoView({ behavior: 'smooth' });
 }
 
 function submitExam() {
-    const modal = new bootstrap.Modal(document.getElementById('submitModal'));
-    
+    // 停止自动保存
+    if (autosaveTimer) clearInterval(autosaveTimer);
+
+    const modalEl = document.getElementById('submitModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
     // 检查未作答题目
-    const questions = document.querySelectorAll('.question-card');
+    const questionCards = document.querySelectorAll('.question-card');
     let unanswered = 0;
-    questions.forEach((q, i) => {
-        const inputs = q.querySelectorAll('input:checked, textarea');
+    questionCards.forEach((q) => {
+        const inputs = q.querySelectorAll('input:checked');
         const textareas = q.querySelectorAll('textarea');
         let answered = inputs.length > 0;
         if (!answered) {
@@ -179,20 +483,34 @@ function submitExam() {
         }
         if (!answered) {
             unanswered++;
-            q.querySelector('.question-nav-btn').classList.add('btn-danger');
-        } else {
-            q.querySelector('.question-nav-btn').classList.remove('btn-danger');
         }
     });
-    
+
     document.getElementById('unanswered-count').textContent = unanswered;
     document.getElementById('unanswered-warning').classList.toggle('d-none', unanswered === 0);
-    
+
     modal.show();
 }
 
-function confirmSubmit() {
-    document.getElementById('exam-form').submit();
+async function confirmSubmit() {
+    clearInterval(autosaveTimer);
+    const answers = collectAnswers();
+    try {
+        const response = await fetch(`/student/exam/{{ exam.id }}/submit`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({answers: answers})
+        });
+        const result = await response.json();
+        if (result.success) {
+            window.location.href = `/student/exam/{{ exam.id }}/result/${result.submission_id}`;
+        } else {
+            alert('提交失败: ' + result.message);
+        }
+    } catch (e) {
+        console.error('提交失败:', e);
+        alert('提交失败，请重试');
+    }
 }
 </script>
 {% endblock %}
