@@ -1,18 +1,19 @@
 """
 认证路由
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Form
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr
 
 from app.auth import (
-    get_password_hash,
-    verify_password,
     create_access_token,
     get_current_user,
+    get_password_hash,
+    verify_password,
 )
-from app.models.user import User
 from app.config import settings
+from app.models.audit_log import AuditLog
+from app.models.user import User
 from app.templating import templates
 
 router = APIRouter()
@@ -68,31 +69,48 @@ async def register_page(request: Request):
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
     """用户登录"""
     user = await User.get_or_none(username=username)
-    
+
+    # 获取客户端IP
+    client_ip = request.client.host if request.client else None
+
     if not user or not verify_password(password, user.password_hash):
+        # 记录登录失败
+        await AuditLog.log_login(
+            user=None,
+            ip_address=client_ip,
+            status="failed"
+        )
         return templates.TemplateResponse(
             "auth/login.html",
             {"request": request, "error": "用户名或密码错误"},
             status_code=400
         )
-    
+
     if not user.is_active:
+        await AuditLog.log_login(
+            user=user,
+            ip_address=client_ip,
+            status="failed"
+        )
         return templates.TemplateResponse(
             "auth/login.html",
             {"request": request, "error": "账户已被禁用"},
             status_code=400
         )
-    
+
     # 创建JWT令牌
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
 
+    # 记录登录成功
+    await AuditLog.log_login(user=user, ip_address=client_ip, status="success")
+
     # 根据角色重定向到对应页面
     if user.role == "admin":
-        redirect_url = "/dashboard"
+        redirect_url = "/admin"
     elif user.role == "teacher":
         redirect_url = "/teacher"
     else:
-        redirect_url = "/dashboard"
+        redirect_url = "/student"
 
     response = RedirectResponse(url=redirect_url, status_code=303)
     response.set_cookie(
@@ -101,7 +119,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
         httponly=True,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
-    
+
     return response
 
 
@@ -115,7 +133,7 @@ async def register(request: Request, username: str = Form(...), email: str = For
             {"request": request, "error": "用户名已存在"},
             status_code=400
         )
-    
+
     # 检查邮箱是否存在
     if await User.get_or_none(email=email):
         return templates.TemplateResponse(
@@ -123,7 +141,7 @@ async def register(request: Request, username: str = Form(...), email: str = For
             {"request": request, "error": "邮箱已被注册"},
             status_code=400
         )
-    
+
     # 创建用户
     user = User(
         username=username,
@@ -132,13 +150,26 @@ async def register(request: Request, username: str = Form(...), email: str = For
         role="student"
     )
     await user.save()
-    
+
+    # 记录注册日志
+    client_ip = request.client.host if request.client else None
+    await AuditLog.log_create(
+        user=user,
+        resource_type="user",
+        resource_id=user.id,
+        description=f"用户注册: {username}",
+        ip_address=client_ip,
+        status="success"
+    )
+
     return RedirectResponse(url="/auth/login", status_code=303)
 
 
 @router.get("/logout")
-async def logout():
+async def logout(request: Request, current_user: User = Depends(get_current_user)):
     """用户登出"""
+    client_ip = request.client.host if request.client else None
+    await AuditLog.log_logout(user=current_user, ip_address=client_ip)
     response = RedirectResponse(url="/auth/login", status_code=303)
     response.delete_cookie("access_token")
     return response
@@ -167,8 +198,8 @@ async def change_password(
             {"request": request, "current_user": current_user, "error": "原密码错误"},
             status_code=400
         )
-    
+
     current_user.password_hash = get_password_hash(new_password)
     await current_user.save()
-    
+
     return RedirectResponse(url="/auth/profile?success=1", status_code=303)

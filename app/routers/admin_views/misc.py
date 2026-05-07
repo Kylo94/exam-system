@@ -1,19 +1,20 @@
 """管理员 - 其他页面"""
 import os
-from fastapi import APIRouter, Depends, Request, Form, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.auth import require_admin
-from app.models.user import User
-from app.models.exam import Exam
-from app.models.submission import Submission
-from app.models.teacher_bind_request import TeacherBindRequest
+from app.config import settings
 from app.models.ai_config import AIConfig
 from app.models.audit_log import AuditLog
+from app.models.exam import Exam
+from app.models.submission import Submission
 from app.models.system_settings import SystemSettings
+from app.models.teacher_bind_request import TeacherBindRequest
+from app.models.user import User
 from app.services.teacher_bind_service import TeacherBindService
-from app.templating import templates, clear_app_name_cache, load_app_name_async
-from app.config import settings
+from app.templating import clear_app_name_cache, load_app_name_async, templates
 
 router = APIRouter()
 
@@ -189,8 +190,8 @@ async def admin_ai_configs(request: Request, current_user: User = Depends(requir
 @router.get("/settings", response_class=HTMLResponse)
 async def admin_settings(request: Request, current_user: User = Depends(require_admin)):
     """系统设置"""
-    from app.models.system_settings import SystemSettings
     from app.config import settings
+    from app.models.system_settings import SystemSettings
 
     # 确保默认设置存在
     await SystemSettings.initialize_defaults()

@@ -1,11 +1,11 @@
 """AI提供商基类"""
 
-from typing import List, Optional, Dict, Any
+from typing import List
 
 
 class BaseProvider:
     """AI提供商基类"""
-    
+
     def __init__(self, api_key: str, base_url: str = ""):
         """初始化提供商
         
@@ -15,7 +15,7 @@ class BaseProvider:
         """
         self.api_key = api_key
         self.base_url = base_url
-    
+
     def chat_completion(self, messages: list, **kwargs) -> str:
         """聊天补全
         
@@ -27,7 +27,7 @@ class BaseProvider:
             模型回复
         """
         raise NotImplementedError("子类必须实现chat_completion方法")
-    
+
     def embeddings(self, text: str) -> List[float]:
         """获取文本嵌入
         

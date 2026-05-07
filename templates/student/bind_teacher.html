@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}绑定教师 - {{ get_app_name() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="bi bi-person-plus text-primary"></i> 绑定教师</h2>
+    </div>
+</div>
+
+{% if success %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle me-2"></i> 申请提交成功，请等待教师审核！
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+{% if current_bind %}
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <i class="bi bi-info-circle me-2"></i>当前绑定状态
+    </div>
+    <div class="card-body">
+        {% if current_bind.status == 'pending' %}
+        <div class="alert alert-warning">
+            <i class="bi bi-clock me-2"></i>您的绑定申请正在等待审核中
+        </div>
+        <p><strong>申请教师：</strong>{{ current_bind.teacher.username if current_bind.teacher else current_bind.teacher_id }}</p>
+        <p><strong>申请时间：</strong>{{ current_bind.created_at.strftime('%Y-%m-%d %H:%M') if current_bind.created_at else '-' }}</p>
+        {% if current_bind.message %}
+        <p><strong>留言：</strong>{{ current_bind.message }}</p>
+        {% endif %}
+        <form method="POST" action="/student/bind-teacher/cancel">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-x-circle me-2"></i>取消申请
+            </button>
+        </form>
+        {% elif current_bind.status == 'approved' %}
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>您已成功绑定教师：{{ current_bind.teacher.username if current_bind.teacher else current_bind.teacher_id }}
+        </div>
+        <p class="text-muted">您可以在授权范围内使用答题系统</p>
+        {% elif current_bind.status == 'rejected' %}
+        <div class="alert alert-danger">
+            <i class="bi bi-x-circle me-2"></i>您的绑定申请被拒绝
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <i class="bi bi-list-ul me-2"></i>选择教师
+    </div>
+    <div class="card-body p-0">
+        {% if teachers %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>教师姓名</th>
+                        <th>邮箱</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-person-badge me-2"></i>{{ teacher.username }}
+                        </td>
+                        <td>{{ teacher.email }}</td>
+                        <td>
+                            {% if not current_bind or current_bind.status == 'rejected' %}
+                            <button class="btn btn-sm btn-primary" onclick="showApplyModal({{ teacher.id }}, '{{ teacher.username }}')">
+                                <i class="bi bi-plus-circle me-2"></i>申请绑定
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-people" style="font-size: 2rem;"></i>
+            <p class="mt-2">暂无可用教师</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 申请弹窗 -->
+<div class="modal fade" id="applyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">申请绑定教师</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/student/bind-teacher/apply">
+                <div class="modal-body">
+                    <p>您即将申请绑定教师：<strong id="teacherName"></strong></p>
+                    <input type="hidden" name="teacher_id" id="teacherIdInput">
+                    <div class="mb-3">
+                        <label class="form-label">留言（可选）</label>
+                        <textarea class="form-control" name="message" rows="3" placeholder="请输入您想对教师说的话..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认申请</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showApplyModal(teacherId, teacherName) {
+    document.getElementById('teacherIdInput').value = teacherId;
+    document.getElementById('teacherName').textContent = teacherName;
+    new bootstrap.Modal(document.getElementById('applyModal')).show();
+}
+</script>
+{% endblock %}

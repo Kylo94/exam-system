@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ kp.name }} - 知识点练习 - {{ get_app_name() }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb" style="background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                <li class="breadcrumb-item"><a href="/student/kp-practice" class="text-decoration-none">知识点练习</a></li>
+                <li class="breadcrumb-item"><a href="/student/kp-practice/{{ subject.id }}" class="text-decoration-none">{{ subject.name }}</a></li>
+                <li class="breadcrumb-item active">{{ kp.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+            <div class="card-header" style="background: var(--bg-tertiary); border-color: var(--border-color);">
+                <h5 class="mb-0"><i class="bi bi-lightbulb text-warning me-2"></i>{{ kp.name }} - 练习题 (共 {{ questions|length }} 题)</h5>
+                {% if kp.keywords %}
+                <p class="mb-0 mt-1 small text-muted">关键词: {{ kp.keywords }}</p>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% for question in questions %}
+                <div class="question-item mb-4 pb-4 border-bottom" style="border-color: var(--border-color) !important;">
+                    <p><strong>Q{{ loop.index }}.</strong> {{ question.content }}</p>
+
+                    {% if question.options %}
+                    <div class="options ps-4">
+                        {% for option in question.options %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="q{{ question.id }}" id="q{{ question.id }}_{{ loop.index }}" value="{{ option.id }}">
+                            <label class="form-check-label" for="q{{ question.id }}_{{ loop.index }}">
+                                {{ option.id }}. {{ option.text }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="answer-input">
+                        <textarea class="form-control" rows="2" placeholder="请输入答案..." style="background: var(--bg-input); color: var(--text-primary);"></textarea>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        <button class="btn btn-outline-warning check-answer" data-question-id="{{ question.id }}">
+                            <i class="bi bi-eye me-1"></i>查看答案
+                        </button>
+                        <div class="answer-reveal mt-3 d-none" id="answer{{ question.id }}">
+                            <div class="alert alert-success" style="background: rgba(25, 135, 84, 0.2); border-color: var(--success);">
+                                <strong>正确答案：</strong> {{ question.correct_answer }}
+                            </div>
+                            {% if question.explanation %}
+                            <div class="alert alert-info mt-2" style="background: rgba(13, 110, 253, 0.2); border-color: var(--primary);">
+                                <strong>解析：</strong> {{ question.explanation }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">暂无题目</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+            <div class="card-header" style="background: var(--bg-tertiary); border-color: var(--border-color);">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>练习说明</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>点击"查看答案"显示正确答案</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>练习不计分</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>可以反复练习</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>同一知识点可多次练习</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mt-3" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+            <div class="card-body text-center">
+                <a href="/student/kp-practice/{{ subject.id }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>返回知识点列表
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+document.querySelectorAll('.check-answer').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const questionId = this.dataset.questionId;
+        const answerDiv = document.getElementById('answer' + questionId);
+        answerDiv.classList.toggle('d-none');
+        this.innerHTML = answerDiv.classList.contains('d-none') ? '<i class="bi bi-eye me-1"></i>查看答案' : '<i class="bi bi-eye-slash me-1"></i>隐藏答案';
+    });
+});
+</script>
+{% endblock %}

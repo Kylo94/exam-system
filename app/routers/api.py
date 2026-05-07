@@ -1,22 +1,20 @@
 """
 REST API 路由
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi.responses import FileResponse
 
 from app.auth import get_current_user, require_admin, require_teacher
-from app.models.user import User
 from app.models.exam import Exam
+from app.models.knowledge_point import KnowledgePoint
+from app.models.level import Level
 from app.models.question import Question
 from app.models.subject import Subject
-from app.models.level import Level
-from app.models.knowledge_point import KnowledgePoint
 from app.models.submission import Submission
-from app.models.answer import Answer
+from app.models.user import User
 
 router = APIRouter()
 
@@ -101,8 +99,8 @@ async def create_subject_api(
 @router.put("/subjects/{subject_id}")
 async def update_subject_api(
     subject_id: int,
-    name: str,
-    description: str = None,
+    name: str = Form(...),
+    description: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """更新科目"""
@@ -155,8 +153,8 @@ async def list_levels(subject_id: Optional[int] = None):
 @router.put("/levels/{level_id}")
 async def update_level_api(
     level_id: int,
-    name: str,
-    description: str = None,
+    name: str = Form(...),
+    description: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """更新难度等级"""
@@ -205,6 +203,7 @@ async def create_knowledge_point(
     subject_id: int = Form(...),
     level_id: int = Form(None),
     description: str = Form(None),
+    keywords: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """创建知识点"""
@@ -212,7 +211,8 @@ async def create_knowledge_point(
         name=name,
         subject_id=subject_id,
         level_id=level_id,
-        description=description
+        description=description,
+        keywords=keywords
     )
     return {"success": True, "data": {"id": kp.id, "name": kp.name}}
 
@@ -224,6 +224,7 @@ async def update_knowledge_point(
     subject_id: int = Form(...),
     level_id: int = Form(None),
     description: str = Form(None),
+    keywords: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """更新知识点"""
@@ -234,6 +235,7 @@ async def update_knowledge_point(
     kp.subject_id = subject_id
     kp.level_id = level_id
     kp.description = description
+    kp.keywords = keywords
     await kp.save()
     return {"success": True}
 
@@ -256,12 +258,12 @@ async def list_exams(
 ):
     """获取试卷列表"""
     query = Exam.all()
-    
+
     if subject_id:
         query = query.filter(subject_id=subject_id)
     if is_published is not None:
         query = query.filter(is_published=is_published)
-    
+
     exams = await query.prefetch_related("subject", "level")
     return {"success": True, "data": exams}
 
@@ -361,13 +363,13 @@ async def create_question_api(
 ):
     """创建题目"""
     import json
-    
+
     exam = await Exam.get_or_none(id=exam_id)
     if not exam:
         raise HTTPException(status_code=404, detail="试卷不存在")
-    
+
     options_dict = json.loads(options) if options else {}
-    
+
     question = await Question.create(
         exam=exam,
         type=type,
@@ -379,7 +381,7 @@ async def create_question_api(
         knowledge_point_id=knowledge_point_id,
         difficulty=difficulty,
     )
-    
+
     return {"success": True, "data": {"id": question.id}}
 
 
@@ -394,11 +396,11 @@ async def update_question_api(
 ):
     """更新题目"""
     import json
-    
+
     question = await Question.get_or_none(id=question_id)
     if not question:
         raise HTTPException(status_code=404, detail="题目不存在")
-    
+
     if content:
         question.content = content
     if correct_answer:
@@ -407,7 +409,7 @@ async def update_question_api(
         question.points = points
     if options:
         question.options = json.loads(options)
-    
+
     await question.save()
     return {"success": True}
 
@@ -431,15 +433,15 @@ async def list_submissions_api(
 ):
     """获取提交记录列表"""
     query = Submission.all()
-    
+
     if exam_id:
         query = query.filter(exam_id=exam_id)
-    
+
     if current_user.is_student:
         query = query.filter(user_id=current_user.id)
     elif user_id:
         query = query.filter(user_id=user_id)
-    
+
     submissions = await query.prefetch_related("user", "exam").order_by("-created_at")
     return {"success": True, "data": submissions}
 
@@ -466,7 +468,7 @@ async def get_user_info(user_id: int, current_user: User = Depends(require_teach
     user = await User.get_or_none(id=user_id)
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
-    
+
     return {
         "success": True,
         "data": {
@@ -588,8 +590,8 @@ async def update_ai_config(
 @router.post("/ai-configs/{config_id}/test")
 async def test_ai_config(config_id: int, current_user: User = Depends(require_admin)):
     """测试AI配置连接"""
-    from app.models.ai_config import AIConfig
     from app.ai.llm_service import LLMService
+    from app.models.ai_config import AIConfig
 
     config = await AIConfig.get_or_none(id=config_id)
     if not config:

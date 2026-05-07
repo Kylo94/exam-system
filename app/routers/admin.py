@@ -3,19 +3,19 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from app.auth import require_admin
-from app.models.user import User
 from app.models.exam import Exam
-from app.models.subject import Subject
 from app.models.level import Level
+from app.models.subject import Subject
+from app.models.user import User
 from app.templating import templates
 
 router = APIRouter()
 
 # 导出子路由
-from app.routers.admin_views.users import router as users_router
-from app.routers.admin_views.subjects import router as subjects_router
 from app.routers.admin_views.exams import router as exams_router
 from app.routers.admin_views.questions import router as questions_router
+from app.routers.admin_views.subjects import router as subjects_router
+from app.routers.admin_views.users import router as users_router
 
 __all__ = ["users_router", "subjects_router", "exams_router", "questions_router"]
 

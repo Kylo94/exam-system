@@ -1,13 +1,14 @@
 """管理员 - 试卷管理"""
-from fastapi import APIRouter, Depends, Request, HTTPException, Form, Body
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from tortoise.queryset import Q
 
 from app.auth import require_admin
-from app.models.user import User
-from app.models.subject import Subject
+from app.models.audit_log import AuditLog
 from app.models.level import Level
 from app.models.question import Question
+from app.models.subject import Subject
+from app.models.user import User
 from app.services.exam_service import ExamService
 from app.templating import templates
 
@@ -95,6 +96,7 @@ async def update_exam_admin(
 ):
     """更新试卷"""
     body = await request.json()
+    client_ip = request.client.host if request.client else None
 
     try:
         exam = await ExamService.update_exam(
@@ -107,6 +109,15 @@ async def update_exam_admin(
             pass_score=body.get('pass_score'),
             is_published=body.get('is_published'),
         )
+        # 审计日志
+        await AuditLog.log_update(
+            user=current_user,
+            resource_type="exam",
+            resource_id=exam_id,
+            description=f"更新试卷: {exam.title}",
+            ip_address=client_ip,
+            status="success"
+        )
         return {"success": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -114,6 +125,7 @@ async def update_exam_admin(
 
 @router.post("/api/exams")
 async def create_exam_admin(
+    request: Request,
     title: str = Form(...),
     subject_id: int = Form(...),
     level_id: int = Form(None),
@@ -124,6 +136,7 @@ async def create_exam_admin(
     current_user: User = Depends(require_admin)
 ):
     """创建试卷"""
+    client_ip = request.client.host if request.client else None
     try:
         exam = await ExamService.create_exam(
             title=title,
@@ -135,6 +148,15 @@ async def create_exam_admin(
             pass_score=pass_score,
             is_published=is_published,
         )
+        # 审计日志
+        await AuditLog.log_create(
+            user=current_user,
+            resource_type="exam",
+            resource_id=exam.id,
+            description=f"创建试卷: {title}",
+            ip_address=client_ip,
+            status="success"
+        )
         return {"success": True, "data": {"id": exam.id}}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -142,22 +164,47 @@ async def create_exam_admin(
 
 @router.post("/api/exams/batch-delete")
 async def admin_batch_delete_exams(
+    request: Request,
     exam_ids: list[int],
     current_user: User = Depends(require_admin)
 ):
     """批量删除试卷"""
+    client_ip = request.client.host if request.client else None
     deleted = await ExamService.batch_delete(exam_ids)
+    # 审计日志
+    await AuditLog.log(
+        action="batch_delete",
+        resource="exam",
+        user=current_user,
+        description=f"批量删除 {deleted} 份试卷",
+        ip_address=client_ip,
+        status="success",
+        details={"exam_ids": exam_ids}
+    )
     return {"success": True, "deleted": deleted}
 
 
 @router.post("/api/exams/batch-publish")
 async def admin_batch_publish_exams(
+    request: Request,
     exam_ids: list[int],
     is_published: bool = True,
     current_user: User = Depends(require_admin)
 ):
     """批量发布/取消发布试卷"""
+    client_ip = request.client.host if request.client else None
     updated = await ExamService.batch_publish(exam_ids, is_published)
+    action = "发布" if is_published else "取消发布"
+    # 审计日志
+    await AuditLog.log(
+        action="batch_update",
+        resource="exam",
+        user=current_user,
+        description=f"批量{action} {updated} 份试卷",
+        ip_address=client_ip,
+        status="success",
+        details={"exam_ids": exam_ids, "is_published": is_published}
+    )
     return {"success": True, "updated": updated}
 
 

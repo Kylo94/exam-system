@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>开始考试 - {{ exam.title }} - {{ settings.APP_NAME }}</title>
+    <title>开始考试 - {{ exam.title }} - {{ get_app_name() }}</title>
 </head>
 <body>
     {% include "partials/navbar.html" %}

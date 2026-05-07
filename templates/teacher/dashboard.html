@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}教师仪表盘 - {{ super() }}{% endblock %}
+{% block title %}教师工作台 - {{ get_app_name() }}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <h2 class="mb-4"><i class="bi bi-speedometer2"></i> 教师工作台</h2>
+        <h2 class="mb-4"><i class="bi bi-briefcase"></i> 教师工作台</h2>
     </div>
 </div>
 
 <!-- 统计卡片 -->
 <div class="row g-4 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-primary text-white">
             <div class="card-body">
                 <h6 class="card-title">我的学生</h6>
@@ -22,49 +22,130 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-success text-white">
             <div class="card-body">
-                <h6 class="card-title">创建的试卷</h6>
-                <h2>{{ stats.exams_created }}</h2>
+                <h6 class="card-title">已授权类型</h6>
+                <h2>{{ stats.access_count }}</h2>
             </div>
             <div class="card-footer bg-transparent border-0">
-                <a href="/teacher/exams" class="text-white text-decoration-none">查看试卷 <i class="bi bi-arrow-right"></i></a>
+                <a href="/teacher/exam-access" class="text-white text-decoration-none">授权管理 <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card bg-info text-white">
             <div class="card-body">
-                <h6 class="card-title">答题记录</h6>
-                <h2>{{ stats.submissions_count }}</h2>
+                <h6 class="card-title">待批改</h6>
+                <h2>{{ stats.pending_count | default(0) }}</h2>
             </div>
             <div class="card-footer bg-transparent border-0">
                 <a href="/teacher/submissions" class="text-white text-decoration-none">查看记录 <i class="bi bi-arrow-right"></i></a>
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <h6 class="card-title">绑定申请</h6>
+                <h2>{{ stats.bind_request_count | default(0) }}</h2>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="/teacher/bind-requests" class="text-dark text-decoration-none">处理申请 <i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- 快捷操作 -->
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
         <h4 class="mb-3">快捷操作</h4>
     </div>
-    <div class="col-md-4">
-        <a href="/teacher/exams/create" class="btn btn-outline-primary w-100 py-3">
-            <i class="bi bi-file-earmark-plus"></i> 创建试卷
+    <div class="col-md-3">
+        <a href="/teacher/exam-access" class="btn btn-outline-primary w-100 py-3">
+            <i class="bi bi-key"></i> 授权管理
         </a>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <a href="/teacher/students" class="btn btn-outline-success w-100 py-3">
             <i class="bi bi-people"></i> 学生管理
         </a>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <a href="/teacher/submissions" class="btn btn-outline-info w-100 py-3">
             <i class="bi bi-clipboard-data"></i> 成绩管理
         </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/teacher/exams" class="btn btn-outline-secondary w-100 py-3">
+            <i class="bi bi-file-text"></i> 查看试卷
+        </a>
+    </div>
+</div>
+
+<!-- 最近提交 -->
+<div class="row">
+    <div class="col-12">
+        <h4 class="mb-3">最近答题记录</h4>
+    </div>
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body p-0">
+                {% if recent_submissions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>学生</th>
+                                <th>试卷</th>
+                                <th>得分</th>
+                                <th>状态</th>
+                                <th>时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in recent_submissions %}
+                            <tr>
+                                <td>{{ sub.user.username if sub.user else '未知' }}</td>
+                                <td>{{ sub.exam.title if sub.exam else '未知' }}</td>
+                                <td>{{ sub.obtained_score | default('-') }}/{{ sub.total_score | default('-') }}</td>
+                                <td>
+                                    {% if sub.status == 'in_progress' %}
+                                    <span class="badge bg-warning text-dark">进行中</span>
+                                    {% elif sub.status == 'submitted' %}
+                                    <span class="badge bg-info">待批改</span>
+                                    {% elif sub.status == 'graded' %}
+                                    <span class="badge bg-success">已完成</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ sub.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ sub.created_at.strftime('%m-%d %H:%M') if sub.created_at else '-' }}</td>
+                                <td>
+                                    <a href="/teacher/submissions/{{ sub.id }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> 查看
+                                    </a>
+                                    {% if sub.status == 'submitted' %}
+                                    <a href="/teacher/submissions/{{ sub.id }}/grade" class="btn btn-sm btn-warning">
+                                        <i class="bi bi-pencil"></i> 评分
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p class="mt-2">暂无答题记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

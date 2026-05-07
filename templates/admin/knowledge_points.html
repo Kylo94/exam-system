@@ -1,6 +1,6 @@
 {% extends "admin/admin_base.html" %}
 
-{% block title %}知识点管理 - {{ settings.APP_NAME }}{% endblock %}
+{% block title %}知识点管理 - {{ get_app_name() }}{% endblock %}
 
 {% block admin_content %}
 <style>
@@ -176,6 +176,7 @@
                 <tr>
                     <th style="width: 80px;">ID</th>
                     <th>知识点名称</th>
+                    <th>关键词</th>
                     <th>描述</th>
                     <th style="width: 100px;">题目数</th>
                     <th style="width: 160px;">操作</th>
@@ -186,6 +187,7 @@
                 <tr>
                     <td><code>{{ kp.display_id }}</code></td>
                     <td><strong>{{ kp.name }}</strong></td>
+                    <td class="text-secondary small">{{ kp.keywords or '-' }}</td>
                     <td class="text-secondary">{{ kp.description or '-' }}</td>
                     <td><span class="badge bg-secondary">{{ kp.question_count }}</span></td>
                     <td>
@@ -369,6 +371,11 @@
                         <label class="form-label">描述</label>
                         <textarea class="form-control" name="description" rows="2" placeholder="知识点的简要描述"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">关键词</label>
+                        <input type="text" class="form-control" name="keywords" placeholder="逗号分隔的关键词，如：函数,极限,微分">
+                        <small class="text-muted">用于AI自动匹配，逗号分隔</small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -400,6 +407,11 @@
                         <label class="form-label">描述</label>
                         <textarea class="form-control" name="description" id="editKpDesc" rows="2"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">关键词</label>
+                        <input type="text" class="form-control" name="keywords" id="editKpKeywords" placeholder="逗号分隔的关键词，如：函数,极限,微分">
+                        <small class="text-muted">用于AI自动匹配，逗号分隔</small>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -426,6 +438,7 @@ async function editKp(id) {
     document.getElementById('editKpLevelId').value = kp.level_id || '';
     document.getElementById('editKpName').value = kp.name;
     document.getElementById('editKpDesc').value = kp.description || '';
+    document.getElementById('editKpKeywords').value = kp.keywords || '';
     new bootstrap.Modal(document.getElementById('editKpModal')).show();
 }
 
@@ -440,6 +453,7 @@ document.getElementById('editKpForm').addEventListener('submit', async (e) => {
         params.append('level_id', formData.get('level_id'));
     }
     params.append('description', formData.get('description'));
+    params.append('keywords', formData.get('keywords') || '');
 
     const response = await fetch(`/api/knowledge-points/${id}`, {
         method: 'PUT',
@@ -498,6 +512,9 @@ document.getElementById('addKpForm').addEventListener('submit', async (e) => {
     }
     if (formData.get('description')) {
         params.append('description', formData.get('description'));
+    }
+    if (formData.get('keywords')) {
+        params.append('keywords', formData.get('keywords'));
     }
 
     const response = await fetch('/api/knowledge-points', {

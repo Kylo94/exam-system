@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}绑定申请管理 - {{ settings.APP_NAME }}{% endblock %}
+{% block title %}绑定申请管理 - {{ get_app_name() }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         emptyState.classList.add('d-none');
 
         try {
-            const response = await fetch(`/api/teacher/bind-requests?status=${status}`);
+            const response = await fetch(`/teacher/api/bind-requests?status=${status}`);
             const result = await response.json();
 
             loadingSpinner.classList.add('d-none');
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`/api/teacher/bind-requests/${requestId}/approve`, {
+            const response = await fetch(`/teacher/api/bind-requests/${requestId}/approve`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const reason = document.getElementById('rejectReason').value.trim();
 
         try {
-            const response = await fetch(`/api/teacher/bind-requests/${currentRequestId}/reject`, {
+            const response = await fetch(`/teacher/api/bind-requests/${currentRequestId}/reject`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

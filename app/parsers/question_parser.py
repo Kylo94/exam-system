@@ -1,7 +1,7 @@
 """题目解析统一入口"""
 
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List
 
 
 class QuestionParser:

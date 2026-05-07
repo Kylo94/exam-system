@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}首页 - {{ settings.APP_NAME }}{% endblock %}
+{% block title %}首页 - {{ get_app_name() }}{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -8,7 +8,7 @@
     <div class="py-5">
         <h1 class="display-4 fw-bold mb-3">
             <i class="bi bi-mortarboard-fill me-3 text-purple"></i>
-            {{ settings.APP_NAME }}
+            {{ get_app_name() }}
         </h1>
         <p class="lead text-secondary mb-4">专业的在线答题系统，智能、高效、便捷</p>
 
@@ -130,10 +130,10 @@
 
     {% else %}
     <!-- Student Quick Actions -->
-    <div class="col-md-4 col-sm-6 mb-4">
+    <div class="col-3 mb-4">
         <a href="/student/exams" class="text-decoration-none">
             <div class="quick-action-card h-100">
-                <div class="icon bg-primary">
+                <div class="icon bg-success">
                     <i class="bi bi-pencil-square"></i>
                 </div>
                 <h5>真题测试</h5>
@@ -141,21 +141,32 @@
             </div>
         </a>
     </div>
-    <div class="col-md-4 col-sm-6 mb-4">
-        <a href="/student/practice" class="text-decoration-none">
+    <div class="col-3 mb-4">
+        <a href="/student/kp-practice" class="text-decoration-none">
             <div class="quick-action-card h-100">
-                <div class="icon bg-success">
-                    <i class="bi bi-brush"></i>
+                <div class="icon bg-warning">
+                    <i class="bi bi-lightbulb"></i>
                 </div>
-                <h5>专项刷题</h5>
-                <p>按科目强化练习</p>
+                <h5>知识点练习</h5>
+                <p>按知识点针对性训练</p>
             </div>
         </a>
     </div>
-    <div class="col-md-4 col-sm-6 mb-4">
+    <div class="col-3 mb-4">
+        <a href="/student/wrong-questions" class="text-decoration-none">
+            <div class="quick-action-card h-100">
+                <div class="icon bg-danger">
+                    <i class="bi bi-exclamation-circle"></i>
+                </div>
+                <h5>错题本</h5>
+                <p>复习之前的错题</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-3 mb-4">
         <a href="/student/history" class="text-decoration-none">
             <div class="quick-action-card h-100">
-                <div class="icon bg-info">
+                <div class="icon bg-purple">
                     <i class="bi bi-clock-history"></i>
                 </div>
                 <h5>答题历史</h5>

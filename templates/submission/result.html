@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>考试结果 - {{ submission.exam.title }} - {{ settings.APP_NAME }}</title>
+    <title>考试结果 - {{ submission.exam.title }} - {{ get_app_name() }}</title>
     <style>
         .result-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -326,7 +326,7 @@
                                      alt="题目图片"
                                      style="max-height: 200px;">
                                 {% else %}
-                                <img src="{{ '/upload/' + str(answer.question.image_data) }}"
+                                <img src="{{ '/api/uploads/' + str(answer.question.image_data) }}"
                                      class="img-fluid rounded"
                                      alt="题目图片"
                                      style="max-height: 200px;">
@@ -339,7 +339,7 @@
                         </div>
                         {% endif %}
                     </div>
-                    
+
                     <!-- 选项列表（始终显示） -->
                     {% set options_list = answer.question.get_options_list() %}
                     {% if options_list %}
@@ -394,7 +394,7 @@
                                 {% endif %}
                                 {% if option_image_path %}
                                 <div class="mt-2">
-                                    <img src="{{ '/upload/' + str(option_image_path) }}"
+                                    <img src="{{ '/api/uploads/' + str(option_image_path) }}"
                                          class="img-fluid rounded"
                                          alt="选项{{ option.id }}图片"
                                          style="max-height: 150px;">

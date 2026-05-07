@@ -8,10 +8,10 @@
 """
 
 from .base import BaseAIService
-from .providers.base import BaseProvider
-from .llm_service import LLMService
-from .grader_service import GraderService
 from .generator_service import GeneratorService
+from .grader_service import GraderService
+from .llm_service import LLMService
+from .providers.base import BaseProvider
 from .providers.deepseek import DeepSeekProvider
 from .providers.deepseek_anthropic import DeepSeekAnthropicProvider
 from .providers.openai import OpenAIProvider

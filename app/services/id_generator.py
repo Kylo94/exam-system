@@ -1,7 +1,6 @@
 """
 ID生成器服务 - 为不同实体分配不同的ID段
 """
-from typing import Literal
 
 # ID分段配置
 ID_RANGES = {

@@ -1,8 +1,9 @@
 """用户服务"""
-from typing import Optional, List
-from app.models.user import User
+from typing import List, Optional
+
 from app.auth import get_password_hash
-from app.services.exceptions import NotFoundException, ValidationException, DuplicateException
+from app.models.user import User
+from app.services.exceptions import DuplicateException, NotFoundException, ValidationException
 
 
 class UserService:
@@ -97,3 +98,9 @@ class UserService:
         users = await query.order_by("-created_at").offset(offset).limit(page_size)
 
         return users, total
+
+    @staticmethod
+    async def delete_user(user_id: int) -> None:
+        """删除用户"""
+        user = await UserService.get_user_or_404(user_id)
+        await user.delete()

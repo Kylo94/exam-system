@@ -3,7 +3,8 @@
 """
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status, Request, Cookie
+
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -90,7 +91,6 @@ async def get_optional_current_user(request: Request, token: str = Depends(oauth
 
 async def _get_user_from_token(token: str) -> Optional[User]:
     """从token获取用户"""
-    print("[DEBUG] _get_user_from_token called")
     payload = decode_token(token)
     if payload is None:
         return None

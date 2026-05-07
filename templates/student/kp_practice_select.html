@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }} - 知识点练习 - {{ get_app_name() }}{% endblock %}
+
+{% block content %}
+<style>
+.kp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+.kp-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.kp-card:hover {
+    border-color: var(--purple);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 59, 144, 0.15);
+}
+.kp-card-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+.kp-card-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.kp-card-count {
+    display: inline-block;
+    background: var(--purple);
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    font-size: 0.8rem;
+}
+</style>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb" style="background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                <li class="breadcrumb-item"><a href="/student/kp-practice" class="text-decoration-none">知识点练习</a></li>
+                <li class="breadcrumb-item active">{{ subject.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<h4 class="mb-4"><i class="bi bi-lightbulb text-warning"></i> 选择知识点</h4>
+
+{% for item in kps_data %}
+<div class="mb-4">
+    <h5 class="text-secondary mb-3">{{ item.level.name }}</h5>
+    {% if item.kps %}
+    <div class="kp-grid">
+        {% for kp in item.kps %}
+        <a href="/student/kp-practice/{{ subject.id }}/kp/{{ kp.id }}" class="text-decoration-none">
+            <div class="kp-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="kp-card-title">{{ kp.name }}</div>
+                        <div class="kp-card-meta">
+                            {% if kp.keywords %}
+                            <span class="text-muted small">{{ kp.keywords[:30] }}{% if kp.keywords|length > 30 %}...{% endif %}</span>
+                            {% else %}
+                            <span class="text-muted small">暂无关键词</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span class="kp-card-count" title="{{ kp.question_count }}题">{{ kp.question_count if kp.question_count else 0 }}</span>
+                </div>
+                {% if kp.description %}
+                <div class="kp-card-meta mt-2 text-truncate">{{ kp.description }}</div>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted small">暂无知识点</p>
+    {% endif %}
+</div>
+{% else %}
+<div class="alert alert-info">暂无知识点，请联系管理员添加</div>
+{% endfor %}
+{% endblock %}

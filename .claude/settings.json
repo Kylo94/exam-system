@@ -7,7 +7,20 @@
       "Bash(sed -i '' 's/^# DATABASE_URL=sqlite:\\\\/\\\\/\\\\/instance\\\\/exam.db/DATABASE_URL=sqlite:\\\\/\\\\/\\\\/instance\\\\/exam.db/' .env)",
       "Bash(python -c \"from main import app; print\\('App loads OK'\\)\")",
       "Bash(python -c ' *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(awk 'NR>=1178 && NR<=1195' /Users/kylo/Documents/Workspace/答题网站/templates/admin/exams.html)",
+      "Bash(awk 'NR>=1050 && NR<=1068' /Users/kylo/Documents/Workspace/答题网站/templates/admin/exams.html)",
+      "Bash(node --check /tmp/script.js)",
+      "Bash(echo \"Syntax OK: $?\")",
+      "Bash(awk 'NR>=1230 && NR<=1250' /Users/kylo/Documents/Workspace/答题网站/templates/admin/exams.html)",
+      "Bash(awk 'NR>=517 && NR<=530')",
+      "Bash(node -e ' *)",
+      "Bash(awk 'NR>=121 && NR<=130' /Users/kylo/Documents/Workspace/答题网站/app/services/knowledge_point_service.py)",
+      "Bash(python3 -c ' *)",
+      "Bash(/opt/anaconda3/envs/答题网站/bin/python -c ' *)",
+      "Bash(awk 'NR>=1088 && NR<=1095' /Users/kylo/Documents/Workspace/答题网站/templates/admin/exams.html)",
+      "Bash(sqlite3 data/exam_system.db \"SELECT id, name, provider, model, is_active, is_default FROM ai_configs LIMIT 5;\")",
+      "Bash(kill 80589 82308)"
     ]
   }
 }

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}评分 - {{ get_app_name() }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb" style="background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 0.5rem;">
+                <li class="breadcrumb-item"><a href="/teacher/submissions" class="text-decoration-none">答题记录</a></li>
+                <li class="breadcrumb-item"><a href="/teacher/submissions/{{ submission.id }}" class="text-decoration-none">详情</a></li>
+                <li class="breadcrumb-item active">评分</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>主观题评分</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <strong>学生：</strong>{{ submission.user.username }}
+            </div>
+            <div class="col-md-4">
+                <strong>试卷：</strong>{{ submission.exam.title if submission.exam else 'N/A' }}
+            </div>
+            <div class="col-md-4">
+                <strong>提交时间：</strong>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else '-' }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="gradeForm">
+    {% for answer in subjective_answers %}
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">{{ loop.index }}. {{ answer.question.type_display }}</h6>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <strong>题目内容：</strong>
+                <p class="mb-2">{{ answer.question.content }}</p>
+                <strong>正确答案：</strong> {{ answer.question.correct_answer }}
+            </div>
+            <div class="mb-3 p-3 bg-light rounded">
+                <strong>学生答案：</strong>
+                <div class="mt-2">{{ answer.user_answer }}</div>
+            </div>
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <label class="form-label">评分（满分 {{ answer.question.points }} 分）</label>
+                    <input type="number" class="form-control" name="score_{{ answer.id }}"
+                           value="{{ answer.score if answer.score else 0 }}"
+                           min="0" max="{{ answer.question.points }}" step="0.5">
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">没有需要评分的主观题</div>
+    {% endfor %}
+
+    <div class="text-end mt-4">
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="bi bi-check-circle me-2"></i>提交评分
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('gradeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    try {
+        const response = await fetch('/teacher/api/submissions/{{ submission.id }}/grade', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert('评分成功！总得分：' + result.obtained_score);
+            window.location.href = '/teacher/submissions/{{ submission.id }}';
+        } else {
+            alert('评分失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('评分失败: ' + error);
+    }
+});
+</script>
+{% endblock %}

@@ -1,12 +1,12 @@
 """文档解析器模块"""
 
-from .base import BaseParser
-from .question_parser import QuestionParser
-from .docx_extractor import DocxExtractor
-from .rule_parser import RuleParser
 from .ai_parser import AIParser
-from .json_handler import JsonHandler
+from .base import BaseParser
+from .docx_extractor import DocxExtractor
 from .factory import ParserFactory
+from .json_handler import JsonHandler
+from .question_parser import QuestionParser
+from .rule_parser import RuleParser
 
 __all__ = [
     'BaseParser',

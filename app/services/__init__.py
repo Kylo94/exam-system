@@ -1,10 +1,10 @@
 """服务层"""
 from .exceptions import (
     AppException,
+    DuplicateException,
     NotFoundException,
     PermissionDeniedException,
     ValidationException,
-    DuplicateException,
 )
 
 __all__ = [

@@ -3,7 +3,6 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
-from datetime import datetime
 
 
 def setup_logging(

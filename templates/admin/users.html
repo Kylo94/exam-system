@@ -1,6 +1,6 @@
 {% extends "admin/admin_base.html" %}
 
-{% block title %}用户管理 - {{ settings.APP_NAME }}{% endblock %}
+{% block title %}用户管理 - {{ get_app_name() }}{% endblock %}
 
 {% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -91,6 +91,9 @@
                                     <option value="teacher" {% if u.role=='teacher' %}selected{% endif %}>教师</option>
                                     <option value="student" {% if u.role=='student' %}selected{% endif %}>学生</option>
                                 </select>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser({{ u.id }}, '{{ u.username }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -184,6 +187,19 @@ async function changeRole(userId, role) {
     } else {
         const data = await response.json();
         alert(data.detail || '操作失败');
+    }
+}
+
+async function deleteUser(userId, username) {
+    if (!confirm(`确定要删除用户 "${username}" 吗？此操作不可撤销。`)) {
+        return;
+    }
+    const response = await fetch(`/admin/users/${userId}/delete`, { method: 'POST' });
+    if (response.ok) {
+        location.reload();
+    } else {
+        const data = await response.json();
+        alert(data.detail || '删除失败');
     }
 }
 

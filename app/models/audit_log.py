@@ -98,7 +98,7 @@ class AuditLog(Model):
             action="login",
             resource="auth",
             user=user,
-            description=f"用户登录" if status == "success" else "登录失败",
+            description="用户登录" if status == "success" else "登录失败",
             ip_address=ip_address,
             user_agent=user_agent,
             status=status

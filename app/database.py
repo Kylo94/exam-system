@@ -2,7 +2,9 @@
 数据库配置 - Tortoise-ORM
 """
 import logging
+
 from tortoise import Tortoise
+from app.config import settings
 
 logger = logging.getLogger("database")
 
@@ -25,6 +27,3 @@ async def init_db():
 async def close_db():
     """关闭数据库连接"""
     await Tortoise.close_connections()
-
-
-from app.config import settings

@@ -10,13 +10,7 @@
                 <h2 class="text-center mb-4">
                     <i class="bi bi-person-circle text-primary"></i> 用户登录
                 </h2>
-                
-                {% if error %}
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> {{ error }}
-                </div>
-                {% endif %}
-                
+
                 <form method="POST" action="/auth/login">
                     <div class="mb-3">
                         <label for="username" class="form-label">用户名</label>
@@ -32,9 +26,9 @@
                         </button>
                     </div>
                 </form>
-                
+
                 <hr class="my-4">
-                
+
                 <p class="text-center text-muted">
                     还没有账号？ <a href="/auth/register">立即注册</a>
                 </p>

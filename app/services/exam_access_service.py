@@ -2,11 +2,7 @@
 学生试卷授权服务
 """
 from typing import List, Optional
-from tortoise.queryset import Q
 
-from app.models.user import User
-from app.models.subject import Subject
-from app.models.level import Level
 from app.models.exam import Exam
 from app.models.student_exam_access import StudentExamAccess
 

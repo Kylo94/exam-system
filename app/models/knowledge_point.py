@@ -24,8 +24,10 @@ class KnowledgePoint(Model):
         on_delete=fields.SET_NULL,
     )
     description = fields.TextField(null=True)
+    # 关键词，用于AI匹配，逗号分隔
+    keywords = fields.TextField(null=True, description="关键词，逗号分隔")
     created_at = fields.DatetimeField(auto_now_add=True)
-    updated_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
 
     # 关系
     questions: fields.ReverseRelation["Question"]

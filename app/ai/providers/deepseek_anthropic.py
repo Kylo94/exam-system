@@ -1,7 +1,9 @@
 """DeepSeek AI提供商 - 使用 Anthropic SDK"""
 
 from typing import List
+
 from anthropic import Anthropic
+
 from . import BaseProvider
 
 
@@ -52,7 +54,6 @@ class DeepSeekAnthropicProvider(BaseProvider):
         thinking = kwargs.get('thinking')
 
         # 转换OpenAI格式messages到Anthropic格式
-        anthropic_messages = []
         anthropic_content = []
 
         for msg in messages:

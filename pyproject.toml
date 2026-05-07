@@ -1,0 +1,48 @@
+[tool.ruff]
+# Ruff配置 - Python代码规范
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# 启用的规则
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "N802",  # function name should be lowercase (may conflict with decorators)
+    "N803",  # argument name should be lowercase
+    "B008",  # do not perform function calls in argument defaults
+    "UP006", # use-lowercase for type annotations (style preference)
+    "UP035", # deprecated typing (style preference)
+    "UP045", # use X | None syntax (style preference)
+    "W293",  # blank line contains whitespace (style preference)
+    "B904",  # raise within except without from clause (style preference)
+    "F821",  # undefined name - forward references in Tortoise relations
+    "N806",  # constant variable should be lowercase (style preference)
+    "N818",  # exception should be named with Error suffix (style preference)
+    "C401",  # unnecessary generator (style preference)
+    "E402",  # module level import not at top of file (style preference)
+    "E722",  # do not use bare except (style preference)
+    "E741",  # ambiguous variable name (style preference)
+    "I001",  # import block unsorted (style preference)
+    "W291",  # trailing whitespace (style preference)
+]
+
+[tool.ruff.format]
+# 格式化配置
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+[tool.ruff.lint.isort]
+# isort配置
+known-first-party = ["app"]
+force-single-line = false

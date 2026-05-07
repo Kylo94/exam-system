@@ -1,13 +1,13 @@
 """智能批改服务"""
 
-import json
 from typing import Any, Dict, List, Optional
+
 from .llm_service import LLMService
 
 
 class GraderService:
     """智能批改服务类"""
-    
+
     def __init__(self, llm_service: Optional[LLMService] = None):
         """初始化批改服务
         
@@ -15,7 +15,7 @@ class GraderService:
             llm_service: LLM服务实例（如为None则创建默认实例）
         """
         self.llm_service = llm_service or LLMService()
-    
+
     def grade_subjective_answer(self, question: Dict[str, Any], user_answer: str) -> Dict[str, Any]:
         """批改主观题答案
         
@@ -28,10 +28,10 @@ class GraderService:
         """
         question_text = question.get('content', '')
         correct_answer = question.get('correct_answer', '')
-        
+
         # 使用LLM批改
         result = self.llm_service.grade_answer(question_text, user_answer, correct_answer)
-        
+
         # 添加额外信息
         result.update({
             'question_id': question.get('id'),
@@ -39,9 +39,9 @@ class GraderService:
             'auto_graded': True,
             'grader': 'AI'
         })
-        
+
         return result
-    
+
     def grade_objective_answer(self, question: Dict[str, Any], user_answer: str) -> Dict[str, Any]:
         """批改客观题答案
         
@@ -54,7 +54,7 @@ class GraderService:
         """
         correct_answer = question.get('correct_answer', '')
         options = question.get('options', [])
-        
+
         # 对于选择题，直接比较答案
         if question.get('type') == 'multiple_choice':
             # 用户答案可能是选项索引或选项内容
@@ -66,7 +66,7 @@ class GraderService:
                     user_answer_text = user_answer
             else:
                 user_answer_text = user_answer
-            
+
             # 正确答案可能是选项索引或选项内容
             if isinstance(correct_answer, str) and correct_answer.isdigit():
                 correct_index = int(correct_answer)
@@ -76,11 +76,11 @@ class GraderService:
                     correct_answer_text = correct_answer
             else:
                 correct_answer_text = correct_answer
-            
+
             # 比较答案
             is_correct = str(user_answer_text).strip() == str(correct_answer_text).strip()
             score = 1.0 if is_correct else 0.0
-            
+
             return {
                 'score': score,
                 'is_correct': is_correct,
@@ -90,12 +90,12 @@ class GraderService:
                 'auto_graded': True,
                 'grader': 'system'
             }
-        
+
         # 对于判断题
         elif question.get('type') == 'true_false':
             is_correct = str(user_answer).strip().lower() == str(correct_answer).strip().lower()
             score = 1.0 if is_correct else 0.0
-            
+
             return {
                 'score': score,
                 'is_correct': is_correct,
@@ -105,11 +105,11 @@ class GraderService:
                 'auto_graded': True,
                 'grader': 'system'
             }
-        
+
         # 默认情况使用LLM批改
         else:
             return self.grade_subjective_answer(question, user_answer)
-    
+
     def grade_exam_submission(self, submission: Dict[str, Any], answers: List[Dict[str, Any]]) -> Dict[str, Any]:
         """批改整个考试提交
         
@@ -123,13 +123,12 @@ class GraderService:
         total_score = 0.0
         max_score = 0.0
         graded_answers = []
-        
-        # 获取考试问题
-        exam_id = submission.get('exam_id')
-        # 这里需要从数据库获取问题，暂时假设questions已传入
-        
+
+        # 获取考试问题（预留，后续可能需要）
+        # exam_id = submission.get('exam_id')
+
         questions = submission.get('questions', [])
-        
+
         for question in questions:
             # 查找对应的用户答案
             user_answer = None
@@ -137,7 +136,7 @@ class GraderService:
                 if answer.get('question_id') == question.get('id'):
                     user_answer = answer.get('content', '')
                     break
-            
+
             if user_answer is None:
                 # 没有答案，得0分
                 graded_answer = {
@@ -152,17 +151,17 @@ class GraderService:
                     graded_answer = self.grade_objective_answer(question, user_answer)
                 else:
                     graded_answer = self.grade_subjective_answer(question, user_answer)
-            
+
             # 计算分数
             question_score = graded_answer.get('score', 0.0)
             total_score += question_score
             max_score += 1.0  # 假设每题1分
-            
+
             graded_answers.append(graded_answer)
-        
+
         # 计算总分和百分比
         percentage = (total_score / max_score * 100) if max_score > 0 else 0
-        
+
         return {
             'submission_id': submission.get('id'),
             'total_score': total_score,

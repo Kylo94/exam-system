@@ -1,9 +1,10 @@
 """
 师生绑定服务
 """
-from typing import List, Optional, Tuple
-from app.models.user import User
+from typing import List
+
 from app.models.teacher_bind_request import TeacherBindRequest
+from app.models.user import User
 
 
 class TeacherBindService:

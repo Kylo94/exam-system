@@ -3,12 +3,11 @@
 提供通用的数据验证函数，确保输入数据的完整性和正确性。
 """
 
-import re
 import json
-from typing import Any, Dict, List, Optional, Tuple, Union
+import re
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urlparse
-
 
 # 常用正则表达式
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -50,19 +49,19 @@ def validate_string(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(value, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if not allow_empty and value == "":
         return False, f"{field_name}不能为空"
-    
+
     if len(value) < min_length:
         return False, f"{field_name}长度不能小于{min_length}个字符"
-    
+
     if max_length is not None and len(value) > max_length:
         return False, f"{field_name}长度不能超过{max_length}个字符"
-    
+
     return True, None
 
 
@@ -89,18 +88,18 @@ def validate_integer(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     try:
         int_value = int(value)
     except (ValueError, TypeError):
         return False, f"{field_name}必须是整数"
-    
+
     if min_value is not None and int_value < min_value:
         return False, f"{field_name}不能小于{min_value}"
-    
+
     if max_value is not None and int_value > max_value:
         return False, f"{field_name}不能大于{max_value}"
-    
+
     return True, None
 
 
@@ -127,18 +126,18 @@ def validate_number(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     try:
         num_value = float(value)
     except (ValueError, TypeError):
         return False, f"{field_name}必须是数字"
-    
+
     if min_value is not None and num_value < min_value:
         return False, f"{field_name}不能小于{min_value}"
-    
+
     if max_value is not None and num_value > max_value:
         return False, f"{field_name}不能大于{max_value}"
-    
+
     return True, None
 
 
@@ -161,10 +160,10 @@ def validate_email(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(email, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if EMAIL_REGEX.match(email):
         return True, None
     else:
@@ -192,33 +191,33 @@ def validate_url(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(url, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if not url:
         return False, f"{field_name}不能为空"
-    
+
     # 使用正则表达式初步验证
     if not URL_REGEX.match(url):
         return False, f"{field_name}格式不正确"
-    
+
     # 进一步使用urlparse验证
     try:
         parsed = urlparse(url)
         if not parsed.scheme and not parsed.netloc:
             # 如果没有协议和网络位置，尝试添加http://
             parsed = urlparse(f"http://{url}")
-        
+
         if not parsed.netloc:
             return False, f"{field_name}缺少域名或主机名"
-        
+
         if require_https and parsed.scheme != 'https':
             return False, f"{field_name}必须使用HTTPS协议"
-        
+
     except Exception:
         return False, f"{field_name}格式不正确"
-    
+
     return True, None
 
 
@@ -241,10 +240,10 @@ def validate_phone(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(phone, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if PHONE_REGEX.match(phone):
         return True, None
     else:
@@ -272,10 +271,10 @@ def validate_date(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(date_str, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     try:
         datetime.strptime(date_str, format)
         return True, None
@@ -304,10 +303,10 @@ def validate_datetime(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(datetime_str, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     try:
         datetime.strptime(datetime_str, format)
         return True, None
@@ -336,11 +335,11 @@ def validate_choice(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if value not in choices:
         choices_str = ", ".join(str(c) for c in choices)
         return False, f"{field_name}必须是以下值之一: {choices_str}"
-    
+
     return True, None
 
 
@@ -363,10 +362,10 @@ def validate_json(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(json_str, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     try:
         json.loads(json_str)
         return True, None
@@ -399,19 +398,19 @@ def validate_list(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(value, list):
         return False, f"{field_name}必须是列表类型"
-    
+
     if not allow_empty and len(value) == 0:
         return False, f"{field_name}不能为空列表"
-    
+
     if len(value) < min_length:
         return False, f"{field_name}长度不能小于{min_length}"
-    
+
     if max_length is not None and len(value) > max_length:
         return False, f"{field_name}长度不能超过{max_length}"
-    
+
     return True, None
 
 
@@ -438,23 +437,23 @@ def validate_dict(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(value, dict):
         return False, f"{field_name}必须是字典类型"
-    
+
     if not allow_empty and len(value) == 0:
         return False, f"{field_name}不能为空字典"
-    
+
     if required_keys:
         missing_keys = []
         for key in required_keys:
             if key not in value:
                 missing_keys.append(key)
-        
+
         if missing_keys:
             keys_str = ", ".join(missing_keys)
             return False, f"{field_name}缺少必需的键: {keys_str}"
-    
+
     return True, None
 
 
@@ -477,10 +476,10 @@ def validate_username(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(username, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if USERNAME_REGEX.match(username):
         return True, None
     else:
@@ -506,10 +505,10 @@ def validate_password(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(password, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if PASSWORD_REGEX.match(password):
         return True, None
     else:
@@ -537,16 +536,16 @@ def validate_file_extension(
         if allow_none:
             return True, None
         return False, f"{field_name}不能为空"
-    
+
     if not isinstance(filename, str):
         return False, f"{field_name}必须是字符串类型"
-    
+
     if '.' not in filename:
         return False, f"{field_name}没有扩展名"
-    
+
     ext = filename.rsplit('.', 1)[1].lower()
     allowed = [ext.lower().lstrip('.') for ext in allowed_extensions]
-    
+
     if ext in allowed:
         return True, None
     else:
@@ -570,21 +569,21 @@ def batch_validate(
         错误字典，格式为 {字段名: [错误消息列表]}，如果全部验证通过则返回空字典
     """
     errors = {}
-    
+
     for field_name, (validate_func, kwargs) in validators.items():
         value = data.get(field_name)
-        
+
         # 如果字段不在data中，设置值为None
         if field_name not in data:
             value = None
-        
+
         is_valid, error_msg = validate_func(value, **kwargs)
-        
+
         if not is_valid:
             if field_name not in errors:
                 errors[field_name] = []
             errors[field_name].append(error_msg)
-    
+
     return errors
 
 

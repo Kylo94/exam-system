@@ -1,12 +1,12 @@
 """管理员 - 科目和等级管理"""
-from fastapi import APIRouter, Depends, Request, HTTPException, Form
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from tortoise.queryset import Q
 
 from app.auth import require_admin
-from app.models.user import User
-from app.models.subject import Subject
 from app.models.level import Level
+from app.models.subject import Subject
+from app.models.user import User
 from app.services.subject_service import SubjectService
 from app.templating import templates
 
@@ -156,17 +156,6 @@ async def create_level(name: str, description: str = None, current_user: User = 
     level = await Level.create(name=name, description=description)
     return {"success": True, "id": level.id}
 
-
-@router.delete("/levels/{level_id}")
-async def delete_level(level_id: int, current_user: User = Depends(require_admin)):
-    """删除难度等级"""
-    try:
-        await SubjectService.delete_level(level_id)
-        return {"success": True}
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
 # 知识点管理
 @router.get("/knowledge-points", response_class=HTMLResponse)
 async def admin_knowledge_points(
@@ -179,8 +168,6 @@ async def admin_knowledge_points(
     current_user: User = Depends(require_admin)
 ):
     """知识点管理 - 支持层级导航"""
-    from app.models.knowledge_point import KnowledgePoint
-    from app.models.question import Question
 
     # 使用 Service 层获取统计数据
     subjects_with_stats = await SubjectService.get_subjects_with_stats()

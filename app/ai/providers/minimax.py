@@ -1,7 +1,9 @@
 """MiniMax AI提供商 - 使用 Anthropic SDK"""
 
 from typing import List
+
 import anthropic
+
 from . import BaseProvider
 
 

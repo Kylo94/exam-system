@@ -2,9 +2,7 @@
 错题记录服务
 """
 from typing import List, Optional
-from tortoise.queryset import Q
 
-from app.models.user import User
 from app.models.question import Question
 from app.models.submission import Submission
 from app.models.wrong_question import WrongQuestion

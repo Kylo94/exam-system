@@ -1,12 +1,13 @@
 """LLM服务"""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
+
 from .base import BaseAIService
 from .providers.deepseek import DeepSeekProvider
 from .providers.deepseek_anthropic import DeepSeekAnthropicProvider
-from .providers.openai import OpenAIProvider
 from .providers.minimax import MiniMaxProvider
+from .providers.openai import OpenAIProvider
 
 
 class LLMService(BaseAIService):
@@ -55,7 +56,7 @@ class LLMService(BaseAIService):
                 raise ValueError(f'不支持的AI提供商: {self.provider}')
 
         return self._provider_instance
-    
+
     def generate_answer(self, question: str, context: Optional[str] = None) -> str:
         """生成答案
         
@@ -67,11 +68,11 @@ class LLMService(BaseAIService):
             生成的答案
         """
         messages = []
-        
+
         # 添加系统提示
         system_prompt = "你是一个专业的答题助手，请根据问题提供准确、详细的答案。"
         messages.append({'role': 'system', 'content': system_prompt})
-        
+
         # 添加上下文（如果有）
         if context:
             messages.append({
@@ -80,12 +81,12 @@ class LLMService(BaseAIService):
             })
         else:
             messages.append({'role': 'user', 'content': question})
-        
+
         try:
             return self.provider_instance.chat_completion(messages)
         except Exception as e:
             return f"生成答案时出错: {str(e)}"
-    
+
     def grade_answer(self, question: str, user_answer: str, correct_answer: str) -> Dict[str, Any]:
         """批改答案
         
@@ -116,12 +117,12 @@ class LLMService(BaseAIService):
         
         只返回JSON，不要有其他内容。
         """
-        
+
         messages = [
             {'role': 'system', 'content': '你是一个专业的批改老师，请客观、公正地批改答案。'},
             {'role': 'user', 'content': prompt}
         ]
-        
+
         try:
             response = self.provider_instance.chat_completion(messages)
             # 尝试解析JSON
@@ -142,7 +143,7 @@ class LLMService(BaseAIService):
                 'correctness': '错误',
                 'suggestions': '请稍后重试'
             }
-    
+
     def generate_question(self, subject: str, level: str, question_type: str) -> Dict[str, Any]:
         """生成题目
         
@@ -169,16 +170,16 @@ class LLMService(BaseAIService):
         如果是选择题，options字段为数组；如果是简答题，options字段为空数组。
         只返回JSON，不要有其他内容。
         """
-        
+
         messages = [
             {'role': 'system', 'content': '你是一个专业的题目生成器，请生成高质量的教育题目。'},
             {'role': 'user', 'content': prompt}
         ]
-        
+
         try:
             response = self.provider_instance.chat_completion(messages)
             result = json.loads(response.strip())
-            
+
             # 确保必要字段存在
             if 'content' not in result:
                 result['content'] = f'{subject}相关题目'
@@ -190,7 +191,7 @@ class LLMService(BaseAIService):
                 result['explanation'] = '解析说明'
             if 'tags' not in result:
                 result['tags'] = [subject, level, question_type]
-            
+
             return result
         except json.JSONDecodeError:
             # 返回默认题目

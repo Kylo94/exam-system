@@ -951,16 +951,19 @@ document.getElementById('editExamForm').addEventListener('submit', async (e) => 
     e.preventDefault();
     const id = document.getElementById('editExamId').value;
     const formData = new FormData(e.target);
-    const params = new URLSearchParams();
-    if (formData.get('title')) params.append('title', formData.get('title'));
-    if (formData.get('duration_minutes')) params.append('duration_minutes', formData.get('duration_minutes'));
-    if (formData.get('total_points')) params.append('total_points', formData.get('total_points'));
-    if (formData.get('pass_score')) params.append('pass_score', formData.get('pass_score'));
-    params.append('is_published', formData.get('is_published'));
-    await fetch(`/api/exams/${id}`, {
+
+    const isPublished = formData.get('is_published') === 'true';
+
+    await fetch(`/admin/api/exams/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            title: formData.get('title'),
+            duration_minutes: parseInt(formData.get('duration_minutes')) || 60,
+            total_points: parseInt(formData.get('total_points')) || 100,
+            pass_score: parseInt(formData.get('pass_score')) || 60,
+            is_published: isPublished
+        })
     });
     location.reload();
 });

@@ -1,9 +1,9 @@
 """
 试卷模型 - Tortoise-ORM
 """
+
 from tortoise import fields
 from tortoise.models import Model
-from datetime import datetime
 
 from app.services.id_generator import format_display_id
 

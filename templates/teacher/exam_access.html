@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}试卷授权管理 - {{ get_app_name() }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"><i class="bi bi-key text-warning"></i> 试卷授权管理</h2>
+        <p class="text-muted">在这里您可以给学生授权可访问的试卷类型（按科目和等级）</p>
+    </div>
+</div>
+
+<!-- 授权表单 -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <i class="bi bi-plus-circle me-2"></i>授予试卷访问权限
+    </div>
+    <div class="card-body">
+        <form id="grantForm">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">选择学生（可多选）</label>
+                    <select class="form-select" id="studentSelect" multiple size="5">
+                        {% for student in students %}
+                        <option value="{{ student.id }}">{{ student.username }} ({{ student.email }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">按住 Ctrl 可多选</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">选择科目</label>
+                    <select class="form-select" id="subjectSelect" required>
+                        <option value="">请选择科目</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">选择等级（可选）</label>
+                    <select class="form-select" id="levelSelect">
+                        <option value="">所有等级</option>
+                    </select>
+                    <small class="text-muted">留空表示授权该科目所有等级</small>
+                </div>
+            </div>
+            <div class="mt-3 text-end">
+                <button type="button" class="btn btn-primary" onclick="grantAccess()">
+                    <i class="bi bi-check-circle me-2"></i>授予权限
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 已有授权（筛选） -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-list-check me-2"></i>已授予的权限
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label class="form-label">按学生筛选</label>
+                <select name="student_id" class="form-select">
+                    <option value="">全部学生</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}" {{ 'selected' if filters.student_id == student.id else '' }}>
+                        {{ student.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">按科目筛选</label>
+                <select name="subject_id" class="form-select">
+                    <option value="">全部科目</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}" {{ 'selected' if filters.subject_id == subject.id else '' }}>
+                        {{ subject.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-secondary me-2">
+                    <i class="bi bi-search me-2"></i>筛选
+                </button>
+                <a href="/teacher/exam-access" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-2"></i>重置
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 授权列表 -->
+<div class="card">
+    <div class="card-body p-0">
+        {% if access_by_student %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>学生</th>
+                        <th>授权科目</th>
+                        <th>授权等级</th>
+                        <th>授予时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student_id, access_list in access_by_student.items() %}
+                        {% for access in access_list %}
+                        <tr>
+                            <td>{{ access.student.username }}</td>
+                            <td>
+                                <span class="badge bg-primary">{{ access.subject.name }}</span>
+                            </td>
+                            <td>
+                                {% if access.level %}
+                                <span class="badge bg-info">{{ access.level.name }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">所有等级</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ access.granted_at.strftime('%Y-%m-%d %H:%M') if access.granted_at else '-' }}</small>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" onclick="revokeAccess({{ access.id }})">
+                                    <i class="bi bi-trash"></i>撤销
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if pagination.total_pages > 1 %}
+        <div class="d-flex justify-content-between align-items-center p-3">
+            <div class="text-muted small">
+                共 {{ pagination.total }} 条记录，第 {{ pagination.page }} / {{ pagination.total_pages }} 页
+            </div>
+            <nav>
+                <ul class="pagination mb-0">
+                    {% if pagination.page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ pagination.page - 1 }}{% if filters.student_id %}&student_id={{ filters.student_id }}{% endif %}{% if filters.subject_id %}&subject_id={{ filters.subject_id }}{% endif %}">上一页</a>
+                    </li>
+                    {% endif %}
+
+                    {% for p in range(1, pagination.total_pages + 1) %}
+                        {% if p >= pagination.page - 2 and p <= pagination.page + 2 %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ p }}{% if filters.student_id %}&student_id={{ filters.student_id }}{% endif %}{% if filters.subject_id %}&subject_id={{ filters.subject_id }}{% endif %}">{{ p }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.page < pagination.total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ pagination.page + 1 }}{% if filters.student_id %}&student_id={{ filters.student_id }}{% endif %}{% if filters.subject_id %}&subject_id={{ filters.subject_id }}{% endif %}">下一页</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+            <p class="mt-2">暂无授权记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 科目变化时加载等级
+document.getElementById('subjectSelect').addEventListener('change', async function() {
+    const subjectId = this.value;
+    const levelSelect = document.getElementById('levelSelect');
+
+    if (!subjectId) {
+        levelSelect.innerHTML = '<option value="">所有等级</option>';
+        return;
+    }
+
+    // 调用API获取等级
+    try {
+        const response = await fetch(`/api/subjects/${subjectId}`);
+        const result = await response.json();
+        // API直接返回科目详情，包含levels数组
+        if (result && result.levels) {
+            levelSelect.innerHTML = '<option value="">所有等级</option>';
+            result.levels.forEach(level => {
+                levelSelect.innerHTML += `<option value="${level.id}">${level.name}</option>`;
+            });
+        } else if (result.success && result.data && result.data.levels) {
+            levelSelect.innerHTML = '<option value="">所有等级</option>';
+            result.data.levels.forEach(level => {
+                levelSelect.innerHTML += `<option value="${level.id}">${level.name}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('获取等级失败:', error);
+    }
+});
+
+async function grantAccess() {
+    const studentSelect = document.getElementById('studentSelect');
+    const selectedStudents = Array.from(studentSelect.selectedOptions).map(opt => opt.value);
+    const subjectId = document.getElementById('subjectSelect').value;
+    const levelId = document.getElementById('levelSelect').value;
+
+    if (selectedStudents.length === 0) {
+        alert('请至少选择一个学生');
+        return;
+    }
+    if (!subjectId) {
+        alert('请选择科目');
+        return;
+    }
+
+    // 构建表单数据
+    const formData = new FormData();
+    selectedStudents.forEach(sid => formData.append('student_ids', sid));
+    formData.append('subject_id', subjectId);
+    if (levelId) formData.append('level_id', levelId);
+
+    try {
+        const response = await fetch('/teacher/api/exam-access/grant', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            alert(`成功授予 ${result.granted} 名学生的权限`);
+            location.reload();
+        } else {
+            alert('授权失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('授权失败: ' + error);
+    }
+}
+
+async function revokeAccess(accessId) {
+    if (!confirm('确定要撤销此授权吗？')) return;
+
+    try {
+        const response = await fetch(`/teacher/api/exam-access/revoke/${accessId}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('撤销失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('撤销失败: ' + error);
+    }
+}
+</script>
+{% endblock %}

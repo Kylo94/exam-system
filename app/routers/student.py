@@ -1,21 +1,22 @@
 """
 学生路由
 """
-from fastapi import APIRouter, Depends, Request, HTTPException, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from datetime import datetime
 import random
+from datetime import datetime
 
-from app.auth import get_current_user, require_student
-from app.models.user import User
-from app.models.exam import Exam
-from app.models.question import Question
-from app.models.submission import Submission
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+
+from app.auth import require_student
 from app.models.answer import Answer
-from app.models.subject import Subject
-from app.models.level import Level
+from app.models.exam import Exam
 from app.models.knowledge_point import KnowledgePoint
+from app.models.level import Level
+from app.models.question import Question
+from app.models.subject import Subject
+from app.models.submission import Submission
 from app.models.teacher_bind_request import TeacherBindRequest
+from app.models.user import User
 from app.services.exam_access_service import ExamAccessService
 from app.services.wrong_question_service import WrongQuestionService
 from app.templating import templates
@@ -305,7 +306,6 @@ async def submit_exam(
 ):
     """提交答案"""
     # 停止自动保存
-    from app import tasks
     # 获取进行中的答题记录
 
     body = await request.json()
@@ -347,7 +347,7 @@ async def submit_exam(
             score = question.points if is_correct else 0
             total_score += score
 
-            answer_record = await Answer.create(
+            _answer_record = await Answer.create(
                 submission=submission,
                 question=question,
                 user_answer=user_answer_str,
@@ -386,10 +386,10 @@ async def exam_result(exam_id: int, submission_id: int, request: Request, curren
     submission = await Submission.get_or_none(id=submission_id).prefetch_related(
         "exam", "answers__question"
     )
-    
+
     if not submission or submission.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="答题记录不存在")
-    
+
     return templates.TemplateResponse("student/exam_result.html", {
         "request": request,
         "current_user": current_user,

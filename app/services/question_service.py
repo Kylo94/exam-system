@@ -1,10 +1,10 @@
 """题目服务"""
 import json
-from typing import List, Dict, Any, Optional
-from app.models.question import Question
+from typing import Any, Dict, List
+
 from app.models.exam import Exam
-from app.models.knowledge_point import KnowledgePoint
-from app.services.exceptions import NotFoundException, ValidationException
+from app.models.question import Question
+from app.services.exceptions import NotFoundException
 
 
 class QuestionService:

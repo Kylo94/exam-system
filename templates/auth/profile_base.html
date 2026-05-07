@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}个人资料 - {{ settings.APP_NAME }}{% endblock %}
+{% block title %}个人资料 - {{ get_app_name() }}{% endblock %}
 
 {# 定义公共内容块 - 用户信息卡片 #}
 {% macro user_info_card() %}

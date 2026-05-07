@@ -1,5 +1,6 @@
 """试卷服务"""
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from app.models.exam import Exam
 from app.models.question import Question
 from app.models.user import User
@@ -84,7 +85,7 @@ class ExamService:
     @staticmethod
     async def batch_delete(exam_ids: List[int]) -> int:
         """批量删除试卷"""
-        deleted = await Exam.filter(id__in=exam_ids).delete()
+        await Exam.filter(id__in=exam_ids).delete()
         return len(exam_ids)
 
     @staticmethod

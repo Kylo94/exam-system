@@ -1,20 +1,18 @@
 """
 教师路由
 """
-from fastapi import APIRouter, Depends, Request, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from tortoise.queryset import Q
 
-from app.auth import get_current_user, require_teacher
-from app.models.user import User
+from app.auth import require_teacher
+from app.models.answer import Answer
 from app.models.exam import Exam
 from app.models.question import Question
-from app.models.subject import Subject
-from app.models.level import Level
-from app.models.submission import Submission
-from app.models.answer import Answer
-from app.models.teacher_bind_request import TeacherBindRequest
 from app.models.student_exam_access import StudentExamAccess
+from app.models.subject import Subject
+from app.models.submission import Submission
+from app.models.teacher_bind_request import TeacherBindRequest
+from app.models.user import User
 from app.services.exam_access_service import ExamAccessService
 from app.services.teacher_bind_service import TeacherBindService
 from app.templating import templates

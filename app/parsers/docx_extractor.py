@@ -2,8 +2,8 @@
 
 import re
 import uuid
-from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 
 class DocxExtractor:

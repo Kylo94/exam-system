@@ -2,17 +2,14 @@
 全局异常处理中间件
 """
 import logging
+
 from fastapi import Request, status
-from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.exceptions import HTTPException
-from tortoise.exceptions import DoesNotExist, IntegrityError, FieldError
+from fastapi.responses import JSONResponse
+from tortoise.exceptions import DoesNotExist, FieldError, IntegrityError
 
 from app.services.exceptions import (
     AppException,
-    NotFoundException,
-    PermissionDeniedException,
-    ValidationException,
-    DuplicateException,
 )
 from app.templating import templates
 
@@ -87,7 +84,6 @@ async def does_not_exist_handler(request: Request, exc: DoesNotExist):
 async def general_exception_handler(request: Request, exc: Exception):
     """通用异常处理"""
     error_logger = logging.getLogger("error")
-    import traceback
     error_logger.exception(f"未处理的异常 | 请求: {request.url.path} | 错误: {str(exc)}")
 
     if request.url.path.startswith("/api/"):
@@ -104,7 +100,6 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 def register_exception_handlers(app):
     """注册所有异常处理器"""
-    from fastapi import FastAPI
     from fastapi.exceptions import HTTPException
 
     app.add_exception_handler(HTTPException, http_exception_handler)

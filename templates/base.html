@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ settings.APP_NAME | default('在线答题系统') }}{% endblock %}</title>
+    <title>{% block title %}{{ get_app_name() | default('在线答题系统') }}{% endblock %}</title>
     <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml">
 
     <!-- Google Fonts -->
@@ -46,7 +46,7 @@
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="/">
                 <i class="bi bi-mortarboard-fill me-2 fs-4"></i>
-                <span class="fw-bold">{{ settings.APP_NAME }}</span>
+                <span class="fw-bold">{{ get_app_name() }}</span>
             </a>
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
                 <span class="navbar-toggler-icon"></span>
@@ -77,9 +77,6 @@
                                 <li><a class="dropdown-item" href="/admin/subjects">
                                     <i class="bi bi-journal me-2"></i>科目管理
                                 </a></li>
-                                <li><a class="dropdown-item" href="/admin/levels">
-                                    <i class="bi bi-bar-chart me-2"></i>难度等级
-                                </a></li>
                                 <li><a class="dropdown-item" href="/admin/knowledge-points">
                                     <i class="bi bi-bookmark me-2"></i>知识点
                                 </a></li>
@@ -94,8 +91,8 @@
                                 <li><a class="dropdown-item" href="/admin/submissions">
                                     <i class="bi bi-clipboard-data me-2"></i>提交记录
                                 </a></li>
-                                <li><a class="dropdown-item" href="/admin/ai-configs">
-                                    <i class="bi bi-cpu me-2"></i>AI配置
+                                <li><a class="dropdown-item" href="/admin/settings">
+                                    <i class="bi bi-gear me-2"></i>系统设置
                                 </a></li>
                                 <li><a class="dropdown-item" href="/admin/statistics">
                                     <i class="bi bi-graph-up me-2"></i>数据统计
@@ -126,15 +123,33 @@
                         </li>
 
                         {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link px-3" href="/student/exams">
-                                <i class="bi bi-journal-text me-1"></i> 真题测试
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle px-3" href="#" data-bs-toggle="dropdown">
+                                <i class="bi bi-mortarboard me-1"></i> 学习中心
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link px-3" href="/student/practice">
-                                <i class="bi bi-pencil-square me-1"></i> 专项刷题
-                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/student">
+                                    <i class="bi bi-house me-2"></i>学习首页
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/student/exams">
+                                    <i class="bi bi-journal-text me-2"></i>真题测试
+                                </a></li>
+                                <li><a class="dropdown-item" href="/student/kp-practice">
+                                    <i class="bi bi-lightbulb me-2"></i>知识点练习
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/student/wrong-questions">
+                                    <i class="bi bi-exclamation-circle me-2"></i>错题本
+                                </a></li>
+                                <li><a class="dropdown-item" href="/student/history">
+                                    <i class="bi bi-clock-history me-2"></i>答题历史
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/student/bind-teacher">
+                                    <i class="bi bi-person-plus me-2"></i>绑定教师
+                                </a></li>
+                            </ul>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link px-3" href="/student/history">
@@ -226,7 +241,7 @@
             <div class="row align-items-center">
                 <div class="col-md-6 text-center text-md-start">
                     <p class="text-secondary mb-0">
-                        &copy; 2024 {{ settings.APP_NAME }} - Powered by FastAPI & AI
+                        &copy; {{ current_year() }} {{ get_app_name() }} - Powered by FastAPI & AI
                     </p>
                 </div>
                 <div class="col-md-6 text-center text-md-end">
@@ -242,6 +257,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- ECharts -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>

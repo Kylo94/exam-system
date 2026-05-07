@@ -1,9 +1,9 @@
 """知识点服务 - 批量知识点匹配"""
 
 import json
-import re
 import logging
-from typing import List, Dict, Any
+import re
+from typing import Any, Dict, List
 
 # 获取知识点评测专用日志记录器
 kp_logger = logging.getLogger("knowledge_point")
@@ -42,12 +42,13 @@ class KnowledgePointService:
 
         # 构建批量prompt
         questions_data = []
-        for q in questions:
+        for idx, q in enumerate(questions):
             content = q.get('content', '')[:300] if q.get('content') else ""
             if not content.strip():
                 continue
             questions_data.append({
-                "id": q.get('id'),
+                "id": q.get('id'),  # 实际ID
+                "order": idx + 1,   # 序号（从1开始）
                 "content": content
             })
 
@@ -63,8 +64,8 @@ class KnowledgePointService:
 
         # 构建题目列表
         questions_str = "\n".join([
-            f"题目{idx+1} [ID:{q['id']}]：{q['content']}"
-            for idx, q in enumerate(questions_data)
+            f"题目{q['order']}：{q['content']}"
+            for q in questions_data
         ])
 
         prompt = f"""你需要为以下 {len(questions_data)} 道题目匹配知识点。
@@ -95,17 +96,21 @@ class KnowledgePointService:
                 kp_logger.warning("无法从AI响应中提取有效的JSON结果")
                 return {"results": results, "summary": summary}
 
+            # 使用 order 字段作为 key（AI返回的是序号）
             ai_result_map = {r.get('question_id'): r for r in ai_results}
-            kp_logger.info(f"AI返回的知识点匹配结果数量: {len(ai_result_map)}")
+            # 预留：建立 id -> result 的映射用于调试
+            # _id_result_map = {q['id']: ai_result_map.get(q['order']) for q in questions_data}
+            kp_logger.info(f"AI返回的知识点匹配结果数量: {len(ai_result_map)}, 问题数量: {len(questions_data)}")
 
             # 需要创建的新知识点
             new_kp_names = set()
 
             # 第一遍：收集需要创建的新知识点，并更新kp_map
             for q_data in questions_data:
-                ai_result = ai_result_map.get(q_data['id'], {})
+                # 使用 order 来匹配 AI 返回的结果
+                ai_result = ai_result_map.get(q_data['order'], {})
                 if not ai_result:
-                    kp_logger.debug(f"题目ID {q_data['id']} 没有AI匹配结果")
+                    kp_logger.debug(f"题目序号 {q_data['order']} (ID:{q_data['id']}) 没有AI匹配结果")
                     continue
 
                 kp_names_str = ai_result.get("knowledge_points", "")
@@ -120,11 +125,11 @@ class KnowledgePointService:
                         clean_name = kp_name[3:].strip()
                         if clean_name:
                             new_kp_names.add(clean_name)
-                            kp_logger.debug(f"题目ID {q_data['id']} 需要创建新知识点: {clean_name}")
+                            kp_logger.debug(f"题目序号 {q_data['order']} (ID:{q_data['id']}) 需要创建新知识点: {clean_name}")
                     elif kp_name:
                         if kp_name not in kp_map:
                             new_kp_names.add(kp_name)
-                            kp_logger.debug(f"题目ID {q_data['id']} 需要创建知识点: {kp_name} (不在现有列表中)")
+                            kp_logger.debug(f"题目序号 {q_data['order']} (ID:{q_data['id']}) 需要创建知识点: {kp_name} (不在现有列表中)")
 
             kp_logger.info(f"需要创建的新知识点数量: {len(new_kp_names)}")
 
@@ -142,7 +147,8 @@ class KnowledgePointService:
             # 第二遍：分配知识点到题目
             for q_data in questions_data:
                 q_id = q_data['id']
-                ai_result = ai_result_map.get(q_id, {})
+                q_order = q_data['order']
+                ai_result = ai_result_map.get(q_order, {})
                 kp_ids = []
                 kp_names = []
 
@@ -202,11 +208,21 @@ class KnowledgePointService:
             except json.JSONDecodeError:
                 pass
 
-        # 尝试提取数组模式
-        json_match = re.search(r'(\[\s*\{[\s\S]*?\}\s*\]\s*)', response)
+        # 尝试提取JSON数组（贪婪匹配，支持跨行）
+        json_match = re.search(r'(\[\s*\{[\s\S]+\}\s*\])', response)
         if json_match:
             try:
                 return json.loads(json_match.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+
+        # 尝试另一种模式：提取所有 {...} 内容并组装成数组
+        objects = re.findall(r'\{[^{}]*"question_id"[^{}]*\}', response)
+        if objects:
+            try:
+                # 尝试修复常见格式问题
+                fixed = '[' + ','.join(objects) + ']'
+                return json.loads(fixed)
             except json.JSONDecodeError:
                 pass
 

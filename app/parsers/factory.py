@@ -3,8 +3,8 @@
 根据文件格式自动选择相应的解析器。
 """
 
-from typing import Dict, Optional, Type, Any
 from pathlib import Path
+from typing import Any, Dict, Optional, Type
 
 from .base import BaseParser
 from .question_parser import QuestionParser
@@ -77,7 +77,7 @@ class ParserFactory:
             parser_class: 解析器类
         """
         if not issubclass(parser_class, BaseParser):
-            raise TypeError(f"解析器类必须继承自 BaseParser")
+            raise TypeError("解析器类必须继承自 BaseParser")
 
         cls._parsers[extension.lower()] = parser_class
 

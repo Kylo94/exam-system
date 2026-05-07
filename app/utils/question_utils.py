@@ -3,9 +3,9 @@
 提供题目类型检测、答案标准化、选项格式化等工具函数。
 """
 
-import re
 import json
-from typing import Dict, List, Any, Optional, Union
+import re
+from typing import Any, Dict, List, Union
 
 
 def detect_question_type(text: str) -> str:
@@ -37,9 +37,9 @@ def detect_question_type(text: str) -> str:
     """
     if not text or not text.strip():
         raise ValueError("题目文本不能为空")
-    
+
     text_lower = text.lower().strip()
-    
+
     # 题型关键词映射
     type_patterns = [
         # 单选题
@@ -55,11 +55,11 @@ def detect_question_type(text: str) -> str:
         # 简答题/主观题
         (r'(简答题|问答题|主观题|论述题|short.*answer|subjective)', 'short_answer'),
     ]
-    
+
     for pattern, q_type in type_patterns:
         if re.search(pattern, text_lower, re.IGNORECASE):
             return q_type
-    
+
     # 根据文本特征推断
     if re.search(r'[A-D]\.\s+|（[A-D]）|\[[A-D]\]', text):
         # 有A. B. C. D. 格式的选项，默认为单选题
@@ -76,7 +76,7 @@ def detect_question_type(text: str) -> str:
     elif re.search(r'(def |function |class |import |print\()', text_lower):
         # 编程题特征
         return 'programming'
-    
+
     # 默认返回单选题（最常见）
     return 'single_choice'
 
@@ -108,9 +108,9 @@ def normalize_answer(answer: str, question_type: str) -> str:
     """
     if not answer:
         return ""
-    
+
     answer = str(answer).strip()
-    
+
     # 根据题型处理
     if question_type == 'true_false':
         # 统一判断题答案
@@ -118,20 +118,20 @@ def normalize_answer(answer: str, question_type: str) -> str:
             '正确': '正确', '对': '正确', 'true': '正确', 'yes': '正确', '是': '正确',
             '错误': '错误', '错': '错误', 'false': '错误', 'no': '错误', '否': '错误'
         }
-        
+
         for key, value in truth_map.items():
             if answer.lower() == key.lower():
                 return value
-        
+
         # 如果无法识别，尝试从常见格式转换
         if answer in ['1', 't', 'T']:
             return '正确'
         elif answer in ['0', 'f', 'F']:
             return '错误'
-        
+
         # 默认返回原始答案
         return answer
-    
+
     elif question_type in ['single_choice', 'multiple_choice']:
         # 处理选择题答案
         if question_type == 'single_choice':
@@ -159,13 +159,13 @@ def normalize_answer(answer: str, question_type: str) -> str:
                         letters.append(chr(ord('A') + idx - 1))
                 if letters:
                     return ','.join(sorted(set(letters)))
-        
+
         return answer.upper()
-    
+
     elif question_type == 'fill_blank':
         # 填空题：去除多余空格，但保留中间空格
         return ' '.join(answer.split())
-    
+
     else:
         # 主观题、编程题等：只做基本清理
         return answer.strip()
@@ -199,16 +199,16 @@ def format_options(options_data: Union[List, Dict, str]) -> List[Dict[str, Any]]
     """
     if not options_data:
         return []
-    
+
     # 如果已经是标准格式，直接返回
     if isinstance(options_data, list) and len(options_data) > 0:
         # 检查是否已经是标准格式
         first_item = options_data[0]
         if isinstance(first_item, dict) and 'id' in first_item and 'text' in first_item:
             return options_data
-    
+
     result = []
-    
+
     try:
         # 1. 处理JSON字符串
         if isinstance(options_data, str):
@@ -218,7 +218,7 @@ def format_options(options_data: Union[List, Dict, str]) -> List[Dict[str, Any]]
             except json.JSONDecodeError:
                 # 不是JSON，可能是文本格式
                 pass
-        
+
         # 2. 处理字典格式
         if isinstance(options_data, dict):
             for key, value in options_data.items():
@@ -226,7 +226,7 @@ def format_options(options_data: Union[List, Dict, str]) -> List[Dict[str, Any]]
                     option_id = key.strip().upper()
                     option_text = str(value).strip() if value else ""
                     result.append({'id': option_id, 'text': option_text})
-        
+
         # 3. 处理列表格式
         elif isinstance(options_data, list):
             letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -236,7 +236,7 @@ def format_options(options_data: Union[List, Dict, str]) -> List[Dict[str, Any]]
                 option_id = letters[i]
                 option_text = str(item).strip() if item else ""
                 result.append({'id': option_id, 'text': option_text})
-        
+
         # 4. 处理文本格式
         elif isinstance(options_data, str):
             # 解析 "A.内容 B.内容" 或 "A、内容 B、内容" 格式
@@ -245,19 +245,19 @@ def format_options(options_data: Union[List, Dict, str]) -> List[Dict[str, Any]]
                 line = line.strip()
                 if not line:
                     continue
-                
+
                 # 匹配 A.内容 或 A、内容 格式
                 match = re.match(r'^([A-Z])[\.、]\s*(.+)$', line)
                 if match:
                     option_id = match.group(1)
                     option_text = match.group(2).strip()
                     result.append({'id': option_id, 'text': option_text})
-        
+
         # 按字母顺序排序
         result.sort(key=lambda x: x['id'])
-        
+
         return result
-    
+
     except Exception as e:
         raise ValueError(f"选项数据格式无效: {e}")
 
@@ -278,22 +278,22 @@ def validate_question_data(question_data: Dict[str, Any]) -> bool:
         True
     """
     required_fields = ['type', 'text', 'correct_answer']
-    
+
     for field in required_fields:
         if field not in question_data or not question_data[field]:
             return False
-    
+
     # 验证题型
-    valid_types = ['single_choice', 'multiple_choice', 'true_false', 
+    valid_types = ['single_choice', 'multiple_choice', 'true_false',
                    'fill_blank', 'short_answer', 'programming']
     if question_data['type'] not in valid_types:
         return False
-    
+
     # 验证选择题选项
     if question_data['type'] in ['single_choice', 'multiple_choice']:
         if 'options' not in question_data or not question_data['options']:
             return False
-    
+
     return True
 
 
@@ -308,18 +308,18 @@ if __name__ == "__main__":
         "简答题：简述Python的特点。",
         "编程题：编写一个Python函数计算斐波那契数列。",
     ]
-    
+
     for test in test_cases:
         q_type = detect_question_type(test)
         print(f"文本: {test[:30]}... -> 题型: {q_type}")
-    
+
     # 测试normalize_answer
     print("\n答案标准化测试:")
     print(normalize_answer("A", "single_choice"))  # A
     print(normalize_answer("正确", "true_false"))   # 正确
     print(normalize_answer("a,b,c", "multiple_choice"))  # A,B,C
     print(normalize_answer("1", "single_choice"))  # A
-    
+
     # 测试format_options
     print("\n选项格式化测试:")
     print(format_options(['选项A', '选项B']))

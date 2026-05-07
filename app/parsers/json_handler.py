@@ -1,8 +1,8 @@
 """JSON 处理和标准化模块"""
 
-import re
 import json
-from typing import Dict, List, Any, Optional
+import re
+from typing import Any, Dict, List
 
 try:
     import json5

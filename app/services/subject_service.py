@@ -1,11 +1,12 @@
 """科目服务"""
-from typing import List, Dict, Any, Optional
 from collections import defaultdict
-from app.models.subject import Subject
-from app.models.level import Level
+from typing import Any, Dict, List
+
 from app.models.knowledge_point import KnowledgePoint
+from app.models.level import Level
 from app.models.question import Question
-from app.services.exceptions import NotFoundException, ValidationException
+from app.models.subject import Subject
+from app.services.exceptions import NotFoundException
 
 
 class SubjectService:
@@ -149,9 +150,36 @@ class SubjectService:
                 "id": kp.id,
                 "name": kp.name,
                 "description": kp.description,
+                "keywords": kp.keywords,
                 "display_id": kp.display_id,
                 "subject_id": kp.subject_id,
                 "level_id": kp.level_id,
                 "question_count": q_counts.get(kp.id, 0)
             })
         return result
+
+    @staticmethod
+    async def create_knowledge_point(subject_id: int, level_id: int, name: str, description: str = None, keywords: str = None) -> KnowledgePoint:
+        """创建知识点"""
+        kp = await KnowledgePoint.create(
+            name=name,
+            subject_id=subject_id,
+            level_id=level_id,
+            description=description,
+            keywords=keywords
+        )
+        return kp
+
+    @staticmethod
+    async def get_or_create_knowledge_point(subject_id: int, level_id: int, name: str, description: str = None, keywords: str = None) -> KnowledgePoint:
+        """获取或创建知识点（如果不存在则创建）"""
+        kp = await KnowledgePoint.get_or_none(name=name, subject_id=subject_id)
+        if not kp:
+            kp = await KnowledgePoint.create(
+                name=name,
+                subject_id=subject_id,
+                level_id=level_id,
+                description=description,
+                keywords=keywords
+            )
+        return kp

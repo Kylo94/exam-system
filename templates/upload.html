@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     {% include "partials/head.html" %}
-    <title>{{ settings.APP_NAME }} - 新建试卷</title>
+    <title>{{ get_app_name() }} - 新建试卷</title>
     <style>
         .upload-method-card {
             cursor: pointer;
@@ -411,6 +411,9 @@
             document.getElementById('btnParse').disabled = true;
             document.getElementById('btnParse').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>解析中...';
 
+            // 禁用所有AI测试按钮
+            if (window.disableAllTestButtons) window.disableAllTestButtons();
+
             // 创建 AbortController 用于取消请求
             const controller = new AbortController();
             const signal = controller.signal;
@@ -588,6 +591,9 @@
                     progressInterval = null;
                 }
                 parseCompleted = true;
+
+                // 重新启用所有AI测试按钮
+                if (window.enableAllTestButtons) window.enableAllTestButtons();
 
                 // 添加提示消息
                 if (message) {
