@@ -1,6 +1,7 @@
 """AI 文档解析器"""
 
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from .json_handler import JsonHandler
 
 
@@ -175,11 +176,15 @@ class AIParser:
 
             result = {**local_q}
 
+            local_type = local_q.get('type', '')
             if ai_q and isinstance(ai_q, dict):
                 # 只接受有效题型，不信任AI返回的type
                 valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer', 'coding']
                 ai_type = ai_q.get('type', '')
-                if ai_type in valid_types:
+                # 优先保留本地的true_false类型（判断题），AI容易误判
+                if local_type == 'true_false':
+                    result['type'] = 'true_false'
+                elif ai_type in valid_types:
                     result['type'] = ai_type
                 elif ai_q.get('type'):
                     # 如果AI返回无效type，保留本地解析结果

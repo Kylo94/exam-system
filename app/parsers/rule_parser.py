@@ -1,7 +1,7 @@
 """基于规则的题目解析器"""
 
 import re
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 class RuleParser:
@@ -11,7 +11,7 @@ class RuleParser:
     SECTION_PATTERNS = {
         'single_choice': [r'一、单选题', r'单选题'],
         'multiple_choice': [r'二、多选题', r'多选题'],
-        'judgment': [r'判断题'],
+        'true_false': [r'三、判断题', r'判断题'],  # 修复：直接使用true_false
         'fill_blank': [r'填空题'],
         'subjective': [r'简答题', r'编程题', r'编程题\(python\)', r'编程题\(c\+\+\)']
     }
@@ -59,10 +59,10 @@ class RuleParser:
         current_options = []
         content_buffer = []  # 累积题目内容（处理多行）
         in_code_block = False
-        code_indent = None
+        _code_indent = None  # 预留：代码块缩进检测
 
         for line in lines:
-            original_line = line
+            _original_line = line  # 预留：保留原始行
             line_stripped = line.strip()
 
             # 跳过空行（但不是代码块内的空行）
