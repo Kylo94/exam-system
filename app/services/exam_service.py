@@ -98,8 +98,14 @@ class ExamService:
     async def create_questions_from_data(
         exam: Exam,
         questions_data: List[Dict[str, Any]],
+        knowledge_point_map: Dict[int, List[int]] = None,
     ) -> tuple[int, int]:
         """从数据创建题目
+
+        Args:
+            exam: 试卷实例
+            questions_data: 题目数据列表
+            knowledge_point_map: 知识点映射 {question_index: [kp_id, ...]}
 
         Returns:
             (成功数, 失败数)
@@ -113,17 +119,32 @@ class ExamService:
                 if not isinstance(images, list):
                     images = [images] if images else []
 
+                # 处理选项格式
+                options = q_data.get('options', {})
+                if isinstance(options, list):
+                    options = {opt.get('id', chr(65+i)): opt.get('text', '') for i, opt in enumerate(options)}
+
+                # 获取知识点
+                kp_ids = []
+                if knowledge_point_map and idx + 1 in knowledge_point_map:
+                    kp_ids = knowledge_point_map[idx + 1]
+                else:
+                    kp_ids = q_data.get('knowledge_point_ids', [])
+
                 await Question.create(
                     exam=exam,
                     type=q_data.get('type', 'choice') or 'choice',
                     content=q_data.get('content') or '题目内容',
-                    options=q_data.get('options') or {},
+                    options=options,
                     correct_answer=q_data.get('correct_answer') or '',
                     points=q_data.get('points') or 10,
                     difficulty=q_data.get('difficulty') or 1,
+                    explanation=q_data.get('explanation'),
                     images=images,
                     question_metadata=q_data.get('question_metadata', {}),
-                    order_num=idx + 1,
+                    order_num=q_data.get('index', idx + 1) or (idx + 1),
+                    knowledge_point_ids=kp_ids,
+                    knowledge_point_id=kp_ids[0] if kp_ids else None,
                 )
                 created += 1
             except Exception:

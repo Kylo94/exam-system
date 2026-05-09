@@ -265,6 +265,7 @@ class JsonHandler:
                 'options': options,
                 'explanation': q.get('explanation', ''),
                 'knowledge_point': q.get('knowledge_point', ''),
+                'knowledge_point_names': q.get('knowledge_point_names') or [],
                 'order_index': idx + 1,
                 'content_has_image': q.get('content_has_image', False),
                 'image_path': q.get('image_path'),

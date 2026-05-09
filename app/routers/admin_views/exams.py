@@ -165,10 +165,13 @@ async def create_exam_admin(
 @router.post("/api/exams/batch-delete")
 async def admin_batch_delete_exams(
     request: Request,
-    exam_ids: list[int],
+    body: dict,
     current_user: User = Depends(require_admin)
 ):
     """批量删除试卷"""
+    exam_ids = body.get('exam_ids', [])
+    if not exam_ids:
+        raise HTTPException(status_code=400, detail="exam_ids 不能为空")
     client_ip = request.client.host if request.client else None
     deleted = await ExamService.batch_delete(exam_ids)
     # 审计日志
@@ -187,11 +190,14 @@ async def admin_batch_delete_exams(
 @router.post("/api/exams/batch-publish")
 async def admin_batch_publish_exams(
     request: Request,
-    exam_ids: list[int],
-    is_published: bool = True,
+    body: dict,
     current_user: User = Depends(require_admin)
 ):
     """批量发布/取消发布试卷"""
+    exam_ids = body.get('exam_ids', [])
+    is_published = body.get('is_published', True)
+    if not exam_ids:
+        raise HTTPException(status_code=400, detail="exam_ids 不能为空")
     client_ip = request.client.host if request.client else None
     updated = await ExamService.batch_publish(exam_ids, is_published)
     action = "发布" if is_published else "取消发布"

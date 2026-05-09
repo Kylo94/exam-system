@@ -1,6 +1,9 @@
 """管理员 - 科目和等级管理"""
+import json
+import logging
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from tortoise.queryset import Q
 
 from app.auth import require_admin
@@ -8,7 +11,11 @@ from app.models.level import Level
 from app.models.subject import Subject
 from app.models.user import User
 from app.services.subject_service import SubjectService
+from app.services.knowledge_point_service import KnowledgePointService
 from app.templating import templates
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -205,3 +212,60 @@ async def admin_knowledge_points(
             "total_pages": total_pages
         },
     })
+
+
+# ===== AI知识点合并 =====
+@router.post("/api/knowledge-points/ai-merge")
+async def ai_merge_knowledge_points(
+    request: Request,
+    subject_id: int,
+    level_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """AI合并相似知识点（SSE实时进度）"""
+
+    async def event_stream():
+        def progress_msg(progress, message, level="info", details=None):
+            data = {"progress": progress, "message": message, "level": level}
+            if details:
+                data["details"] = details
+            return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        try:
+            # 获取AI配置
+            from app.models.ai_config import AIConfig
+            ai_config = await AIConfig.filter(is_active=True, is_default=True).first()
+            if not ai_config:
+                yield progress_msg(100, "未找到可用的AI配置", "error")
+                return
+
+            from app.ai.llm_service import LLMService
+            llm_service = LLMService(provider=ai_config.provider)
+            llm_service.config = {
+                'api_key': ai_config.api_key,
+                'base_url': ai_config.base_url,
+                'model': ai_config.model
+            }
+
+            yield progress_msg(10, "正在分析知识点相似度...")
+
+            result = await KnowledgePointService.merge_similar_knowledge_points(
+                subject_id=subject_id,
+                level_id=level_id,
+                llm_service=llm_service
+            )
+
+            merged = result.get('merged', 0)
+            absorbed = result.get('absorbed', [])
+            msg = result.get('message', '')
+
+            yield progress_msg(100, msg, "success", {
+                "merged": merged,
+                "absorbed": absorbed
+            })
+
+        except Exception as e:
+            logger.exception(f"AI合并知识点失败: {e}")
+            yield progress_msg(100, f"合并失败: {str(e)}", "error")
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")

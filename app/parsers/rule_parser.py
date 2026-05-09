@@ -1,7 +1,9 @@
 """基于规则的题目解析器"""
-
+import logging
 import re
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class RuleParser:

@@ -73,7 +73,7 @@ if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 注册路由
-from app.routers import auth, main, teacher, student, api
+from app.routers import auth, main, teacher, student, api, upload
 from app.routers.admin_views import index_router, users_router, subjects_router, exams_router, questions_router, misc_router
 
 app.include_router(main.router)
@@ -87,6 +87,7 @@ app.include_router(misc_router, prefix="/admin", tags=["admin-misc"])
 app.include_router(teacher.router, prefix="/teacher", tags=["教师"])
 app.include_router(student.router, prefix="/student", tags=["学生"])
 app.include_router(api.router, prefix="/api", tags=["API"])
+app.include_router(upload.router, prefix="/admin", tags=["admin-upload"])
 
 
 # 全局异常处理

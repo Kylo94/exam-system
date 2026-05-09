@@ -5,9 +5,6 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-file-earmark-text"></i> 我的试卷</h2>
-    <a href="/teacher/exams/create" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> 创建试卷
-    </a>
 </div>
 
 <div class="card">
@@ -42,11 +39,6 @@
                         {% else %}
                         <span class="badge bg-secondary">草稿</span>
                         {% endif %}
-                    </td>
-                    <td>
-                        <a href="/teacher/exams/{{ exam.id }}/edit" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> 编辑
-                        </a>
                     </td>
                 </tr>
                 {% endfor %}

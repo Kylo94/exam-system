@@ -229,6 +229,201 @@ class KnowledgePointService:
         return []
 
     @staticmethod
+    async def merge_similar_knowledge_points(
+        subject_id: int,
+        level_id: int,
+        llm_service,
+        similarity_threshold: float = 0.6
+    ) -> Dict[str, Any]:
+        """AI合并相似知识点
+
+        Args:
+            subject_id: 科目ID
+            level_id: 等级ID
+            llm_service: LLM服务实例
+            similarity_threshold: 相似度阈值（0-1）
+
+        Returns:
+            合并结果，包含 merged_count, absorbed_kps, new_kps 等信息
+        """
+        from app.models.knowledge_point import KnowledgePoint
+        from app.models.question import Question
+
+        kp_logger.info(f"开始AI合并知识点，科目ID:{subject_id}, 等级ID:{level_id}")
+
+        # 获取该等级下所有知识点及其题目
+        kps = await KnowledgePoint.filter(subject_id=subject_id, level_id=level_id).all()
+        if len(kps) < 2:
+            return {"merged": 0, "absorbed": [], "new_kps": [], "message": "知识点少于2个，无需合并"}
+
+        # 构建知识点数据（包含题目数量和摘要）
+        from app.models.question import Question
+        kp_data = []
+        for kp in kps:
+            questions_count = await Question.filter(knowledge_point_id=kp.id).count()
+            kp_data.append({
+                "id": kp.id,
+                "name": kp.name,
+                "description": kp.description or "",
+                "keywords": kp.keywords or "",
+                "questions_count": questions_count
+            })
+
+        # 构建发送给AI的数据
+        kp_list_str = "\n".join([
+            f"知识点{id}: {kp['name']}" +
+            (f" (关键词: {kp['keywords']})" if kp['keywords'] else "") +
+            (f" - 包含{kp['questions_count']}道题" if kp['questions_count'] > 0 else " - 无题目")
+            for kp in kp_data
+        ])
+
+        prompt = f"""你需要分析以下知识点列表，找出可以合并的相似知识点。
+
+知识点列表：
+{kp_list_str}
+
+请分析哪些知识点含义相近或重复，可以合并为一个知识点。合并规则：
+1. 名称高度相似（如"循环"和"循环结构"）的应合并
+2. 关键词重叠较多的应合并
+3. 被包含关系（如"Python基础"和"Python数据类型"）可考虑合并
+4. 保留名称更准确、题目数量更多的知识点作为主知识点
+
+请返回JSON数组格式，每项表示需要合并的知识点：
+[{{"source_names":["知识点A","知识点B"],"target_name":"知识点C","reason":"含义重复，合并到主知识点"}},...]
+
+如果没有发现可合并的知识点，返回空数组 []。
+
+重要：只返回JSON数组，不要任何解释文字，不要用markdown包裹。
+"""
+        try:
+            messages = [
+                {'role': 'system', 'content': '你是一个专业的知识点分类助手，擅长发现知识点的相似和重叠关系。'},
+                {'role': 'user', 'content': prompt}
+            ]
+
+            kp_logger.info(f"调用AI分析知识点合并，知识点数量: {len(kps)}")
+            response = llm_service.provider_instance.chat_completion(messages)
+            kp_logger.debug(f"AI合并建议响应: {response[:500]}")
+
+            # 解析AI响应
+            merge_suggestions = KnowledgePointService._parse_merge_response(response)
+            if not merge_suggestions:
+                kp_logger.info("AI未返回有效的合并建议")
+                return {"merged": 0, "absorbed": [], "new_kps": [], "message": "未发现可合并的相似知识点"}
+
+            kp_logger.info(f"AI建议合并数量: {len(merge_suggestions)}, 建议内容: {merge_suggestions}")
+
+            # 构建名称到KP的映射
+            kp_name_map = {kp.name: kp for kp in kps}
+            kp_logger.debug(f"知识点名称映射: {list(kp_name_map.keys())}")
+
+            # 执行合并
+            merged_count = 0
+            absorbed_kps = []
+            source_kp_ids = set()
+
+            for suggestion in merge_suggestions:
+                source_names = suggestion.get('source_names', [])
+                target_name = suggestion.get('target_name')
+                if not target_name or not source_names:
+                    kp_logger.debug(f"跳过建议: target_name={target_name}, source_names={source_names}")
+                    continue
+
+                target_kp = kp_name_map.get(target_name)
+                if not target_kp:
+                    kp_logger.debug(f"跳过建议: target_name='{target_name}' 未在kps中找到 (kps names: {list(kp_name_map.keys())})")
+                    continue
+                kp_logger.debug(f"找到target_kp: id={target_kp.id}, name={target_kp.name}")
+
+                for source_name in source_names:
+                    if source_name == target_name:
+                        continue
+                    source_kp = kp_name_map.get(source_name)
+                    if not source_kp:
+                        kp_logger.debug(f"跳过source_name='{source_name}' (不在kps列表中)")
+                        continue
+
+                    # 获取源知识点包含的所有题目（JSON字段不支持__contains，换用全量查询+Python过滤）
+                    all_questions = await Question.all()
+                    questions = [q for q in all_questions if source_kp.id in (q.knowledge_point_ids or [])]
+
+                    for q in questions:
+                        # 将题目从源知识点转移到目标知识点
+                        current_ids = q.knowledge_point_ids or []
+                        new_ids = [target_kp.id] + [sid for sid in current_ids if sid != source_kp.id and sid != target_kp.id]
+                        new_ids = list(dict.fromkeys(new_ids))  # 去重保持顺序
+                        q.knowledge_point_ids = new_ids
+                        # 更新主知识点
+                        if q.knowledge_point_id == source_kp.id:
+                            q.knowledge_point_id = target_kp.id
+                        await q.save()
+
+                    absorbed_kps.append({"id": source_kp.id, "name": source_kp.name, "merged_into": target_kp.name})
+                    source_kp_ids.add(source_kp.id)
+                    merged_count += 1
+                    kp_logger.debug(f"知识点 {source_kp.name}(id={source_kp.id}) 已合并到 {target_kp.name}(id={target_kp.id})")
+
+            # 删除被合并的源知识点
+            if source_kp_ids:
+                await KnowledgePoint.filter(id__in=list(source_kp_ids)).delete()
+                kp_logger.info(f"已删除被合并的知识点: {list(source_kp_ids)}")
+
+            result = {
+                "merged": merged_count,
+                "absorbed": absorbed_kps,
+                "source_kp_deleted": len(source_kp_ids),
+                "message": f"合并完成，共合并{merged_count}个知识点，删除{len(source_kp_ids)}个源知识点"
+            }
+            kp_logger.info(f"知识点合并完成: {result}")
+            return result
+
+        except Exception as e:
+            kp_logger.exception(f"知识点合并过程异常: {str(e)}")
+            return {"merged": 0, "absorbed": [], "new_kps": [], "message": f"合并失败: {str(e)}"}
+
+    @staticmethod
+    def _parse_merge_response(response: str) -> List[Dict]:
+        """解析AI返回的合并建议"""
+        def normalize(item):
+            # 兼容旧格式 source_ids/target_id 和新格式 source_names/target_name
+            if 'source_ids' in item and 'source_names' not in item:
+                item['source_names'] = item.pop('source_ids')
+            if 'target_id' in item and 'target_name' not in item:
+                item['target_name'] = item.pop('target_id')
+            # 确保是字符串名称
+            if 'source_names' in item and isinstance(item['source_names'], list):
+                item['source_names'] = [str(x) for x in item['source_names']]
+            if 'target_name' in item:
+                item['target_name'] = str(item['target_name'])
+            return item
+
+        try:
+            result = json.loads(response.strip())
+            return [normalize(item) for item in result]
+        except json.JSONDecodeError:
+            pass
+
+        # 尝试提取 ```json ... ``` 块
+        json_match = re.search(r'```(?:json)?\s*(\[[\s\S]*?\])\s*```', response)
+        if json_match:
+            try:
+                result = json.loads(json_match.group(1).strip())
+                return [normalize(item) for item in result]
+            except json.JSONDecodeError:
+                pass
+
+        # 尝试提取JSON数组
+        json_match = re.search(r'(\[\s*\{[\s\S]*\}\s*\])', response)
+        if json_match:
+            try:
+                result = json.loads(json_match.group(1).strip())
+                return [normalize(item) for item in result]
+            except json.JSONDecodeError:
+                pass
+
+        return []
+
+    @staticmethod
     async def get_or_create_knowledge_point(
         subject_id: int,
         level_id: int,

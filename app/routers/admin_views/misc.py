@@ -162,16 +162,70 @@ async def admin_submissions(
     submissions = await query.order_by("-created_at").offset(offset).limit(page_size)
     total_pages = (total + page_size - 1) // page_size if total > 0 else 1
 
+    # 获取筛选数据
+    exams = await Exam.all().order_by("-created_at").limit(100)
+    users = await User.filter(role="student").order_by("-created_at").limit(100)
+
     return templates.TemplateResponse("admin/submissions.html", {
         "request": request,
         "current_user": current_user,
         "submissions": submissions,
+        "exams": exams,
+        "users": users,
         "pagination": {
             "page": page,
             "page_size": page_size,
             "total": total,
             "total_pages": total_pages
         }
+    })
+
+
+@router.get("/api/submissions")
+async def admin_list_submissions_api(
+    request: Request,
+    page: int = 1,
+    page_size: int = 30,
+    exam_id: int = None,
+    user_id: int = None,
+    status: str = None,
+    current_user: User = Depends(require_admin)
+):
+    """答题记录列表 API"""
+    query = Submission.all().prefetch_related("user", "exam")
+
+    if exam_id:
+        query = query.filter(exam_id=exam_id)
+    if user_id:
+        query = query.filter(user_id=user_id)
+    if status:
+        query = query.filter(status=status)
+
+    total = await query.count()
+    offset = (page - 1) * page_size
+    submissions = await query.order_by("-created_at").offset(offset).limit(page_size)
+
+    # 序列化
+    data = []
+    for s in submissions:
+        data.append({
+            "id": s.id,
+            "user_id": s.user_id,
+            "user_name": s.user.username if s.user else "",
+            "exam_id": s.exam_id,
+            "exam_title": s.exam.title if s.exam else "",
+            "score": s.score,
+            "status": s.status,
+            "time_spent": s.time_spent,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
+
+    return JSONResponse({
+        "success": True,
+        "data": data,
+        "total": total,
+        "page": page,
+        "page_size": page_size
     })
 
 

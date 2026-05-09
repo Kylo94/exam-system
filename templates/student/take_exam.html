@@ -84,9 +84,15 @@
                     'multiple_choice': '多选题',
                     'true_false': '判断题',
                     'fill_blank': '填空题',
-                    'essay': '简答题',
+                    'short_answer': '简答题',
                     'coding': '编程题'
                 } %}
+
+                {# 构建问题ID到全局序号的映射 #}
+                {% set question_index_map = {} %}
+                {% for q in questions %}
+                    {% set _ = question_index_map.update({q.id: loop.index}) %}
+                {% endfor %}
 
                 {% for type, type_name in type_groups.items() %}
                     {% set type_questions = [] %}
@@ -99,9 +105,10 @@
                     <div class="nav-section-title">{{ type_name }} ({{ type_questions|length }})</div>
                     <div class="question-nav-grid mb-3" id="nav-{{ type }}">
                         {% for q in type_questions %}
+                        {% set global_idx = question_index_map[q.id] %}
                         <button type="button" class="btn btn-sm btn-outline-primary question-nav-btn"
-                                data-question="{{ loop.index }}" onclick="scrollToQuestion({{ loop.index }})">
-                            {{ loop.index }}
+                                data-question="{{ global_idx }}" onclick="scrollToQuestion({{ global_idx }})">
+                            {{ global_idx }}
                         </button>
                         {% endfor %}
                     </div>
@@ -179,7 +186,7 @@
                     <div class="mt-3">
                         <input type="text" class="form-control" name="answer_{{ q.id }}" placeholder="请输入答案...">
                     </div>
-                    {% elif q.type == 'essay' %}
+                    {% elif q.type == 'short_answer' %}
                     <div class="mt-3">
                         <textarea class="form-control" name="answer_{{ q.id }}" rows="4" placeholder="请输入简答题答案..."></textarea>
                     </div>

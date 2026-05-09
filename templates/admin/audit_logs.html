@@ -195,6 +195,8 @@ function getActionBadge(action) {
         'delete': { class: 'danger', text: '删除' },
         'login': { class: 'info', text: '登录' },
         'logout': { class: 'secondary', text: '登出' },
+        'batch_update': { class: 'secondary', text: '批量更新' },
+        'batch_delete': { class: 'dark', text: '批量删除' },
     };
     const info = map[action] || { class: 'light', text: action };
     return `<span class="badge bg-${info.class}">${info.text}</span>`;

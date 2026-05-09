@@ -136,6 +136,9 @@
     </div>
     <div>
         {% if current_level %}
+        <button class="btn btn-outline-warning" id="btnAiMerge" onclick="aiMergeKps()">
+            🤖 AI合并相似知识点
+        </button>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKpModal">
             ➕ 添加知识点
         </button>
@@ -571,5 +574,81 @@ document.getElementById('addLevelForm').addEventListener('submit', async (e) => 
         alert('添加失败');
     }
 });
+</script>
+
+<!-- AI合并知识点 加载遮罩 Modal -->
+<div class="modal fade" id="aiMergeModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <h5 id="aiMergeTitle" class="mb-2">🤖 AI分析中...</h5>
+                <p id="aiMergeMessage" class="text-secondary mb-0">正在分析知识点相似度</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// AI合并相似知识点
+let aiMergeModal = null;
+async function aiMergeKps() {
+    if (!confirm('AI将分析当前等级下的所有知识点，找出相似或重复的进行合并。\n\n确认继续？')) return;
+
+    const subjectId = {{ current_subject.id if current_subject else 0 }};
+    const levelId = {{ current_level.id if current_level else 0 }};
+    if (!levelId) { alert('请先选择一个等级'); return; }
+
+    // 显示加载遮罩
+    aiMergeModal = new bootstrap.Modal(document.getElementById('aiMergeModal'));
+    aiMergeModal.show();
+
+    try {
+        const response = await fetch(`/admin/api/knowledge-points/ai-merge?subject_id=${subjectId}&level_id=${levelId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        document.getElementById('aiMergeMessage').textContent = data.message || '处理中...';
+                        if (data.progress >= 100) {
+                            if (data.level === 'success') {
+                                document.getElementById('aiMergeTitle').textContent = '✨ 合并完成';
+                                document.getElementById('aiMergeMessage').textContent = data.message;
+                            } else {
+                                document.getElementById('aiMergeTitle').textContent = '❌ 合并失败';
+                                document.getElementById('aiMergeMessage').textContent = data.message;
+                            }
+                            setTimeout(() => {
+                                aiMergeModal.hide();
+                                location.reload();
+                            }, 1500);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('解析SSE数据失败:', e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        document.getElementById('aiMergeTitle').textContent = '❌ 请求失败';
+        document.getElementById('aiMergeMessage').textContent = error.message;
+        setTimeout(() => aiMergeModal.hide(), 2000);
+    }
+}
 </script>
 {% endblock admin_content %}

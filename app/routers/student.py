@@ -384,17 +384,28 @@ async def submit_exam(
 async def exam_result(exam_id: int, submission_id: int, request: Request, current_user: User = Depends(require_student)):
     """答题结果页面"""
     submission = await Submission.get_or_none(id=submission_id).prefetch_related(
-        "exam", "answers__question"
+        "exam", "answers", "answers__question"
     )
 
     if not submission or submission.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="答题记录不存在")
 
+    # 获取试卷全部题目（按order排序）
+    exam = await Exam.get_or_none(id=exam_id).prefetch_related("questions")
+    questions = list(exam.questions) if exam else []
+
+    # 构建答案映射 {question_id: answer}
+    answer_map = {}
+    for answer in submission.answers:
+        answer_map[answer.question_id] = answer
+
     return templates.TemplateResponse("student/exam_result.html", {
         "request": request,
         "current_user": current_user,
         "submission": submission,
-        "exam": submission.exam
+        "exam": exam,
+        "questions": questions,
+        "answer_map": answer_map
     })
 
 

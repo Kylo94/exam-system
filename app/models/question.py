@@ -66,7 +66,7 @@ class Question(Model):
             "multiple_choice": "多选题",
             "true_false": "判断题",
             "fill_blank": "填空题",
-            "essay": "简答题",
+            "short_answer": "简答题",
             "coding": "编程题",
         }
         return type_map.get(self.type, self.type)
