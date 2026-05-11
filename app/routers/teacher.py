@@ -349,7 +349,9 @@ async def teacher_submissions(
 @router.get("/submissions/{submission_id}", response_class=HTMLResponse)
 async def submission_detail(submission_id: int, request: Request, current_user: User = Depends(require_teacher)):
     """答题详情"""
-    submission = await Submission.get_or_none(id=submission_id).prefetch_related("user", "exam", "answers__question")
+    submission = await Submission.get_or_none(id=submission_id).prefetch_related(
+        "user", "exam", "answers", "answers__question"
+    )
 
     if not submission:
         raise HTTPException(status_code=404, detail="提交记录不存在")
@@ -359,10 +361,22 @@ async def submission_detail(submission_id: int, request: Request, current_user: 
     if not student or student.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权限查看此记录")
 
+    # 获取试卷全部题目（按order排序）
+    exam = await Exam.get_or_none(id=submission.exam_id).prefetch_related("questions")
+    questions = list(exam.questions) if exam else []
+
+    # 构建答案映射 {question_id: answer}
+    answer_map = {}
+    for answer in submission.answers:
+        answer_map[answer.question_id] = answer
+
     return templates.TemplateResponse("teacher/submission_detail.html", {
         "request": request,
         "current_user": current_user,
-        "submission": submission
+        "submission": submission,
+        "exam": exam,
+        "questions": questions,
+        "answer_map": answer_map
     })
 
 
