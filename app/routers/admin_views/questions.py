@@ -99,7 +99,6 @@ async def admin_create_question(
             options=body.get('options', {}),
             explanation=body.get('explanation'),
             difficulty=body.get('difficulty', 1),
-            has_image=body.get('has_image', False),
             image_data=body.get('image_data'),
             question_metadata=body.get('question_metadata', {}),
         )
@@ -142,6 +141,7 @@ async def admin_get_question(
                 "images": question.images if question.images else [],
                 "image_data": question.image_data,
                 "question_metadata": question.question_metadata,
+                "tags": question.tags or [],
             }
         }
     except Exception as e:
@@ -278,6 +278,7 @@ async def admin_list_all_questions(
             "images": q.images if q.images else [],
             "image_data": q.image_data,
             "question_metadata": q.question_metadata,
+            "tags": q.tags or [],
             "knowledge_point": q.knowledge_point.name if q.knowledge_point else None,
             "knowledge_point_ids": q.knowledge_point_ids or [],
             "knowledge_point_names": kp_names,
@@ -313,6 +314,113 @@ async def admin_batch_delete_questions(
         details={"question_ids": question_ids}
     )
     return {"success": True, "deleted": deleted}
+
+
+@router.patch("/api/questions/{question_id}/tags")
+async def admin_update_question_tags(
+    question_id: int,
+    request: Request,
+    current_user: User = Depends(require_admin)
+):
+    """手动更新单个题目的标签"""
+    body = await request.json()
+    tags: list[str] = body.get('tags', [])
+    question = await QuestionService.get_question_or_404(question_id)
+    question.tags = tags
+    await question.save()
+    return {"success": True, "tags": question.tags}
+
+
+@router.post("/api/questions/rebuild-tags")
+async def admin_rebuild_tags(
+    request: Request,
+    current_user: User = Depends(require_admin)
+):
+    """AI批量重构题目标签"""
+    body = await request.json()
+    question_ids: list[int] = body.get('question_ids', [])
+    if not question_ids:
+        raise HTTPException(status_code=400, detail="请选择题目")
+
+    questions = await Question.filter(id__in=question_ids).all()
+    if not questions:
+        raise HTTPException(status_code=404, detail="未找到题目")
+
+    # 获取AI配置
+    from app.models.ai_config import AIConfig
+    ai_config = await AIConfig.filter(is_active=True, is_default=True).first()
+    if not ai_config:
+        raise HTTPException(status_code=400, detail="未找到可用的AI配置")
+
+    from app.ai.llm_service import LLMService
+    llm = LLMService(provider=ai_config.provider)
+    llm.config = {
+        'api_key': ai_config.api_key,
+        'base_url': ai_config.base_url,
+        'model': ai_config.model
+    }
+
+    # 构建prompt
+    questions_text = []
+    for i, q in enumerate(questions):
+        type_display = {'single_choice': '单选题', 'multiple_choice': '多选题',
+                        'true_false': '判断题', 'fill_blank': '填空题',
+                        'short_answer': '简答题', 'coding': '编程题'}.get(q.type, q.type)
+        questions_text.append(
+            f"题目{i+1} [{type_display}]: {q.content[:200]}"
+            f"{'（选项：' + str(q.options)[:200] + '）' if q.options else ''}"
+        )
+
+    prompt = f"""请为以下 {len(questions)} 道题目提取标签。每道题提取3-5个标签。
+
+标签必须是具体的知识点/技能点名称（如'for循环'、'列表推导式'、'缩进规则'），禁止使用运算符(+、+=)、文件后缀(.py)、关键字(True、or)、内置函数名(print、input)。
+
+{"".join(questions_text)}
+
+返回JSON数组：
+[{{"order":1,"tags":["标签1","标签2","标签3"]}},...]
+直接返回JSON数组，不要任何其他文字。"""
+
+    messages = [
+        {'role': 'system', 'content': '你是试题标签提取专家。只返回JSON数组，不要任何其他文字。'},
+        {'role': 'user', 'content': prompt}
+    ]
+
+    import re
+    try:
+        response = llm.provider_instance.chat_completion(messages, max_tokens=16000, temperature=0.3)
+        logger.info(f"AI标签重构响应: {response[:500]}")
+
+        # 解析
+        stripped = response.strip()
+        if stripped.startswith('```'):
+            stripped = re.sub(r'^```(?:json)?\s*', '', stripped)
+            stripped = re.sub(r'\s*```$', '', stripped)
+        if not stripped.startswith('['):
+            start = stripped.find('[')
+            if start >= 0:
+                stripped = stripped[start:]
+
+        results = json.loads(stripped)
+        if not isinstance(results, list):
+            raise ValueError("AI返回格式错误")
+
+        # 更新标签
+        updated = 0
+        for item in results:
+            order = item.get('order', 0)
+            tags = item.get('tags', [])
+            if 1 <= order <= len(questions) and tags:
+                q = questions[order - 1]
+                q.tags = tags
+                await q.save()
+                updated += 1
+                logger.info(f"更新题目{q.id}标签: {tags}")
+
+        return {"success": True, "updated": updated, "total": len(questions)}
+    except Exception as e:
+        logger.error(f"AI标签重构失败: {e}")
+        raise HTTPException(status_code=500, detail=f"AI处理失败: {str(e)}")
 
 
 @router.post("/api/questions/assign-knowledge-points")

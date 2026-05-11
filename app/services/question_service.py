@@ -35,7 +35,6 @@ class QuestionService:
         options: Dict = None,
         explanation: str = None,
         difficulty: int = 1,
-        has_image: bool = False,
         image_data: str = None,
         question_metadata: Dict = None,
     ) -> Question:
@@ -46,6 +45,8 @@ class QuestionService:
 
         order_num = await Question.filter(exam_id=exam_id).count() + 1
 
+        images = [image_data] if image_data else []
+
         return await Question.create(
             exam=exam,
             type=type,
@@ -55,8 +56,7 @@ class QuestionService:
             options=options or {},
             explanation=explanation,
             difficulty=difficulty,
-            has_image=has_image,
-            image_data=image_data,
+            images=images,
             question_metadata=question_metadata or {},
             order_num=order_num,
         )

@@ -20,8 +20,7 @@ class ParsingService:
         filename: str,
         parse_method: str = "rule",
         ai_config=None,
-        image_info: List[Dict] = None,
-        existing_kps: List[str] = None
+        image_info: List[Dict] = None
     ) -> Tuple[str, List[Dict[str, Any]], List[Dict]]:
         """解析文档并返回题目列表
 
@@ -31,7 +30,6 @@ class ParsingService:
             parse_method: 解析方式 "rule" 或 "ai"
             ai_config: AI配置对象
             image_info: 图片信息列表
-            existing_kps: 已有的知识点名称列表
 
         Returns:
             (raw_text, questions_data, image_info)
@@ -54,7 +52,7 @@ class ParsingService:
         if parse_method == "ai" and ai_config:
             try:
                 ai_parser = AIParser(ai_config=ai_config)
-                questions = ai_parser.batch_enhance_questions(questions, extracted_images, existing_kps)
+                questions = ai_parser.batch_enhance_questions(questions, extracted_images)
             except Exception as e:
                 logger.warning(f"AI增强失败，使用本地解析结果: {e}")
 
@@ -98,8 +96,7 @@ class ParsingService:
         title: str,
         subject_id: int,
         level_id: int,
-        questions: List[Dict[str, Any]],
-        existing_kps: List[Any] = None
+        questions: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """构建预览数据结构
 
@@ -108,15 +105,10 @@ class ParsingService:
             subject_id: 科目ID
             level_id: 等级ID
             questions: 题目列表
-            existing_kps: 已有的知识点列表
 
         Returns:
             预览数据结构
         """
-        kp_suggestions = []
-        if existing_kps:
-            kp_suggestions = [kp.name for kp in existing_kps[:20]]
-
         preview_questions = []
         for idx, q in enumerate(questions):
             preview_questions.append({
@@ -128,7 +120,7 @@ class ParsingService:
                 "points": q.get('points', 10),
                 "difficulty": q.get('difficulty', 1),
                 "explanation": q.get('explanation', ''),
-                "knowledge_point_names": q.get('knowledge_point_names', []),
+                "tags": q.get('tags', []),
                 "images": q.get('images', []),
                 "question_metadata": q.get('question_metadata', {}),
             })
@@ -138,6 +130,5 @@ class ParsingService:
             "subject_id": subject_id,
             "level_id": level_id,
             "total_questions": len(questions),
-            "suggested_knowledge_points": kp_suggestions,
             "questions": preview_questions
         }

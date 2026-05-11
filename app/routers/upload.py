@@ -1,9 +1,9 @@
 """上传解析路由"""
 import json
 import logging
-import os
 import tempfile
 import uuid
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -13,10 +13,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from app.auth import require_admin
 from app.models.audit_log import AuditLog
 from app.models.exam import Exam
-from app.models.knowledge_point import KnowledgePoint
 from app.models.user import User
+from app.parsers.constants import sse_progress_msg
 from app.services.exam_service import ExamService
-from app.services.knowledge_point_service import KnowledgePointService
 from app.services.parsing_service import ParsingService
 from app.services.upload_service import UploadService
 
@@ -52,17 +51,6 @@ async def upload_image(
     return {"success": True, "data": {"path": relative_path}}
 
 
-@router.get("/api/uploads/{filename:path}")
-async def serve_upload(filename: str):
-    """服务上传的图片文件"""
-    file_path = Path("uploads") / filename
-
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="文件不存在")
-
-    return FileResponse(file_path)
-
-
 # ===== 文件解析 =====
 
 @router.post("/api/upload/parse")
@@ -94,15 +82,6 @@ async def parse_file_preview(
         from app.models.ai_config import AIConfig
         ai_config_obj = await AIConfig.get_or_none(id=ai_config_id)
 
-    # 获取已有知识点列表（用于AI匹配）
-    existing_kps = []
-    existing_kp_names = []
-    if level_id_int and subject_id_int:
-        existing_kps = await KnowledgePoint.filter(
-            subject_id=subject_id_int, level_id=level_id_int
-        ).all()
-        existing_kp_names = [kp.name for kp in existing_kps]
-
     # 解析文档
     suffix = Path(filename).suffix.lower()
     tmp_path = None
@@ -112,7 +91,7 @@ async def parse_file_preview(
             tmp_path = tmp.name
 
         raw_text, questions_data, image_info = await ParsingService.parse_document(
-            tmp_path, filename, parse_method, ai_config_obj, existing_kps=existing_kp_names
+            tmp_path, filename, parse_method, ai_config_obj
         )
     except Exception as e:
         return {"success": False, "message": f"文本提取失败: {str(e)}"}
@@ -128,8 +107,7 @@ async def parse_file_preview(
         title=title,
         subject_id=subject_id_int,
         level_id=level_id_int,
-        questions=questions_data,
-        existing_kps=existing_kps
+        questions=questions_data
     )
 
     return {"success": True, "data": preview_data}
@@ -175,18 +153,7 @@ async def create_exam_from_parsed(
             use_ai_parsing = False
 
     async def event_stream():
-        def progress_msg(progress, message, level="info", current=0, total=0, details=None):
-            data = {
-                "progress": progress,
-                "message": message,
-                "level": level,
-                "task_id": task_id,
-                "current": current,
-                "total": total,
-            }
-            if details:
-                data["details"] = details
-            return f"data: {json.dumps(data)}\n\n"
+        progress_msg = partial(sse_progress_msg, task_id=task_id)
 
         tmp_path = None
         exam_id = None
@@ -197,14 +164,6 @@ async def create_exam_from_parsed(
                 tmp_path = tmp.name
 
             yield progress_msg(0, f"文件上传完成: {filename}")
-
-            # 获取已有知识点列表（用于AI匹配）
-            existing_kp_names = []
-            if level_id_int and subject_id_int:
-                existing_kps = await KnowledgePoint.filter(
-                    subject_id=subject_id_int, level_id=level_id_int
-                ).all()
-                existing_kp_names = [kp.name for kp in existing_kps]
 
             # 创建试卷
             exam = await Exam.create(
@@ -223,7 +182,7 @@ async def create_exam_from_parsed(
             # 解析文档
             yield progress_msg(5, "正在提取文档文本和图片...")
             raw_text, questions_data, image_info = await ParsingService.parse_document(
-                tmp_path, filename, parse_method, ai_config_obj, existing_kps=existing_kp_names
+                tmp_path, filename, parse_method, ai_config_obj
             )
             yield progress_msg(15, f"文本提取完成 ({len(raw_text)}字符, {len(image_info)}张图片)", "success", len(questions_data), len(questions_data))
 
@@ -242,40 +201,10 @@ async def create_exam_from_parsed(
                 yield progress_msg(20, f"正在进行AI增强，预计需要 {time_str} (共{q_count}道题)", "info", 0, q_count)
                 yield progress_msg(25, f"AI增强处理中... (如长时间无更新请耐心等待)", "info", 0, q_count)
 
-            # 知识点匹配（AI已在batch_enhance_questions中完成知识点分配）
-            kp_name_to_obj = {}
-            kp_created_count = 0
-            knowledge_point_map = {}
-            if level_id_int and subject_id_int:
-                yield progress_msg(40, "正在处理知识点...")
-                try:
-                    # 调试：检查questions_data中的知识点字段
-                    for idx, q in enumerate(questions_data):
-                        kp_names = q.get('knowledge_point_names')
-                        logger.debug(f"题{idx+1} knowledge_point_names: {kp_names}")
-                        if kp_names:
-                            kp_ids = []
-                            for kp_name in kp_names:
-                                if kp_name not in kp_name_to_obj:
-                                    kp = await KnowledgePointService.get_or_create_knowledge_point(
-                                        subject_id=subject_id_int,
-                                        level_id=level_id_int,
-                                        name=kp_name,
-                                        description="自动创建"
-                                    )
-                                    kp_name_to_obj[kp_name] = kp
-                                    kp_created_count += 1
-                                kp_ids.append(kp_name_to_obj[kp_name].id)
-                            knowledge_point_map[idx + 1] = kp_ids
-                except Exception as e:
-                    logger.warning(f"知识点处理失败: {e}")
-
-            yield progress_msg(55, f"知识点处理完成 (新建{kp_created_count}个)", "success")
-
-            # 创建题目
+            # 创建题目（只保存tags，不关联知识点）
             yield progress_msg(60, "正在创建题目...")
             created, failed = await ExamService.create_questions_from_data(
-                exam, questions_data, knowledge_point_map
+                exam, questions_data
             )
             yield progress_msg(95, f"题目创建完成 (成功{created}道, 失败{failed}道)", "success", created, created)
 
@@ -290,7 +219,7 @@ async def create_exam_from_parsed(
                 status="success"
             )
 
-            UploadService.complete_task(task_id, {"exam_id": exam.id, "created": created, "failed": failed, "kp_created": kp_created_count})
+            UploadService.complete_task(task_id, {"exam_id": exam.id, "created": created, "failed": failed})
             yield progress_msg(100, "完成", "success", created, created, {"exam_id": exam.id, "created": created, "failed": failed})
 
         except Exception as e:
@@ -354,34 +283,8 @@ async def create_exam_from_json(
     except Exception as e:
         return {"success": False, "message": f"创建试卷失败: {str(e)}"}
 
-    # 知识点匹配（AI已在preview阶段完成知识点分配）
-    kp_name_to_obj = {}
-    kp_created_count = 0
-    knowledge_point_map = {}
-
-    if level_id:
-        try:
-            for idx, q in enumerate(questions):
-                kp_names = q.get('knowledge_point_names', [])
-                if kp_names:
-                    kp_ids = []
-                    for kp_name in kp_names:
-                        if kp_name not in kp_name_to_obj:
-                            kp = await KnowledgePointService.get_or_create_knowledge_point(
-                                subject_id=subject_id,
-                                level_id=level_id,
-                                name=kp_name,
-                                description="自动创建"
-                            )
-                            kp_name_to_obj[kp_name] = kp
-                            kp_created_count += 1
-                        kp_ids.append(kp_name_to_obj[kp_name].id)
-                    knowledge_point_map[idx + 1] = kp_ids
-        except Exception as e:
-            logger.warning(f"知识点处理失败: {e}")
-
-    # 创建题目
-    created, failed = await ExamService.create_questions_from_data(exam, questions, knowledge_point_map)
+    # 创建题目（只保存tags，不关联知识点）
+    created, failed = await ExamService.create_questions_from_data(exam, questions)
 
     # 审计日志
     await AuditLog.log_create(
@@ -397,8 +300,7 @@ async def create_exam_from_json(
         "success": True,
         "data": {
             "exam_id": exam.id,
-            "questions": {"created": created, "failed": failed, "total": len(questions)},
-            "knowledge_points_created": kp_created_count
+            "questions": {"created": created, "failed": failed, "total": len(questions)}
         }
     }
 
@@ -428,16 +330,7 @@ async def batch_upload(
         ai_config_obj = await AIConfig.get_or_none(id=ai_config_id)
 
     async def event_stream():
-        def progress_msg(progress, message, level="info", current=0, total=0):
-            data = {
-                "progress": progress,
-                "message": message,
-                "level": level,
-                "task_id": task_id,
-                "current": current,
-                "total": total
-            }
-            return f"data: {json.dumps(data)}\n\n"
+        progress_msg = partial(sse_progress_msg, task_id=task_id)
 
         total_files = len(files_meta)
         results = []
@@ -488,14 +381,6 @@ async def batch_upload(
                     is_published=is_published,
                 )
 
-                # 获取已有知识点列表（用于AI匹配）
-                existing_kp_names = []
-                if level_id_int and subject_id_int:
-                    existing_kps = await KnowledgePoint.filter(
-                        subject_id=subject_id_int, level_id=level_id_int
-                    ).all()
-                    existing_kp_names = [kp.name for kp in existing_kps]
-
                 # 解析文件
                 suffix = Path(file_name).suffix.lower()
                 tmp_path = None
@@ -505,30 +390,12 @@ async def batch_upload(
                         tmp_path = tmp.name
 
                     raw_text, questions_data, image_info = await ParsingService.parse_document(
-                        tmp_path, file_name, parse_method, ai_config_obj, existing_kps=existing_kp_names
+                        tmp_path, file_name, parse_method, ai_config_obj
                     )
 
                     if questions_data:
-                        # 从AI结果中提取知识点映射
-                        knowledge_point_map = {}
-                        kp_name_to_obj = {}
-                        for q_idx, q in enumerate(questions_data):
-                            kp_names = q.get('knowledge_point_names', [])
-                            if kp_names:
-                                kp_ids = []
-                                for kp_name in kp_names:
-                                    if kp_name not in kp_name_to_obj:
-                                        kp = await KnowledgePointService.get_or_create_knowledge_point(
-                                            subject_id=subject_id_int,
-                                            level_id=level_id_int,
-                                            name=kp_name,
-                                            description="自动创建"
-                                        )
-                                        kp_name_to_obj[kp_name] = kp
-                                    kp_ids.append(kp_name_to_obj[kp_name].id)
-                                knowledge_point_map[q_idx + 1] = kp_ids
-
-                        created, failed = await ExamService.create_questions_from_data(exam, questions_data, knowledge_point_map)
+                        # 创建题目（只保存tags，不关联知识点）
+                        created, failed = await ExamService.create_questions_from_data(exam, questions_data)
                         results.append({
                             "file": file_name,
                             "exam_id": exam.id,

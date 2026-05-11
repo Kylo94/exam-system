@@ -68,7 +68,8 @@ def setup_logging(
     app_logger = logging.getLogger("app")
     app_logger.setLevel(numeric_level)
     app_logger.addHandler(app_file_handler)
-    app_logger.addHandler(console_handler)
+    # 不再添加console_handler到app_logger，避免重复输出
+    # console_handler已经在root_logger中添加了
 
     # 错误日志 - 只记录ERROR及以上
     error_file_handler = RotatingFileHandler(
@@ -82,8 +83,10 @@ def setup_logging(
 
     error_logger = logging.getLogger("error")
     error_logger.setLevel(logging.ERROR)
-    error_logger.addHandler(error_file_handler)
-    error_logger.addHandler(console_handler)
+    # 避免重复添加handler（setup_logging可能被调用多次）
+    if not error_logger.handlers:
+        error_logger.addHandler(error_file_handler)
+        error_logger.addHandler(console_handler)
 
     # API访问日志
     access_file_handler = TimedRotatingFileHandler(

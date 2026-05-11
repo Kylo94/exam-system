@@ -9,6 +9,9 @@
         <p class="text-secondary small mb-0">共 <span id="totalQuestions">0</span> 道题目</p>
     </div>
     <div>
+        <button class="btn btn-outline-warning me-2" id="btnRebuildTags" disabled onclick="batchRebuildTags()">
+            <i class="bi bi-magic me-2"></i>AI重构标签 (<span id="rebuildSelectedCount">0</span>)
+        </button>
         <button class="btn btn-outline-danger" id="btnBatchDelete" disabled onclick="batchDeleteQuestions()">
             <i class="bi bi-trash me-2"></i>批量删除 (<span id="selectedCount">0</span>)
         </button>
@@ -99,7 +102,7 @@
                         <th class="text-purple">题型</th>
                         <th class="text-purple">难度</th>
                         <th class="text-purple">内容</th>
-                        <th class="text-purple">所属知识点</th>
+                        <th class="text-purple">标签</th>
                         <th class="text-purple">分值</th>
                         <th class="text-purple">操作</th>
                     </tr>
@@ -251,8 +254,8 @@ function renderQuestions(questions) {
                 <div class="text-truncate" title="${escapeHtml(q.content)}">${escapeHtml(q.content)}</div>
             </td>
             <td>
-                ${q.knowledge_point_names && q.knowledge_point_names.length > 0
-                    ? q.knowledge_point_names.map(kp => `<span class="badge bg-purple me-1">${kp}</span>`).join('')
+                ${q.tags && q.tags.length > 0
+                    ? q.tags.map(tag => `<span class="badge bg-info me-1">${tag}</span>`).join('')
                     : '<span class="text-muted">-</span>'}
             </td>
             <td>${q.points}</td>
@@ -351,12 +354,105 @@ function toggleSelectAll() {
 function updateSelectedUI() {
     const count = selectedQuestions.size;
     document.getElementById('selectedCount').textContent = count;
+    document.getElementById('rebuildSelectedCount').textContent = count;
     document.getElementById('btnBatchDelete').disabled = count === 0;
+    document.getElementById('btnRebuildTags').disabled = count === 0;
+}
+
+// ===== 标签编辑 =====
+
+let editingQuestionId = null;
+
+function startEditTags(questionId) {
+    editingQuestionId = questionId;
+    document.getElementById('detailTagsDisplay').style.display = 'none';
+    document.getElementById('detailTagsEdit').style.display = 'inline';
+    document.getElementById('detailTagsEditBtn').style.display = 'none';
+}
+
+function cancelEditTags() {
+    editingQuestionId = null;
+    document.getElementById('detailTagsDisplay').style.display = 'inline';
+    document.getElementById('detailTagsEdit').style.display = 'none';
+    document.getElementById('detailTagsEditBtn').style.display = 'inline';
+}
+
+function removeTag(tag) {
+    if (!editingQuestionId) {
+        startEditTags(window._detailQuestionId);
+    }
+    const input = document.getElementById('detailTagsInput');
+    const tags = input.value.split(',').map(t => t.trim()).filter(t => t && t !== tag);
+    input.value = tags.join(', ');
+}
+
+async function saveTags(questionId) {
+    const input = document.getElementById('detailTagsInput');
+    const tags = input.value.split(',').map(t => t.trim()).filter(t => t);
+
+    try {
+        const resp = await fetch(`/admin/api/questions/${questionId}/tags`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tags })
+        });
+        const result = await resp.json();
+        if (result.success) {
+            // 更新本地数据
+            const q = questionsData.find(q => q.id === questionId);
+            if (q) q.tags = tags;
+            renderQuestions(questionsData);
+            // 重新显示详情
+            showQuestionDetail(questionId);
+        } else {
+            alert('保存失败');
+        }
+    } catch (e) {
+        alert('保存失败: ' + e.message);
+    }
+    editingQuestionId = null;
+}
+
+// ===== AI批量重构标签 =====
+
+async function batchRebuildTags() {
+    const count = selectedQuestions.size;
+    if (count === 0) return;
+    if (!confirm(`将为选中的 ${count} 道题目重构标签，AI处理可能需要数十秒，确定继续？`)) return;
+
+    const ids = Array.from(selectedQuestions);
+    const btn = document.getElementById('btnRebuildTags');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>AI处理中...';
+
+    try {
+        const resp = await fetch('/admin/api/questions/rebuild-tags', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question_ids: ids })
+        });
+        const result = await resp.json();
+        if (result.success) {
+            alert(`标签重构完成！成功更新 ${result.updated}/${result.total} 道题目`);
+            loadQuestions(currentPage);
+        } else {
+            alert('重构失败: ' + (result.message || result.detail || '未知错误'));
+        }
+    } catch (e) {
+        alert('请求失败: ' + e.message);
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-magic me-2"></i>AI重构标签 (<span id="rebuildSelectedCount">' + count + '</span>)';
 }
 
 function showQuestionDetail(id) {
     const q = questionsData.find(q => q.id === id);
     if (!q) return;
+    window._detailQuestionId = id;
+    editingQuestionId = null;
+    cancelEditTags();
 
     let optionsHtml = '';
     if (q.options && Object.keys(q.options).length > 0) {
@@ -399,8 +495,24 @@ function showQuestionDetail(id) {
             <code class="text-success fs-5">${q.correct_answer}</code>
         </div>
         ${q.explanation ? `<div class="mb-3"><strong>解析：</strong><div class="p-2 rounded" style="background: var(--bg-input);">${escapeHtml(q.explanation)}</div></div>` : ''}
+        <div class="mb-3" id="detailTagsSection">
+            <strong>标签：</strong>
+            <span id="detailTagsDisplay">
+                ${q.tags && q.tags.length > 0
+                    ? q.tags.map(t => `<span class="badge bg-info me-1 tag-badge">${t} <i class="bi bi-x cursor-pointer" onclick="event.stopPropagation();removeTag('${t}')" style="font-size:0.8rem;"></i></span>`).join('')
+                    : '<span class="text-muted">暂无</span>'}
+            </span>
+            <span id="detailTagsEdit" style="display:none;">
+                <input type="text" class="form-control form-control-sm d-inline-block" id="detailTagsInput"
+                    value="${(q.tags || []).join(', ')}" style="width: 70%;" placeholder="标签以逗号分隔">
+                <button class="btn btn-sm btn-success ms-1" onclick="saveTags(${q.id})"><i class="bi bi-check"></i></button>
+                <button class="btn btn-sm btn-secondary ms-1" onclick="cancelEditTags()"><i class="bi bi-x"></i></button>
+            </span>
+            <button class="btn btn-sm btn-outline-secondary ms-2" id="detailTagsEditBtn" onclick="startEditTags(${q.id})">
+                <i class="bi bi-pencil"></i> 编辑
+            </button>
+        </div>`
         ${q.exam_id ? `<div class="mb-3"><strong>所属试卷：</strong><a href="/admin/exams/${q.exam_id}/edit">${q.exam_title}</a></div>` : ''}
-        ${q.knowledge_point ? `<div class="mb-3"><strong>知识点：</strong>${q.knowledge_point}</div>` : ''}
         ${q.created_at ? `<div class="text-muted small"><strong>创建时间：</strong>${new Date(q.created_at).toLocaleString()}</div>` : ''}
     `;
 

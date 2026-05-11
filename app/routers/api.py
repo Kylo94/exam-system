@@ -20,6 +20,52 @@ router = APIRouter()
 
 
 # ===== 文件服务 API =====
+
+@router.get("/uploads/list")
+async def list_uploaded_images(
+    page: int = 1,
+    per_page: int = 50,
+    search: str = "",
+):
+    """列出已上传的图片（支持分页和搜索）"""
+    images_dir = Path("uploads/images")
+    if not images_dir.exists():
+        return {"success": True, "data": {"images": [], "total": 0, "page": page, "per_page": per_page}}
+
+    all_files = []
+    for ext in ('*.jpg', '*.jpeg', '*.png', '*.gif', '*.webp', '*.bmp', '*.svg'):
+        for f in images_dir.glob(ext):
+            all_files.append({
+                "name": f.name,
+                "path": f"images/{f.name}",
+                "url": f"/api/uploads/images/{f.name}",
+                "size": f.stat().st_size,
+                "modified": f.stat().st_mtime
+            })
+
+    all_files.sort(key=lambda x: x["modified"], reverse=True)
+
+    if search:
+        search_lower = search.lower()
+        all_files = [f for f in all_files if search_lower in f["name"].lower()]
+
+    total = len(all_files)
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_files = all_files[start:end]
+
+    return {
+        "success": True,
+        "data": {
+            "images": page_files,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": max(1, (total + per_page - 1) // per_page)
+        }
+    }
+
+
 @router.get("/uploads/{filename:path}")
 async def serve_upload(filename: str):
     """服务上传的图片文件"""
@@ -188,6 +234,50 @@ async def list_knowledge_points(subject_id: Optional[int] = None):
     return {"success": True, "data": kps}
 
 
+@router.get("/knowledge-points/tags")
+async def get_subject_level_tags(subject_id: int, level_id: int):
+    """获取指定科目等级下所有题目的标签列表，以及已归类/未归类状态
+
+    Returns:
+        - all_tags: 所有出现的标签（去重）
+        - covered_tags: 已被知识点覆盖的标签
+        - uncovered_tags: 未被任何知识点覆盖的标签
+    """
+    from app.models.question import Question
+
+    # 获取该科目等级下所有题目的 tags
+    all_questions = await Question.filter(exam__subject_id=subject_id, exam__level_id=level_id).all()
+    all_tags_set = set()
+    for q in all_questions:
+        for tag in (q.tags or []):
+            if tag.strip():
+                all_tags_set.add(tag.strip())
+
+    # 获取该科目等级下所有知识点及其 tags
+    kps = await KnowledgePoint.filter(subject_id=subject_id, level_id=level_id).all()
+    kp_tags_set = set()
+    for kp in kps:
+        for tag in (kp.tags or []):
+            if tag.strip():
+                kp_tags_set.add(tag.strip())
+
+    all_tags = sorted(list(all_tags_set))
+    covered = all_tags_set & kp_tags_set
+    uncovered = all_tags_set - kp_tags_set
+
+    return {
+        "success": True,
+        "data": {
+            "all_tags": all_tags,
+            "covered_tags": sorted(list(covered)),
+            "uncovered_tags": sorted(list(uncovered)),
+            "total_count": len(all_tags),
+            "covered_count": len(covered),
+            "uncovered_count": len(uncovered)
+        }
+    }
+
+
 @router.get("/knowledge-points/{kp_id}")
 async def get_knowledge_point(kp_id: int):
     """获取知识点详情"""
@@ -203,16 +293,17 @@ async def create_knowledge_point(
     subject_id: int = Form(...),
     level_id: int = Form(None),
     description: str = Form(None),
-    keywords: str = Form(None),
+    tags: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """创建知识点"""
+    tags_list = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
     kp = await KnowledgePoint.create(
         name=name,
         subject_id=subject_id,
         level_id=level_id,
         description=description,
-        keywords=keywords
+        tags=tags_list
     )
     return {"success": True, "data": {"id": kp.id, "name": kp.name}}
 
@@ -224,7 +315,7 @@ async def update_knowledge_point(
     subject_id: int = Form(...),
     level_id: int = Form(None),
     description: str = Form(None),
-    keywords: str = Form(None),
+    tags: str = Form(None),
     current_user: User = Depends(require_admin)
 ):
     """更新知识点"""
@@ -235,7 +326,7 @@ async def update_knowledge_point(
     kp.subject_id = subject_id
     kp.level_id = level_id
     kp.description = description
-    kp.keywords = keywords
+    kp.tags = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
     await kp.save()
     return {"success": True}
 

@@ -53,6 +53,14 @@
                     <p class="mb-3">{{ question.content }}</p>
                     {% endif %}
 
+                    {% if question.images %}
+                    <div class="mt-2 mb-3">
+                        {% for img in question.images %}
+                        <img src="{{ '/api/uploads/' + img }}" class="img-fluid rounded mb-1" style="max-height: 300px;" alt="题目图片">
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     {% if question.type in ['single_choice', 'multiple_choice'] %}
                     <div class="options ps-4">
                         {% for opt in question.get_options_list() %}
@@ -60,6 +68,11 @@
                             <input class="form-check-input" type="radio" name="q{{ question.id }}" id="q{{ question.id }}_{{ opt.key }}" value="{{ opt.key }}">
                             <label class="form-check-label" for="q{{ question.id }}_{{ opt.key }}">
                                 {{ opt.key }}. {{ opt.value }}
+                                {% if opt.get('has_image') and opt.get('image_path') %}
+                                <div class="mt-1">
+                                    <img src="{{ '/api/uploads/' + opt.image_path }}" class="img-fluid rounded" style="max-height: 200px;" alt="选项图片">
+                                </div>
+                                {% endif %}
                             </label>
                         </div>
                         {% endfor %}

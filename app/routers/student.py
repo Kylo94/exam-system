@@ -75,11 +75,15 @@ async def kp_practice_by_subject(subject_id: int, request: Request, current_user
     kps_data = []
     for level in levels:
         kps = await KnowledgePoint.filter(level_id=level.id).all()
-        # 计算每个知识点的题目数量
+        # 计算每个知识点的题目数量（基于tags动态匹配）
         kps_with_count = []
         for kp in kps:
-            # 统计主知识点关联的题目数量
-            count = await Question.filter(knowledge_point_id=kp.id).count()
+            if kp.tags:
+                # 动态匹配：题目tags与知识点tags有交集
+                all_questions = await Question.filter(exam__subject_id=subject_id, exam__level_id=level.id).all()
+                count = sum(1 for q in all_questions if any(t in (kp.tags or []) for t in (q.tags or [])))
+            else:
+                count = 0
             kp.question_count = count
             kps_with_count.append(kp)
         kps_data.append({
@@ -112,8 +116,9 @@ async def kp_practice_questions(
     if not kp:
         raise HTTPException(status_code=404, detail="知识点不存在")
 
-    # 获取该知识点的题目
-    questions = await Question.filter(knowledge_point_id=kp_id).limit(count)
+    # 获取该知识点的题目（基于tags动态匹配）
+    all_questions = await Question.filter(exam__subject_id=subject_id, exam__level_id=kp.level_id).all()
+    questions = [q for q in all_questions if any(t in (kp.tags or []) for t in (q.tags or []))]
     # 随机打乱
     questions = list(questions)
     random.shuffle(questions)
@@ -324,6 +329,9 @@ async def submit_exam(
     if not submission:
         return JSONResponse({"success": False, "message": "没有进行中的答题记录"})
 
+    # 删除旧的自动保存答案
+    await Answer.filter(submission_id=submission.id).delete()
+
     # 保存答案并自动评分
     total_score = 0
     answers_to_record = []
@@ -469,7 +477,8 @@ async def wrong_questions_practice(
             "kp": None
         })
 
-    subject = questions[0].exam.subject if questions[0].exam else None
+    exam = await questions[0].exam if hasattr(questions[0], 'exam') else None
+    subject = await exam.subject if exam else None
 
     return templates.TemplateResponse("student/kp_practice_questions.html", {
         "request": request,

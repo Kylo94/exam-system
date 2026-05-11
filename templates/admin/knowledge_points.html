@@ -139,6 +139,12 @@
         <button class="btn btn-outline-warning" id="btnAiMerge" onclick="aiMergeKps()">
             🤖 AI合并相似知识点
         </button>
+        <button class="btn btn-outline-success" id="btnAiGenerateFromTags" onclick="aiGenerateFromTags()">
+            🤖 AI根据标签生成知识点
+        </button>
+        <button class="btn btn-outline-danger" id="btnBatchDeleteKp" onclick="batchDeleteKp()" style="display:none;">
+            🗑️ 批量删除 (<span id="batchDeleteCount">0</span>)
+        </button>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addKpModal">
             ➕ 添加知识点
         </button>
@@ -177,9 +183,12 @@
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
+                    <th style="width: 40px;">
+                        <input class="form-check-input" type="checkbox" id="selectAllKp" onchange="toggleSelectAllKp()">
+                    </th>
                     <th style="width: 80px;">ID</th>
                     <th>知识点名称</th>
-                    <th>关键词</th>
+                    <th>标签</th>
                     <th>描述</th>
                     <th style="width: 100px;">题目数</th>
                     <th style="width: 160px;">操作</th>
@@ -187,10 +196,24 @@
             </thead>
             <tbody>
                 {% for kp in knowledge_points %}
-                <tr>
+                <tr data-kp-id="{{ kp.id }}">
+                    <td>
+                        <input class="form-check-input kp-checkbox" type="checkbox" value="{{ kp.id }}" onchange="updateBatchDeleteBtn()">
+                    </td>
                     <td><code>{{ kp.display_id }}</code></td>
                     <td><strong>{{ kp.name }}</strong></td>
-                    <td class="text-secondary small">{{ kp.keywords or '-' }}</td>
+                    <td>
+                        {% if kp.tags %}
+                            {% for tag in kp.tags[:5] %}
+                            <span class="badge bg-info me-1">{{ tag }}</span>
+                            {% endfor %}
+                            {% if kp.tags|length > 5 %}
+                            <span class="text-muted small">+{{ kp.tags|length - 5 }}</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="text-secondary small">-</span>
+                        {% endif %}
+                    </td>
                     <td class="text-secondary">{{ kp.description or '-' }}</td>
                     <td><span class="badge bg-secondary">{{ kp.question_count }}</span></td>
                     <td>
@@ -216,6 +239,16 @@
         </button>
     </div>
     {% endif %}
+
+    <!-- 标签统计区域 -->
+    <div class="mt-4 p-3 rounded" style="background: var(--bg-tertiary);">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">🏷️ 标签统计</h6>
+        </div>
+        <div id="tagStats" class="small">
+            <div class="text-center text-secondary">加载中...</div>
+        </div>
+    </div>
 
     {% elif current_subject %}
     <!-- 等级列表 -->
@@ -375,9 +408,9 @@
                         <textarea class="form-control" name="description" rows="2" placeholder="知识点的简要描述"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">关键词</label>
-                        <input type="text" class="form-control" name="keywords" placeholder="逗号分隔的关键词，如：函数,极限,微分">
-                        <small class="text-muted">用于AI自动匹配，逗号分隔</small>
+                        <label class="form-label">标签</label>
+                        <input type="text" class="form-control" name="tags" placeholder="逗号分隔的标签，如：循环,迭代,for循环">
+                        <small class="text-muted">题目的标签，匹配题目的 tags 字段，逗号分隔</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -411,9 +444,9 @@
                         <textarea class="form-control" name="description" id="editKpDesc" rows="2"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">关键词</label>
-                        <input type="text" class="form-control" name="keywords" id="editKpKeywords" placeholder="逗号分隔的关键词，如：函数,极限,微分">
-                        <small class="text-muted">用于AI自动匹配，逗号分隔</small>
+                        <label class="form-label">标签</label>
+                        <input type="text" class="form-control" name="tags" id="editKpTags" placeholder="逗号分隔的标签，如：循环,迭代,for循环">
+                        <small class="text-muted">题目的标签，匹配题目的 tags 字段，逗号分隔</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -441,7 +474,7 @@ async function editKp(id) {
     document.getElementById('editKpLevelId').value = kp.level_id || '';
     document.getElementById('editKpName').value = kp.name;
     document.getElementById('editKpDesc').value = kp.description || '';
-    document.getElementById('editKpKeywords').value = kp.keywords || '';
+    document.getElementById('editKpTags').value = (kp.tags || []).join(', ');
     new bootstrap.Modal(document.getElementById('editKpModal')).show();
 }
 
@@ -456,7 +489,7 @@ document.getElementById('editKpForm').addEventListener('submit', async (e) => {
         params.append('level_id', formData.get('level_id'));
     }
     params.append('description', formData.get('description'));
-    params.append('keywords', formData.get('keywords') || '');
+    params.append('tags', formData.get('tags') || '');
 
     const response = await fetch(`/api/knowledge-points/${id}`, {
         method: 'PUT',
@@ -516,8 +549,8 @@ document.getElementById('addKpForm').addEventListener('submit', async (e) => {
     if (formData.get('description')) {
         params.append('description', formData.get('description'));
     }
-    if (formData.get('keywords')) {
-        params.append('keywords', formData.get('keywords'));
+    if (formData.get('tags')) {
+        params.append('tags', formData.get('tags'));
     }
 
     const response = await fetch('/api/knowledge-points', {
@@ -574,6 +607,41 @@ document.getElementById('addLevelForm').addEventListener('submit', async (e) => 
         alert('添加失败');
     }
 });
+
+function toggleSelectAllKp() {
+    const checked = document.getElementById('selectAllKp').checked;
+    document.querySelectorAll('.kp-checkbox').forEach(cb => cb.checked = checked);
+    updateBatchDeleteBtn();
+}
+
+function updateBatchDeleteBtn() {
+    const selected = document.querySelectorAll('.kp-checkbox:checked');
+    const count = selected.length;
+    const btn = document.getElementById('btnBatchDeleteKp');
+    const countSpan = document.getElementById('batchDeleteCount');
+    if (count > 0) {
+        btn.style.display = 'inline-block';
+        countSpan.textContent = count;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+async function batchDeleteKp() {
+    const selected = document.querySelectorAll('.kp-checkbox:checked');
+    const ids = Array.from(selected).map(cb => parseInt(cb.value));
+    if (!ids.length) return;
+    if (!confirm(`确定要删除选中的 ${ids.length} 个知识点吗？\n此操作不可恢复！`)) return;
+
+    let success = 0, failed = 0;
+    for (const id of ids) {
+        const res = await fetch(`/api/knowledge-points/${id}`, { method: 'DELETE' });
+        if (res.ok) success++;
+        else failed++;
+    }
+    alert(`删除完成：成功 ${success} 个，失败 ${failed} 个`);
+    if (success > 0) location.reload();
+}
 </script>
 
 <!-- AI合并知识点 加载遮罩 Modal -->
@@ -586,6 +654,21 @@ document.getElementById('addLevelForm').addEventListener('submit', async (e) => 
                 </div>
                 <h5 id="aiMergeTitle" class="mb-2">🤖 AI分析中...</h5>
                 <p id="aiMergeMessage" class="text-secondary mb-0">正在分析知识点相似度</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI根据标签生成知识点 加载遮罩 Modal -->
+<div class="modal fade" id="aiGenerateModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: var(--bg-card); border: 1px solid var(--border-color);">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-success mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <h5 id="aiGenerateTitle" class="mb-2">🤖 AI生成知识点</h5>
+                <p id="aiGenerateMessage" class="text-secondary mb-0">正在分析题目标签...</p>
             </div>
         </div>
     </div>
@@ -650,5 +733,121 @@ async function aiMergeKps() {
         setTimeout(() => aiMergeModal.hide(), 2000);
     }
 }
+
+// AI根据标签生成知识点
+let aiGenerateModal = null;
+async function aiGenerateFromTags() {
+    const subjectId = {{ current_subject.id if current_subject else 0 }};
+    const levelId = {{ current_level.id if current_level else 0 }};
+    if (!levelId) { alert('请先选择一个等级'); return; }
+
+    if (!confirm('AI将分析该等级下所有题目的标签，将未归类的标签分组为知识点。\n\n确认继续？')) return;
+
+    // 显示加载遮罩
+    aiGenerateModal = new bootstrap.Modal(document.getElementById('aiGenerateModal'));
+    aiGenerateModal.show();
+
+    try {
+        const response = await fetch(`/admin/api/knowledge-points/generate-from-tags?subject_id=${subjectId}&level_id=${levelId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(line.slice(6));
+                        document.getElementById('aiGenerateMessage').textContent = data.message || '处理中...';
+                        if (data.progress >= 100) {
+                            if (data.level === 'success') {
+                                document.getElementById('aiGenerateTitle').textContent = '✨ 生成完成';
+                                document.getElementById('aiGenerateMessage').textContent = data.message;
+                            } else {
+                                document.getElementById('aiGenerateTitle').textContent = '❌ 生成失败';
+                                document.getElementById('aiGenerateMessage').textContent = data.message;
+                            }
+                            setTimeout(() => {
+                                aiGenerateModal.hide();
+                                location.reload();
+                            }, 1500);
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('解析SSE数据失败:', e);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        document.getElementById('aiGenerateTitle').textContent = '❌ 请求失败';
+        document.getElementById('aiGenerateMessage').textContent = error.message;
+        setTimeout(() => aiGenerateModal.hide(), 2000);
+    }
+}
+
+// 加载标签统计
+async function loadTagStats() {
+    const subjectId = {{ current_subject.id if current_subject else 0 }};
+    const levelId = {{ current_level.id if current_level else 0 }};
+    if (!levelId) return;
+
+    try {
+        const response = await fetch(`/api/knowledge-points/tags?subject_id=${subjectId}&level_id=${levelId}`);
+        const data = await response.json();
+        if (!data.success) return;
+
+        const { all_tags, covered_tags, uncovered_tags } = data.data;
+        const container = document.getElementById('tagStats');
+        if (!container) return;
+
+        if (all_tags.length === 0) {
+            container.innerHTML = '<div class="text-secondary">该等级下暂无题目标签</div>';
+            return;
+        }
+
+        let html = `<div class="mb-2">共 <strong>${all_tags.length}</strong> 个标签，已归类 <strong class="text-success">${covered_tags.length}</strong> 个，未归类 <strong class="text-warning">${uncovered_tags.length}</strong> 个</div>`;
+
+        if (uncovered_tags.length > 0) {
+            html += '<div class="mt-2">';
+            html += '<span class="text-warning me-1">未归类：</span>';
+            uncovered_tags.slice(0, 20).forEach(tag => {
+                html += `<span class="badge bg-warning text-dark me-1 mb-1">${tag}</span>`;
+            });
+            if (uncovered_tags.length > 20) {
+                html += `<span class="text-secondary">...还有 ${uncovered_tags.length - 20} 个</span>`;
+            }
+            html += '</div>';
+        }
+
+        if (covered_tags.length > 0) {
+            html += '<div class="mt-2">';
+            html += '<span class="text-success me-1">已归类：</span>';
+            covered_tags.slice(0, 15).forEach(tag => {
+                html += `<span class="badge bg-success me-1 mb-1">${tag}</span>`;
+            });
+            if (covered_tags.length > 15) {
+                html += `<span class="text-secondary">...还有 ${covered_tags.length - 15} 个</span>`;
+            }
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+    } catch (e) {
+        console.error('加载标签统计失败:', e);
+    }
+}
+
+// 页面加载时获取标签统计
+{% if current_level %}
+loadTagStats();
+{% endif %}
 </script>
 {% endblock admin_content %}

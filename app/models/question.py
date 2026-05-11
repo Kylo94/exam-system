@@ -33,6 +33,7 @@ class Question(Model):
     knowledge_point_ids = fields.JSONField(default=list)
     difficulty = fields.IntField(default=1)  # 1-5难度
     order_num = fields.IntField(default=0)  # 题目顺序
+    tags = fields.JSONField(default=list)  # 题目标签列表，用于动态关联知识点
     images = fields.JSONField(default=list)  # 题目内容中的多张图片路径列表 ["path1", "path2"]
     question_metadata = fields.JSONField(default=dict)  # 题目元数据，包含选项图片等信息
 
@@ -72,9 +73,16 @@ class Question(Model):
         return type_map.get(self.type, self.type)
 
     def get_options_list(self) -> list:
-        """获取选项列表"""
+        """获取选项列表（含图片信息）"""
         if isinstance(self.options, dict):
-            return [{"key": k, "value": v} for k, v in self.options.items()]
+            options_images = (self.question_metadata or {}).get('options_images', {})
+            result = []
+            for k, v in self.options.items():
+                opt = {"key": k, "value": v}
+                if k in options_images:
+                    opt.update(options_images[k])
+                result.append(opt)
+            return result
         return []
 
     def check_answer(self, user_answer: str) -> bool:

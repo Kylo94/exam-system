@@ -1,4 +1,5 @@
 """上传进度管理服务"""
+import time
 import uuid
 from asyncio import Event
 from typing import Dict, Optional
@@ -17,7 +18,8 @@ class UploadTask:
         self.total = 0
         self.completed = False
         self.details = None
-        self._result = None  # 最终结果
+        self._result = None
+        self.created_at = time.time()
 
     def to_dict(self) -> Dict:
         return {
@@ -41,9 +43,23 @@ class UploadService:
 
     _tasks: Dict[str, UploadTask] = {}
 
+    _TASK_TTL = 3600  # 1小时
+
+    @classmethod
+    def _cleanup_old_tasks(cls):
+        """清理超过 TTL 的旧任务"""
+        now = time.time()
+        stale = [
+            tid for tid, t in cls._tasks.items()
+            if t.completed and now - t.created_at > cls._TASK_TTL
+        ]
+        for tid in stale:
+            cls._tasks.pop(tid, None)
+
     @classmethod
     def create_task(cls) -> str:
         """创建新任务"""
+        cls._cleanup_old_tasks()
         task_id = str(uuid.uuid4())[:8]
         cls._tasks[task_id] = UploadTask(task_id)
         return task_id

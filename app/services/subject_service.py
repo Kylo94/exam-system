@@ -136,37 +136,40 @@ class SubjectService:
         if not kps:
             return []
 
-        kp_ids = [kp.id for kp in kps]
-
-        # 批量查询题目数量（按knowledge_point_id分组）
-        q_counts = defaultdict(int)
-        qs_raw = await Question.filter(knowledge_point_id__in=kp_ids).values_list("knowledge_point_id", flat=True)
-        for kpid in qs_raw:
-            q_counts[kpid] += 1
+        # 批量查询该等级下的所有题目（按exam关联的level_id）
+        all_questions = await Question.filter(exam__level_id=level_id).all()
 
         result = []
         for kp in kps:
+            kp_tags = set(t.strip().lower() for t in (kp.tags or []) if t.strip())
+            if kp_tags:
+                # tags匹配：题目tags与知识点tags有交集
+                count = sum(1 for q in all_questions if any(t in kp_tags for t in (q.tags or [])))
+            else:
+                # 降级：使用 knowledge_point_id FK 统计
+                count = sum(1 for q in all_questions if q.knowledge_point_id == kp.id)
             result.append({
                 "id": kp.id,
                 "name": kp.name,
                 "description": kp.description,
                 "keywords": kp.keywords,
+                "tags": kp.tags or [],
                 "display_id": kp.display_id,
                 "subject_id": kp.subject_id,
                 "level_id": kp.level_id,
-                "question_count": q_counts.get(kp.id, 0)
+                "question_count": count
             })
         return result
 
     @staticmethod
-    async def create_knowledge_point(subject_id: int, level_id: int, name: str, description: str = None, keywords: str = None) -> KnowledgePoint:
+    async def create_knowledge_point(subject_id: int, level_id: int, name: str, description: str = None, tags: list = None) -> KnowledgePoint:
         """创建知识点"""
         kp = await KnowledgePoint.create(
             name=name,
             subject_id=subject_id,
             level_id=level_id,
             description=description,
-            keywords=keywords
+            tags=tags or []
         )
         return kp
 

@@ -277,16 +277,15 @@ def validate_question_data(question_data: Dict[str, Any]) -> bool:
         >>> validate_question_data(data)
         True
     """
-    required_fields = ['type', 'text', 'correct_answer']
+    required_fields = ['type', 'content', 'correct_answer']
 
     for field in required_fields:
         if field not in question_data or not question_data[field]:
             return False
 
-    # 验证题型
-    valid_types = ['single_choice', 'multiple_choice', 'true_false',
-                   'fill_blank', 'short_answer', 'programming']
-    if question_data['type'] not in valid_types:
+    from app.parsers.constants import VALID_QUESTION_TYPES
+
+    if question_data['type'] not in VALID_QUESTION_TYPES:
         return False
 
     # 验证选择题选项

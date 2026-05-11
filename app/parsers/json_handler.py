@@ -1,8 +1,13 @@
 """JSON 处理和标准化模块"""
 
 import json
+import logging
 import re
 from typing import Any, Dict, List
+
+from .constants import TYPE_ALIAS_MAP, VALID_QUESTION_TYPES
+
+logger = logging.getLogger(__name__)
 
 try:
     import json5
@@ -185,6 +190,63 @@ class JsonHandler:
 
         return None
 
+    def _normalize_options(self, options: Any) -> List[Dict[str, str]]:
+        """标准化选项格式，兼容 AI 返回的多种格式
+
+        支持格式：
+        1. [{\"id\": \"A\", \"text\": \"...\"}, ...]  — 标准格式
+        2. {\"A\": \"...\", \"B\": \"...\"}               — 字典格式
+        3. [\"A. xxx\", \"B. xxx\"]                      — 字符串列表
+        4. [\"xxx\", \"yyy\"]                            — 无编号字符串列表
+        5. None / [] — 空
+        """
+        import re
+
+        if not options:
+            return []
+
+        # 格式1：已经是标准列表 [{\"id\": \"A\", \"text\": \"...\"}]
+        if isinstance(options, list):
+            normalized = []
+            for opt in options:
+                if isinstance(opt, dict):
+                    if 'id' not in opt and 'text' in opt:
+                        opt['id'] = chr(65 + len(normalized))
+                    if 'id' in opt or 'text' in opt:
+                        normalized.append({
+                            'id': opt.get('id', chr(65 + len(normalized))),
+                            'text': opt.get('text', '')
+                        })
+                elif isinstance(opt, str):
+                    # 格式3/4：字符串，尝试提取编号
+                    match = re.match(r'^([A-Z])[\.、)\s:：]+\s*(.+)', opt.strip(), re.IGNORECASE)
+                    if match:
+                        normalized.append({
+                            'id': match.group(1).upper(),
+                            'text': match.group(2).strip()
+                        })
+                    else:
+                        # 无编号字符串，自动分配
+                        normalized.append({
+                            'id': chr(65 + len(normalized)),
+                            'text': opt.strip()
+                        })
+            return normalized
+
+        # 格式2：字典格式 {\"A\": \"...\", \"B\": \"...\"}
+        if isinstance(options, dict):
+            normalized = []
+            for k, v in options.items():
+                normalized.append({
+                    'id': str(k).upper(),
+                    'text': str(v) if v else ''
+                })
+            # 按 id 排序保证 A、B、C、D 顺序
+            normalized.sort(key=lambda x: x['id'])
+            return normalized
+
+        return []
+
     def _normalize_questions(self, questions: Any) -> List[Dict[str, Any]]:
         """
         标准化试题格式
@@ -205,43 +267,21 @@ class JsonHandler:
                 continue
 
             # 标准化题型
-            type_map = {
-                '单选题': 'single_choice',
-                '多选题': 'multiple_choice',
-                '判断题': 'true_false',
-                '填空题': 'fill_blank',
-                '简答题': 'short_answer',
-                '编程题': 'coding',
-                'judgment': 'true_false',
-                'subjective': 'short_answer',
-                'judge': 'true_false',
-                'true-false': 'true_false',
-                'choice': 'single_choice',
-                'multiple': 'multiple_choice',
-                'code': 'coding',
-                'programming': 'coding',
-            }
             q_type = q.get('type', 'single_choice')
-            q_type = type_map.get(q_type, q_type) if isinstance(q_type, str) else 'single_choice'
+            q_type = TYPE_ALIAS_MAP.get(q_type, q_type) if isinstance(q_type, str) else 'single_choice'
 
-            # 确保是有效类型
-            valid_types = ['single_choice', 'multiple_choice', 'true_false', 'fill_blank', 'short_answer', 'coding']
-            if q_type not in valid_types:
+            if q_type not in VALID_QUESTION_TYPES:
                 q_type = 'single_choice'
 
-            # 标准化选项
+            # 标准化选项（兼容多种格式）
             options = q.get('options', [])
             if q_type in ['single_choice', 'multiple_choice']:
-                if isinstance(options, list):
-                    normalized_options = []
-                    for opt in options:
-                        if isinstance(opt, dict):
-                            if 'id' not in opt:
-                                opt['id'] = chr(65 + len(normalized_options))
-                            normalized_options.append(opt)
-                    options = normalized_options
-                else:
-                    options = []
+                raw_options = options
+                options = self._normalize_options(options)
+                logger.debug(f"题目{idx+1} 选项标准化: type={q_type}, raw_type={type(raw_options).__name__}, "
+                           f"raw_len={len(raw_options) if raw_options else 0}, "
+                           f"normalized_len={len(options)}, "
+                           f"sample={str(options[:2])[:200] if options else 'EMPTY'}")
 
             # 标准化答案
             correct_answer = str(q.get('correct_answer', ''))
@@ -264,8 +304,7 @@ class JsonHandler:
                 'points': points,
                 'options': options,
                 'explanation': q.get('explanation', ''),
-                'knowledge_point': q.get('knowledge_point', ''),
-                'knowledge_point_names': q.get('knowledge_point_names') or [],
+                'tags': q.get('tags') or [],
                 'order_index': idx + 1,
                 'content_has_image': q.get('content_has_image', False),
                 'image_path': q.get('image_path'),

@@ -258,21 +258,31 @@ class KnowledgePointService:
 
         # 构建知识点数据（包含题目数量和摘要）
         from app.models.question import Question
+        kp_ids = [kp.id for kp in kps]
+        questions_by_kp = {}
+        if kp_ids:
+            q_rows = await Question.filter(knowledge_point_id__in=kp_ids).values_list(
+                'knowledge_point_id', flat=False
+            )
+            for row in q_rows:
+                kp_id = row[0] if isinstance(row, (list, tuple)) else row
+                questions_by_kp[kp_id] = questions_by_kp.get(kp_id, 0) + 1
+
         kp_data = []
         for kp in kps:
-            questions_count = await Question.filter(knowledge_point_id=kp.id).count()
+            kp_tags = kp.tags or []
             kp_data.append({
                 "id": kp.id,
                 "name": kp.name,
                 "description": kp.description or "",
-                "keywords": kp.keywords or "",
-                "questions_count": questions_count
+                "tags": kp_tags,
+                "questions_count": questions_by_kp.get(kp.id, 0)
             })
 
         # 构建发送给AI的数据
         kp_list_str = "\n".join([
-            f"知识点{id}: {kp['name']}" +
-            (f" (关键词: {kp['keywords']})" if kp['keywords'] else "") +
+            f"知识点{kp['id']}: {kp['name']}" +
+            (f" (标签: {', '.join(kp['tags'])})" if kp['tags'] else "") +
             (f" - 包含{kp['questions_count']}道题" if kp['questions_count'] > 0 else " - 无题目")
             for kp in kp_data
         ])
@@ -284,7 +294,7 @@ class KnowledgePointService:
 
 请分析哪些知识点含义相近或重复，可以合并为一个知识点。合并规则：
 1. 名称高度相似（如"循环"和"循环结构"）的应合并
-2. 关键词重叠较多的应合并
+2. 标签重叠较多的应合并
 3. 被包含关系（如"Python基础"和"Python数据类型"）可考虑合并
 4. 保留名称更准确、题目数量更多的知识点作为主知识点
 
@@ -302,8 +312,13 @@ class KnowledgePointService:
             ]
 
             kp_logger.info(f"调用AI分析知识点合并，知识点数量: {len(kps)}")
+            kp_logger.info(f"===== AI 合并请求开始 =====")
+            kp_logger.info(f"System prompt: {messages[0]['content']}")
+            kp_logger.info(f"User prompt:\n{prompt}")
+            kp_logger.info(f"===== 发送给AI的消息 =====")
             response = llm_service.provider_instance.chat_completion(messages)
-            kp_logger.debug(f"AI合并建议响应: {response[:500]}")
+            kp_logger.info(f"===== AI 合并响应 ({len(response)} 字符) =====")
+            kp_logger.info(f"AI响应内容:\n{response[:2000]}")
 
             # 解析AI响应
             merge_suggestions = KnowledgePointService._parse_merge_response(response)
@@ -317,7 +332,7 @@ class KnowledgePointService:
             kp_name_map = {kp.name: kp for kp in kps}
             kp_logger.debug(f"知识点名称映射: {list(kp_name_map.keys())}")
 
-            # 执行合并
+            # 执行合并（只合并tags，不操作题目）
             merged_count = 0
             absorbed_kps = []
             source_kp_ids = set()
@@ -331,9 +346,12 @@ class KnowledgePointService:
 
                 target_kp = kp_name_map.get(target_name)
                 if not target_kp:
-                    kp_logger.debug(f"跳过建议: target_name='{target_name}' 未在kps中找到 (kps names: {list(kp_name_map.keys())})")
+                    kp_logger.debug(f"跳过建议: target_name='{target_name}' 未在kps中找到")
                     continue
                 kp_logger.debug(f"找到target_kp: id={target_kp.id}, name={target_kp.name}")
+
+                # 合并target的tags（去重）
+                target_tags = set(t.strip().lower() for t in (target_kp.tags or []) if t.strip())
 
                 for source_name in source_names:
                     if source_name == target_name:
@@ -343,27 +361,20 @@ class KnowledgePointService:
                         kp_logger.debug(f"跳过source_name='{source_name}' (不在kps列表中)")
                         continue
 
-                    # 获取源知识点包含的所有题目（JSON字段不支持__contains，换用全量查询+Python过滤）
-                    all_questions = await Question.all()
-                    questions = [q for q in all_questions if source_kp.id in (q.knowledge_point_ids or [])]
-
-                    for q in questions:
-                        # 将题目从源知识点转移到目标知识点
-                        current_ids = q.knowledge_point_ids or []
-                        new_ids = [target_kp.id] + [sid for sid in current_ids if sid != source_kp.id and sid != target_kp.id]
-                        new_ids = list(dict.fromkeys(new_ids))  # 去重保持顺序
-                        q.knowledge_point_ids = new_ids
-                        # 更新主知识点
-                        if q.knowledge_point_id == source_kp.id:
-                            q.knowledge_point_id = target_kp.id
-                        await q.save()
+                    # 把source的tags合并到target
+                    source_tags = set(t.strip().lower() for t in (source_kp.tags or []) if t.strip())
+                    target_tags.update(source_tags)
 
                     absorbed_kps.append({"id": source_kp.id, "name": source_kp.name, "merged_into": target_kp.name})
                     source_kp_ids.add(source_kp.id)
                     merged_count += 1
-                    kp_logger.debug(f"知识点 {source_kp.name}(id={source_kp.id}) 已合并到 {target_kp.name}(id={target_kp.id})")
+                    kp_logger.debug(f"知识点 {source_kp.name} tags已合并到 {target_kp.name}")
 
-            # 删除被合并的源知识点
+                # 更新target的tags
+                target_kp.tags = list(target_tags)
+                await target_kp.save()
+
+            # 删除被合并的源知识点（题目通过tags动态关联，不需要动）
             if source_kp_ids:
                 await KnowledgePoint.filter(id__in=list(source_kp_ids)).delete()
                 kp_logger.info(f"已删除被合并的知识点: {list(source_kp_ids)}")
@@ -429,7 +440,8 @@ class KnowledgePointService:
         level_id: int,
         name: str,
         description: str = None,
-        keywords: str = None
+        keywords: str = None,
+        tags: list = None
     ) -> "KnowledgePoint":
         """获取或创建知识点（如果不存在则创建）"""
         from app.models.knowledge_point import KnowledgePoint
@@ -440,7 +452,8 @@ class KnowledgePointService:
                 subject_id=subject_id,
                 level_id=level_id,
                 description=description,
-                keywords=keywords
+                keywords=keywords,
+                tags=tags or []
             )
             kp_logger.debug(f"创建新知识点: {name}")
         return kp

@@ -1,10 +1,13 @@
 """试卷服务"""
+import logging
 from typing import Any, Dict, List
 
 from app.models.exam import Exam
 from app.models.question import Question
 from app.models.user import User
 from app.services.exceptions import NotFoundException, ValidationException
+
+logger = logging.getLogger(__name__)
 
 
 class ExamService:
@@ -58,17 +61,17 @@ class ExamService:
         """更新试卷"""
         exam = await ExamService.get_exam_or_404(exam_id)
 
-        if title:
+        if title is not None:
             exam.title = title
-        if subject_id:
+        if subject_id is not None:
             exam.subject_id = subject_id
         if level_id is not None:
             exam.level_id = level_id
-        if duration_minutes:
+        if duration_minutes is not None:
             exam.duration_minutes = duration_minutes
-        if total_points:
+        if total_points is not None:
             exam.total_points = total_points
-        if pass_score:
+        if pass_score is not None:
             exam.pass_score = pass_score
         if is_published is not None:
             exam.is_published = is_published
@@ -97,15 +100,13 @@ class ExamService:
     @staticmethod
     async def create_questions_from_data(
         exam: Exam,
-        questions_data: List[Dict[str, Any]],
-        knowledge_point_map: Dict[int, List[int]] = None,
+        questions_data: List[Dict[str, Any]]
     ) -> tuple[int, int]:
-        """从数据创建题目
+        """从数据创建题目（只保存tags，不关联知识点）
 
         Args:
             exam: 试卷实例
             questions_data: 题目数据列表
-            knowledge_point_map: 知识点映射 {question_index: [kp_id, ...]}
 
         Returns:
             (成功数, 失败数)
@@ -122,18 +123,35 @@ class ExamService:
                 # 处理选项格式
                 options = q_data.get('options', {})
                 if isinstance(options, list):
+                    # 提取选项中的图片信息，保存到 question_metadata
+                    options_images = {}
+                    for opt in options:
+                        opt_id = opt.get('id', '')
+                        if opt.get('has_image') and opt.get('image_path'):
+                            options_images[opt_id] = {
+                                'has_image': True,
+                                'image_path': opt.get('image_path')
+                            }
                     options = {opt.get('id', chr(65+i)): opt.get('text', '') for i, opt in enumerate(options)}
+                    if options_images:
+                        question_metadata = q_data.get('question_metadata', {})
+                        if 'options_images' not in question_metadata:
+                            question_metadata['options_images'] = {}
+                        question_metadata['options_images'].update(options_images)
+                        q_data['question_metadata'] = question_metadata
 
-                # 获取知识点
-                kp_ids = []
-                if knowledge_point_map and idx + 1 in knowledge_point_map:
-                    kp_ids = knowledge_point_map[idx + 1]
-                else:
-                    kp_ids = q_data.get('knowledge_point_ids', [])
+                # 获取标签
+                tags = q_data.get('tags', [])
+
+                q_type = q_data.get('type', 'choice') or 'choice'
+                logger.debug(f"创建题目 idx={idx}: type={q_type}, "
+                           f"options_type={type(options).__name__}, "
+                           f"options_len={len(options) if options else 0}, "
+                           f"options_sample={str(options)[:200] if options else 'EMPTY'}")
 
                 await Question.create(
                     exam=exam,
-                    type=q_data.get('type', 'choice') or 'choice',
+                    type=q_type,
                     content=q_data.get('content') or '题目内容',
                     options=options,
                     correct_answer=q_data.get('correct_answer') or '',
@@ -143,11 +161,12 @@ class ExamService:
                     images=images,
                     question_metadata=q_data.get('question_metadata', {}),
                     order_num=q_data.get('index', idx + 1) or (idx + 1),
-                    knowledge_point_ids=kp_ids,
-                    knowledge_point_id=kp_ids[0] if kp_ids else None,
+                    tags=tags,
                 )
+
                 created += 1
             except Exception:
+                logger.exception(f"创建题目失败 idx={idx}")
                 failed += 1
 
         return created, failed

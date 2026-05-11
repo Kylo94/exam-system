@@ -23,6 +23,23 @@
     .option-item {
         margin-bottom: 0.5rem;
     }
+    .image-browser-item {
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .image-browser-item:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 10px rgba(13, 110, 253, 0.5);
+        border-color: var(--bs-primary, #0d6efd);
+    }
+    /* 图片浏览器始终在题目编辑框之上 */
+    #imageBrowserModal {
+        z-index: 9999 !important;
+    }
+    #imageBrowserModal + .modal-backdrop,
+    .modal-backdrop:has(+ #imageBrowserModal),
+    .modal-backdrop:nth-of-type(2) {
+        z-index: 9998 !important;
+    }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -105,9 +122,6 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="card-title mb-0">试卷题目</h5>
                     <div>
-                        <button class="btn btn-outline-primary me-2" onclick="showKpAssignmentModal()">
-                            <i class="bi bi-magic me-1"></i>智能分配知识点
-                        </button>
                         <button class="btn btn-success" onclick="showAddQuestionModal()">
                             <i class="bi bi-plus-circle me-1"></i>添加题目
                         </button>
@@ -132,6 +146,49 @@
             </button>
         </div>
     </main>
+
+    <!-- 图片浏览器模态框 -->
+    <div class="modal fade" id="imageBrowserModal" tabindex="-1" style="z-index: 9999;">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-images me-2"></i>选择图片</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 搜索和上传 -->
+                    <div class="d-flex gap-2 mb-3">
+                        <input type="text" class="form-control" id="imageBrowserSearch" placeholder="搜索图片名称...">
+                        <button type="button" class="btn btn-outline-primary" onclick="imageBrowserSearch()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-success" id="imageBrowserUploadBtn">
+                            <i class="bi bi-cloud-upload me-1"></i>上传新图片
+                        </button>
+                        <input type="file" id="imageBrowserUploadInput" accept="image/*" style="display:none;">
+                    </div>
+
+                    <!-- 图片网格 -->
+                    <div id="imageBrowserGrid" class="row g-2" style="max-height: 50vh; overflow-y: auto;">
+                        <div class="col-12 text-center py-5 text-muted">
+                            <i class="bi bi-hourglass-split"></i> 加载中...
+                        </div>
+                    </div>
+
+                    <!-- 分页 -->
+                    <div class="d-flex justify-content-between align-items-center mt-3" id="imageBrowserPagination" style="display:none;">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="imageBrowserPrev">
+                            <i class="bi bi-chevron-left"></i> 上一页
+                        </button>
+                        <small class="text-muted" id="imageBrowserPageInfo"></small>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="imageBrowserNext">
+                            下一页 <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 添加题目模态框 -->
     <div class="modal fade" id="questionModal" tabindex="-1">
@@ -168,8 +225,13 @@
                                 <img id="currentQuestionImagePreview" src="" alt="当前图片" class="img-fluid rounded" style="max-height: 200px;">
                                 <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="removeQuestionImage()">删除图片</button>
                             </div>
-                            <input type="file" class="form-control" id="questionImageInput" accept="image/*">
-                            <small class="text-muted">支持jpg、png等图片格式，最大5MB</small>
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="questionImageInput" accept="image/*">
+                                <button type="button" class="btn btn-outline-primary" onclick="openImageBrowser('question')">
+                                    <i class="bi bi-folder2-open me-1"></i>浏览
+                                </button>
+                            </div>
+                            <small class="text-muted">上传或从服务器选择图片，支持jpg、png等格式</small>
                         </div>
 
                         <div class="mb-3">
@@ -184,7 +246,10 @@
                                     <div class="input-group">
                                         <input type="text" class="form-control option-input" id="optionA" placeholder="选项 A">
                                         <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('A')" title="上传图片">
-                                            <i class="bi bi-image"></i>
+                                            <i class="bi bi-cloud-upload"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" onclick="openImageBrowser('option', 'A')" title="浏览服务器图片">
+                                            <i class="bi bi-folder2-open"></i>
                                         </button>
                                     </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="A" accept="image/*" style="display: none;">
@@ -197,7 +262,10 @@
                                     <div class="input-group">
                                         <input type="text" class="form-control option-input" id="optionB" placeholder="选项 B">
                                         <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('B')" title="上传图片">
-                                            <i class="bi bi-image"></i>
+                                            <i class="bi bi-cloud-upload"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" onclick="openImageBrowser('option', 'B')" title="浏览服务器图片">
+                                            <i class="bi bi-folder2-open"></i>
                                         </button>
                                     </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="B" accept="image/*" style="display: none;">
@@ -210,7 +278,10 @@
                                     <div class="input-group">
                                         <input type="text" class="form-control option-input" id="optionC" placeholder="选项 C">
                                         <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('C')" title="上传图片">
-                                            <i class="bi bi-image"></i>
+                                            <i class="bi bi-cloud-upload"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" onclick="openImageBrowser('option', 'C')" title="浏览服务器图片">
+                                            <i class="bi bi-folder2-open"></i>
                                         </button>
                                     </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="C" accept="image/*" style="display: none;">
@@ -223,7 +294,10 @@
                                     <div class="input-group">
                                         <input type="text" class="form-control option-input" id="optionD" placeholder="选项 D">
                                         <button type="button" class="btn btn-outline-secondary" onclick="toggleOptionImage('D')" title="上传图片">
-                                            <i class="bi bi-image"></i>
+                                            <i class="bi bi-cloud-upload"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary" onclick="openImageBrowser('option', 'D')" title="浏览服务器图片">
+                                            <i class="bi bi-folder2-open"></i>
                                         </button>
                                     </div>
                                     <input type="file" class="form-control mt-1 option-image-input" data-option="D" accept="image/*" style="display: none;">
@@ -257,96 +331,6 @@
         </div>
     </div>
 
-    <!-- 智能分配知识点 Modal -->
-    <div class="modal fade" id="kpAssignmentModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-magic me-2"></i>智能分配知识点</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle me-2"></i>
-                        AI将分析题目内容，自动匹配到已创建的知识点。如果现有知识点都不合适，会建议创建新知识点。
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">选择AI配置</label>
-                        <select class="form-select" id="kpAiConfig">
-                            <option value="">使用默认配置</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">选择要分配的题目</label>
-                        <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                            <div id="kpQuestionList"></div>
-                        </div>
-                        <div class="form-text">
-                            已选择 <span id="kpSelectedCount">0</span> 道题目
-                            <button type="button" class="btn btn-sm btn-link p-0 ms-2" onclick="selectAllQuestions()">全选</button>
-                        </div>
-                    </div>
-
-                    <div id="kpAssignmentResults" style="display: none;">
-                        <hr>
-                        <h6>分配结果</h6>
-                        <div id="kpResultsList"></div>
-                    </div>
-
-                    <div id="kpAssignmentProgress" style="display: none;">
-                        <hr>
-                        <div class="text-center py-3">
-                            <div class="spinner-border text-primary me-2" role="status"></div>
-                            <span>AI正在分析题目，请稍候...</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                    <button type="button" class="btn btn-primary" id="btnStartKpAssignment" onclick="startKpAssignment()">
-                        <i class="bi bi-magic me-1"></i>开始分配
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 创建新知识点 Modal -->
-    <div class="modal fade" id="createKpModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>创建新知识点</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning" id="createKpAlert"></div>
-                    <input type="hidden" id="createKpQuestionId">
-                    <input type="hidden" id="createKpSubjectId">
-                    <div class="mb-3">
-                        <label class="form-label">知识点名称</label>
-                        <input type="text" class="form-control" id="createKpName">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">等级</label>
-                        <select class="form-select" id="createKpLevel">
-                            <option value="">无</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">描述</label>
-                        <textarea class="form-control" id="createKpDesc" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="confirmCreateKp()">创建并分配</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script>
         // 加载试卷信息
@@ -649,7 +633,9 @@
 
         // 删除题目图片
         function removeQuestionImage() {
-            document.getElementById('currentQuestionImage').style.display = 'none';
+            const preview = document.getElementById('currentQuestionImage');
+            preview.style.display = 'none';
+            preview.dataset.serverPath = '';
             document.getElementById('questionImageInput').value = '';
         }
 
@@ -668,8 +654,8 @@
             const preview = document.getElementById(`optionImagePreview${option}`);
             const input = document.querySelector(`.option-image-input[data-option="${option}"]`);
             preview.style.display = 'none';
+            preview.dataset.serverPath = '';
             input.value = '';
-            // 移除预览图的 src
             preview.querySelector('img').src = '';
         }
 
@@ -837,7 +823,6 @@
                     const img = preview.querySelector('img');
 
                     if (imageInput.files && imageInput.files[0]) {
-                        // 上传新图片
                         const imageData = await uploadImage(imageInput.files[0]);
                         if (imageData) {
                             optionsImages[label] = {
@@ -845,8 +830,13 @@
                                 image_path: imageData
                             };
                         }
+                    } else if (preview.dataset.serverPath) {
+                        // 从服务器浏览器选择的图片
+                        optionsImages[label] = {
+                            has_image: true,
+                            image_path: preview.dataset.serverPath
+                        };
                     } else if (img.src && img.src !== window.location.href) {
-                        // 保留现有图片 - 从URL中提取图片路径
                         const src = img.src;
                         const match = src.match(/\/api\/uploads\/(.+)$/);
                         const imagePath = match ? match[1] : src;
@@ -865,9 +855,11 @@
             const url = isEdit ? `/admin/api/questions/${questionId}` : `/admin/api/exams/${examId}/questions`;
             const method = isEdit ? 'PUT' : 'POST';
 
-            // 处理题目图片上传
+            // 处理题目图片
             const imageInput = document.getElementById('questionImageInput');
+            const currentImage = document.getElementById('currentQuestionImage');
             if (imageInput.files && imageInput.files[0]) {
+                // 上传新图片
                 const imageData = await uploadImage(imageInput.files[0]);
                 if (imageData) {
                     data.has_image = true;
@@ -876,20 +868,18 @@
                     alert('图片上传失败');
                     return;
                 }
-            } else {
-                // 如果删除了图片，则标记为无图片
-                const currentImage = document.getElementById('currentQuestionImage');
-                console.log('currentQuestionImage display:', currentImage.style.display);
-                if (currentImage.style.display === 'none') {
-                    data.has_image = false;
-                    data.image_data = '';
-                    console.log('Image marked for deletion');
-                } else if (currentQuestionData && currentQuestionData.has_image) {
-                    // 图片未删除，保留原图
-                    data.has_image = currentQuestionData.has_image;
-                    data.image_data = currentQuestionData.image_data;
-                    console.log('Keeping existing image:', data.image_data);
-                }
+            } else if (currentImage.style.display !== 'none' && currentImage.dataset.serverPath) {
+                // 从服务器浏览器选择的图片
+                data.has_image = true;
+                data.image_data = currentImage.dataset.serverPath;
+            } else if (currentImage.style.display === 'none') {
+                // 图片被删除
+                data.has_image = false;
+                data.image_data = '';
+            } else if (currentQuestionData && currentQuestionData.has_image) {
+                // 保留原图
+                data.has_image = currentQuestionData.has_image;
+                data.image_data = currentQuestionData.image_data;
             }
 
             console.log('Sending data:', JSON.stringify(data));
@@ -917,269 +907,151 @@
             });
         }
 
-        // ========== 智能知识点分配 ==========
-        let examQuestions = [];
 
-        async function showKpAssignmentModal() {
-            const modal = new bootstrap.Modal(document.getElementById('kpAssignmentModal'));
-            document.getElementById('kpAssignmentResults').style.display = 'none';
-            document.getElementById('kpAssignmentProgress').style.display = 'none';
-            document.getElementById('kpResultsList').innerHTML = '';
-            document.getElementById('kpSelectedCount').textContent = '0';
+        // ========== 图片浏览器 ==========
 
-            // 加载AI配置
-            const aiConfigSelect = document.getElementById('kpAiConfig');
-            aiConfigSelect.innerHTML = '<option value="">使用默认配置</option>';
-            try {
-                const aiResponse = await fetch('/api/ai-configs', { credentials: 'include' });
-                const aiData = await aiResponse.json();
-                if (aiData.success && aiData.data) {
-                    aiData.data.forEach(config => {
-                        const option = document.createElement('option');
-                        option.value = config.id;
-                        option.textContent = `${config.name} (${config.provider})`;
-                        aiConfigSelect.appendChild(option);
-                    });
-                }
-            } catch (error) {
-                console.error('加载AI配置失败:', error);
-            }
+        let imageBrowserTarget = null;  // {type: 'question' | 'option', optionId: 'A'|'B'|'C'|'D'|null}
+        let imageBrowserPage = 1;
+        let imageBrowserSearchTerm = '';
 
-            // 加载题目列表
-            const questionList = document.getElementById('kpQuestionList');
-            questionList.innerHTML = '';
-
-            // 先获取题目
-            if (examQuestions.length === 0) {
-                await loadQuestionsForKp();
-            }
-
-            examQuestions.forEach(q => {
-                const div = document.createElement('div');
-                div.className = 'form-check';
-                div.innerHTML = `
-                    <input class="form-check-input kp-question-checkbox" type="checkbox" value="${q.id}" id="kp_q_${q.id}">
-                    <label class="form-check-label" for="kp_q_${q.id}">
-                        <span class="badge bg-secondary me-1">${q.type_display || q.type}</span>
-                        ${q.content.substring(0, 60)}${q.content.length > 60 ? '...' : ''}
-                        ${q.knowledge_point ? '<span class="badge bg-success ms-1">已有: ' + q.knowledge_point + '</span>' : '<span class="badge bg-warning ms-1">未分配</span>'}
-                    </label>
-                `;
-                questionList.appendChild(div);
-            });
-
-            // 绑定选择事件
-            document.querySelectorAll('.kp-question-checkbox').forEach(cb => {
-                cb.addEventListener('change', updateKpSelectedCount);
-            });
-
+        function openImageBrowser(type, optionId) {
+            imageBrowserTarget = { type, optionId };
+            imageBrowserPage = 1;
+            imageBrowserSearchTerm = '';
+            document.getElementById('imageBrowserSearch').value = '';
+            loadImageBrowserImages();
+            const modal = new bootstrap.Modal(document.getElementById('imageBrowserModal'));
             modal.show();
-        }
-
-        async function loadQuestionsForKp() {
-            const examId = document.getElementById('examId').value;
-            try {
-                const response = await fetch(`/admin/api/exams/${examId}/questions`, { credentials: 'include' });
-                const data = await response.json();
-                if (data.success) {
-                    examQuestions = data.data || [];
+            // 确保浏览器在题目编辑框之上
+            setTimeout(() => {
+                const modalEl = document.getElementById('imageBrowserModal');
+                if (modalEl) modalEl.style.zIndex = '9999';
+                // 提升对应的 backdrop
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                if (backdrops.length >= 2) {
+                    backdrops[backdrops.length - 1].style.zIndex = '9998';
                 }
-            } catch (error) {
-                console.error('加载题目失败:', error);
-            }
+            }, 100);
         }
 
-        function updateKpSelectedCount() {
-            const count = document.querySelectorAll('.kp-question-checkbox:checked').length;
-            document.getElementById('kpSelectedCount').textContent = count;
-        }
+        async function loadImageBrowserImages() {
+            const grid = document.getElementById('imageBrowserGrid');
+            grid.innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="bi bi-hourglass-split"></i> 加载中...</div>';
 
-        function selectAllQuestions() {
-            const checkboxes = document.querySelectorAll('.kp-question-checkbox');
-            const allChecked = checkboxes.length > 0 && checkboxes[0].checked;
-            checkboxes.forEach(cb => cb.checked = !allChecked);
-            updateKpSelectedCount();
-        }
-
-        async function startKpAssignment() {
-            const selectedIds = Array.from(document.querySelectorAll('.kp-question-checkbox:checked')).map(cb => parseInt(cb.value));
-
-            if (selectedIds.length === 0) {
-                alert('请选择要分配的题目');
-                return;
-            }
-
-            const aiConfigId = document.getElementById('kpAiConfig').value;
-
-            document.getElementById('kpAssignmentProgress').style.display = 'block';
-            document.getElementById('kpAssignmentResults').style.display = 'none';
-            document.getElementById('btnStartKpAssignment').disabled = true;
-
-            try {
-                const response = await fetch('/admin/api/questions/assign-knowledge-points', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        question_ids: selectedIds,
-                        ai_config_id: aiConfigId ? parseInt(aiConfigId) : null
-                    })
-                });
-
-                const result = await response.json();
-
-                document.getElementById('kpAssignmentProgress').style.display = 'none';
-                document.getElementById('kpAssignmentResults').style.display = 'block';
-
-                if (result.success) {
-                    displayKpAssignmentResults(result.data);
-                } else {
-                    document.getElementById('kpResultsList').innerHTML = `
-                        <div class="alert alert-danger">${result.message || '分配失败'}</div>
-                    `;
-                }
-            } catch (error) {
-                document.getElementById('kpAssignmentProgress').style.display = 'none';
-                document.getElementById('kpAssignmentResults').style.display = 'block';
-                document.getElementById('kpResultsList').innerHTML = `
-                    <div class="alert alert-danger">请求失败: ${error.message}</div>
-                `;
-            }
-
-            document.getElementById('btnStartKpAssignment').disabled = false;
-        }
-
-        function displayKpAssignmentResults(data) {
-            const resultsList = document.getElementById('kpResultsList');
-            const { results, summary } = data;
-
-            let html = `<div class="alert alert-success mb-3">
-                <strong>分配完成！</strong> 共 ${summary.total} 道题目，
-                成功分配 ${summary.assigned} 道，
-                建议创建新知识点 ${summary.suggest_new} 道
-            </div>`;
-
-            results.forEach(r => {
-                const statusClass = r.status === 'assigned' ? 'success' : (r.status === 'suggest_new' ? 'warning' : 'secondary');
-                const statusText = r.status === 'assigned' ? '已分配' : (r.status === 'suggest_new' ? '建议新建' : (r.status === 'no_kp' ? '无知识点' : (r.status === 'skip' ? '跳过' : '失败')));
-
-                html += `<div class="card mb-2">
-                    <div class="card-body py-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge bg-${statusClass}">${statusText}</span>
-                                <span class="ms-2">${r.question_content || ('题目 #' + r.id)}</span>
-                            </div>
-                            ${r.status === 'assigned' ? `<span class="text-success">${r.knowledge_point_name} (${Math.round(r.confidence * 100)}%)</span>` : ''}
-                            ${r.status === 'suggest_new' ? `
-                                <button class="btn btn-sm btn-warning" onclick="showCreateKpModal(${r.id}, '${escapeHtml(r.suggested_kp_name)}', '${escapeHtml(r.reason || '')}')">
-                                    <i class="bi bi-plus"></i>创建: ${r.suggested_kp_name}
-                                </button>
-                            ` : ''}
-                        </div>
-                        ${r.reason ? `<div class="text-muted small mt-1">理由: ${r.reason}</div>` : ''}
-                    </div>
-                </div>`;
+            const params = new URLSearchParams({
+                page: imageBrowserPage,
+                per_page: 50,
+                search: imageBrowserSearchTerm
             });
 
-            resultsList.innerHTML = html;
-        }
-
-        async function showCreateKpModal(questionId, suggestedName, reason) {
-            const examId = document.getElementById('examId').value;
             try {
-                const examResponse = await fetch(`/admin/api/exams/${examId}`, { credentials: 'include' });
-                const examData = await examResponse.json();
-                const subjectId = examData.data.subject_id;
-
-                document.getElementById('createKpSubjectId').value = subjectId;
-                document.getElementById('createKpQuestionId').value = questionId;
-                document.getElementById('createKpName').value = suggestedName;
-                document.getElementById('createKpAlert').textContent = reason ? `AI建议理由: ${reason}` : '';
-                document.getElementById('createKpAlert').style.display = reason ? 'block' : 'none';
-
-                // 加载等级
-                const levelSelect = document.getElementById('createKpLevel');
-                levelSelect.innerHTML = '<option value="">无</option>';
-                try {
-                    const levelResponse = await fetch(`/api/levels?subject_id=${subjectId}`, { credentials: 'include' });
-                    const levelData = await levelResponse.json();
-                    if (levelData.success && levelData.data) {
-                        levelData.data.forEach(level => {
-                            const option = document.createElement('option');
-                            option.value = level.id;
-                            option.textContent = level.name;
-                            levelSelect.appendChild(option);
-                        });
-                    }
-                } catch (error) {
-                    console.error('加载等级失败:', error);
+                const response = await fetch(`/api/uploads/list?${params}`, { credentials: 'include' });
+                const result = await response.json();
+                if (!result.success || !result.data) {
+                    grid.innerHTML = '<div class="col-12 text-center py-5 text-danger">加载失败</div>';
+                    return;
                 }
 
-                new bootstrap.Modal(document.getElementById('createKpModal')).show();
-            } catch (error) {
-                console.error('获取试卷信息失败:', error);
-                alert('获取试卷信息失败');
-            }
-        }
+                const { images, total, page, total_pages } = result.data;
 
-        async function confirmCreateKp() {
-            const questionId = document.getElementById('createKpQuestionId').value;
-            const subjectId = document.getElementById('createKpSubjectId').value;
-            const name = document.getElementById('createKpName').value;
-            const levelId = document.getElementById('createKpLevel').value;
-            const description = document.getElementById('createKpDesc').value;
-
-            if (!name) {
-                alert('请输入知识点名称');
-                return;
-            }
-
-            try {
-                const params = new URLSearchParams();
-                params.append('name', name);
-                params.append('subject_id', subjectId);
-                if (levelId) params.append('level_id', levelId);
-                if (description) params.append('description', description);
-
-                const createResponse = await fetch('/api/knowledge-points', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params
-                });
-                const createResult = await createResponse.json();
-
-                if (createResult.success) {
-                    const kpId = createResult.data.id;
-                    await fetch(`/admin/api/questions/${questionId}`, {
-                        method: 'PUT',
-                        credentials: 'include',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ knowledge_point_id: kpId })
-                    });
-
-                    bootstrap.Modal.getInstance(document.getElementById('createKpModal')).hide();
-                    alert('知识点创建并分配成功！');
-                    loadQuestions();
+                if (images.length === 0) {
+                    grid.innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="bi bi-inbox"></i> 暂无图片，请先上传</div>';
                 } else {
-                    alert('创建失败: ' + (createResult.message || '未知错误'));
+                    grid.innerHTML = images.map(img => `
+                        <div class="col-4 col-md-3 col-lg-2">
+                            <div class="card h-100 image-browser-item" onclick="selectBrowserImage('${img.path.replace(/'/g, "\\'")}')" style="cursor:pointer;">
+                                <img src="${img.url}" class="card-img-top" alt="${img.name}" style="height: 100px; object-fit: cover;">
+                                <div class="card-body p-1 text-center">
+                                    <small class="text-muted text-truncate d-block" title="${img.name}">${img.name.length > 12 ? img.name.substring(0, 12) + '...' : img.name}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
                 }
+
+                // 分页
+                document.getElementById('imageBrowserPageInfo').textContent = `第 ${page} 页 / 共 ${total_pages} 页 (${total} 张)`;
+                document.getElementById('imageBrowserPrev').disabled = page <= 1;
+                document.getElementById('imageBrowserNext').disabled = page >= total_pages;
+                document.getElementById('imageBrowserPagination').style.display = total > 0 ? 'flex' : 'none';
+
             } catch (error) {
-                alert('创建失败: ' + error.message);
+                console.error('加载图片列表失败:', error);
+                grid.innerHTML = '<div class="col-12 text-center py-5 text-danger">加载失败</div>';
             }
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function imageBrowserSearch() {
+            imageBrowserSearchTerm = document.getElementById('imageBrowserSearch').value.trim();
+            imageBrowserPage = 1;
+            loadImageBrowserImages();
         }
 
-        // ========== 原有函数 ==========
+        function selectBrowserImage(imagePath) {
+            if (!imageBrowserTarget) return;
 
-        // 上传图片
+            if (imageBrowserTarget.type === 'question') {
+                // 选中题目图片
+                const preview = document.getElementById('currentQuestionImage');
+                const previewImg = document.getElementById('currentQuestionImagePreview');
+                const imagePathClean = imagePath.replace('uploads/', '');
+                previewImg.src = `/api/uploads/${imagePathClean}`;
+                preview.style.display = 'block';
+                // 清空文件上传框，标记为"从服务器选择"
+                document.getElementById('questionImageInput').value = '';
+                // 存储选中的路径
+                preview.dataset.serverPath = imagePath;
+            } else if (imageBrowserTarget.type === 'option') {
+                const optId = imageBrowserTarget.optionId;
+                const preview = document.getElementById(`optionImagePreview${optId}`);
+                const img = preview.querySelector('img');
+                const imagePathClean = imagePath.replace('uploads/', '');
+                img.src = `/api/uploads/${imagePathClean}`;
+                preview.style.display = 'block';
+                // 清空文件上传框
+                const fileInput = document.querySelector(`.option-image-input[data-option="${optId}"]`);
+                if (fileInput) fileInput.value = '';
+                // 存储选中的路径
+                preview.dataset.serverPath = imagePath;
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('imageBrowserModal')).hide();
+        }
+
+        // 在浏览器中上传新图片
+        document.getElementById('imageBrowserUploadBtn').addEventListener('click', () => {
+            document.getElementById('imageBrowserUploadInput').click();
+        });
+
+        document.getElementById('imageBrowserUploadInput').addEventListener('change', async function() {
+            if (!this.files || !this.files[0]) return;
+            const path = await uploadImage(this.files[0]);
+            if (path) {
+                this.value = '';
+                loadImageBrowserImages();
+            } else {
+                alert('上传失败，请重试');
+            }
+        });
+
+        document.getElementById('imageBrowserPrev').addEventListener('click', () => {
+            if (imageBrowserPage > 1) {
+                imageBrowserPage--;
+                loadImageBrowserImages();
+            }
+        });
+
+        document.getElementById('imageBrowserNext').addEventListener('click', () => {
+            imageBrowserPage++;
+            loadImageBrowserImages();
+        });
+
+        // 搜索回车键
+        document.getElementById('imageBrowserSearch').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') imageBrowserSearch();
+        });
+
+        // ========== 上传图片 ==========
         async function uploadImage(file) {
             const formData = new FormData();
             formData.append('file', file);

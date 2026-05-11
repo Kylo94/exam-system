@@ -10,6 +10,7 @@ from app.auth import require_admin
 from app.models.level import Level
 from app.models.subject import Subject
 from app.models.user import User
+from app.parsers.constants import sse_progress_msg
 from app.services.subject_service import SubjectService
 from app.services.knowledge_point_service import KnowledgePointService
 from app.templating import templates
@@ -17,7 +18,37 @@ from app.templating import templates
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+# 垃圾标签黑名单：运算符、关键字、文件后缀、太泛的单词
+_GARBAGE_TAGS = {
+    '+', '-', '*', '/', '//', '%', '**', '+=', '-=', '*=', '/=', '%=', '**=',
+    '==', '!=', '>', '<', '>=', '<=', '=', ':=', '->',
+    '.py', '.pyc', '.pyw', 'py', 'pyc',
+    'True', 'False', 'None', 'and', 'or', 'not', 'is', 'in', 'if', 'else',
+    'elif', 'for', 'while', 'break', 'continue', 'return', 'yield', 'pass',
+    'def', 'class', 'lambda', 'try', 'except', 'finally', 'raise', 'assert',
+    'import', 'from', 'as', 'with', 'del', 'global', 'nonlocal',
+    '变量', '字符串', '整数', '浮点数', '列表', '字典', '元组', '集合',
+    '函数', '类', '对象', '模块', '文件',
+}
+
+_GARBAGE_PATTERNS = [
+    r'^[A-Z]$',                                                               # 单字母
+    r'^\d+$',                                                                 # 纯数字
+    r'^(print|input|int|str|float|list|dict|set|tuple|bool|type|len|range'
+    r'|sorted|reversed|enumerate|zip|map|filter|abs|min|max|sum|round'
+    r'|open|id|dir|help|exit|quit)$',                                         # 内置函数名
+    r'^[A-Z][a-z]+Error$',                                                    # 错误类型
+]
+
+
+def _is_garbage_tag(tag: str) -> bool:
+    import re
+    if tag in _GARBAGE_TAGS:
+        return True
+    for pattern in _GARBAGE_PATTERNS:
+        if re.match(pattern, tag):
+            return True
+    return False
 
 
 @router.get("/subjects", response_class=HTMLResponse)
@@ -225,11 +256,7 @@ async def ai_merge_knowledge_points(
     """AI合并相似知识点（SSE实时进度）"""
 
     async def event_stream():
-        def progress_msg(progress, message, level="info", details=None):
-            data = {"progress": progress, "message": message, "level": level}
-            if details:
-                data["details"] = details
-            return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+        progress_msg = sse_progress_msg
 
         try:
             # 获取AI配置
@@ -267,5 +294,177 @@ async def ai_merge_knowledge_points(
         except Exception as e:
             logger.exception(f"AI合并知识点失败: {e}")
             yield progress_msg(100, f"合并失败: {str(e)}", "error")
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+# ===== AI根据标签生成知识点 =====
+@router.post("/api/knowledge-points/generate-from-tags")
+async def generate_knowledge_points_from_tags(
+    request: Request,
+    subject_id: int,
+    level_id: int,
+    current_user: User = Depends(require_admin)
+):
+    """AI根据标签生成知识点（SSE实时进度）"""
+
+    async def event_stream():
+        progress_msg = sse_progress_msg
+
+        try:
+            # 获取AI配置
+            from app.models.ai_config import AIConfig
+            ai_config = await AIConfig.filter(is_active=True, is_default=True).first()
+            if not ai_config:
+                yield progress_msg(100, "未找到可用的AI配置", "error")
+                return
+
+            from app.ai.llm_service import LLMService
+            llm_service = LLMService(provider=ai_config.provider)
+            llm_service.config = {
+                'api_key': ai_config.api_key,
+                'base_url': ai_config.base_url,
+                'model': ai_config.model
+            }
+
+            # 获取该科目等级下所有题目的标签
+            from app.models.question import Question
+            from app.models.knowledge_point import KnowledgePoint
+
+            all_tags_list = await Question.filter(
+                exam__subject_id=subject_id, exam__level_id=level_id
+            ).values_list('tags', flat=True)
+            all_tags_set = set()
+            garbage_count = 0
+            for tags in all_tags_list:
+                for tag in (tags or []):
+                    t = tag.strip()
+                    if not t:
+                        continue
+                    if _is_garbage_tag(t):
+                        garbage_count += 1
+                    else:
+                        all_tags_set.add(t)
+
+            if garbage_count > 0:
+                logger.info(f"过滤垃圾标签: {garbage_count} 个")
+
+            if not all_tags_set:
+                yield progress_msg(100, "该等级下暂无题目标签", "warning")
+                return
+
+            all_tags = sorted(list(all_tags_set))
+            existing_kps = await KnowledgePoint.filter(
+                subject_id=subject_id, level_id=level_id
+            ).only('name', 'tags').all()
+            existing_kp_tags = set()
+            for kp in existing_kps:
+                for tag in (kp.tags or []):
+                    if tag.strip():
+                        existing_kp_tags.add(tag.strip())
+
+            uncovered_tags = all_tags_set - existing_kp_tags
+            yield progress_msg(10, f"发现 {len(all_tags)} 个标签，其中 {len(uncovered_tags)} 个未归类", "info")
+
+            if not uncovered_tags:
+                yield progress_msg(100, "所有标签都已归类，无需生成", "success")
+                return
+
+            # 构建给AI的prompt
+            tags_str = ", ".join(sorted(uncovered_tags))
+            existing_kp_str = "\n".join([f"- {kp.name} (标签: {', '.join(kp.tags or [])})" for kp in existing_kps]) if existing_kps else "（暂无已有知识点）"
+
+            # 获取科目名称
+            subject = await Subject.get_or_none(id=subject_id)
+            subject_name = subject.name if subject else "未知科目"
+
+            prompt = f"""你需要为「{subject_name}」科目的试题标签创建知识点定义。
+
+已有知识点：
+{existing_kp_str}
+
+待归类标签（共 {len(uncovered_tags)} 个）：
+{tags_str}
+
+请将标签分组为知识点。要求：
+1. 知识点必须与「{subject_name}」科目相关，不要创建无关的知识点
+2. 每个知识点的标签应当含义相近或属于同一范畴
+3. 标签本身如果太过宽泛（如只含科目名、无具体含义的），可以忽略不创建知识点
+
+返回JSON数组格式：
+[{{"name":"知识点名称","tags":["标签1","标签2"],"description":"简要描述"}},...]
+
+注意：
+1. 知识点名称要简洁准确，体现「{subject_name}」科目的特点
+2. 每个标签只能属于一个知识点
+3. 不要为宽泛、无关的标签强制创建知识点
+4. 返回JSON数组，不要任何其他文字，不要用markdown包裹
+"""
+
+            messages = [
+                {'role': 'system', 'content': '你是一个专业的知识点分类助手，擅长将标签归类为知识点。'},
+                {'role': 'user', 'content': prompt}
+            ]
+
+            logger.info(f"===== AI 生成知识点请求开始 =====")
+            logger.info(f"待归类标签: {sorted(uncovered_tags)}")
+            logger.info(f"System: {messages[0]['content']}")
+            logger.info(f"User prompt:\n{prompt}")
+            logger.info(f"===== 发送给AI =====")
+
+            response = llm_service.provider_instance.chat_completion(messages)
+            logger.info(f"===== AI 生成知识点响应 ({len(response)} 字符) =====")
+            logger.info(f"响应内容:\n{response[:2000]}")
+
+            # 解析AI响应
+            import re
+            try:
+                suggestions = json.loads(response.strip())
+            except json.JSONDecodeError:
+                json_match = re.search(r'```json\s*(\[[\s\S]*?\])\s*```', response)
+                if json_match:
+                    try:
+                        suggestions = json.loads(json_match.group(1).strip())
+                    except json.JSONDecodeError:
+                        suggestions = []
+                else:
+                    suggestions = []
+
+            if not suggestions:
+                yield progress_msg(100, "AI未返回有效结果", "error")
+                return
+
+            yield progress_msg(40, f"AI建议了 {len(suggestions)} 个知识点，正在创建...", "info")
+
+            # 创建知识点
+            created = 0
+            for sg in suggestions:
+                name = sg.get('name', '').strip()
+                tags_list = sg.get('tags', [])
+                description = sg.get('description', '自动生成')
+
+                if not name or not tags_list:
+                    continue
+
+                # 过滤掉已被现有知识点覆盖的标签
+                new_tags = [t for t in tags_list if t in uncovered_tags]
+                if not new_tags:
+                    continue
+
+                kp = await KnowledgePointService.get_or_create_knowledge_point(
+                    subject_id=subject_id,
+                    level_id=level_id,
+                    name=name,
+                    description=description,
+                    tags=new_tags
+                )
+                created += 1
+                logger.info(f"创建知识点: {name}, tags: {new_tags}")
+
+            yield progress_msg(100, f"完成，已创建 {created} 个知识点", "success", details={"created": created})
+
+        except Exception as e:
+            logger.exception(f"AI生成知识点失败: {e}")
+            yield progress_msg(100, f"生成失败: {str(e)}", "error")
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

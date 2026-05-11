@@ -111,11 +111,22 @@ class WrongQuestionService:
 
     @staticmethod
     async def get_wrong_questions_by_kp(student_id: int, knowledge_point_id: int) -> List[WrongQuestion]:
-        """获取学生某个知识点的错题"""
-        return await WrongQuestion.filter(
-            student_id=student_id,
-            question__knowledge_point_id=knowledge_point_id
-        ).prefetch_related("question").all()
+        """获取学生某个知识点的错题（支持tags匹配）"""
+        kp = await KnowledgePoint.get_or_none(id=knowledge_point_id)
+        if not kp:
+            return []
+
+        if kp.tags:
+            # tags匹配
+            all_wrong = await WrongQuestion.filter(student_id=student_id).prefetch_related("question").all()
+            kp_tags = set(t.strip().lower() for t in kp.tags if t.strip())
+            return [wq for wq in all_wrong if wq.question and any(t in kp_tags for t in (wq.question.tags or []))]
+        else:
+            # 降级：按knowledge_point_id匹配
+            return await WrongQuestion.filter(
+                student_id=student_id,
+                question__knowledge_point_id=knowledge_point_id
+            ).prefetch_related("question").all()
 
     @staticmethod
     async def get_wrong_count_by_subject(student_id: int) -> dict:
@@ -175,6 +186,6 @@ class WrongQuestionService:
         if not question_ids:
             return []
 
-        # 获取题目
-        questions = await Question.filter(id__in=question_ids).limit(limit).all()
+        # 获取题目（预加载关联数据）
+        questions = await Question.filter(id__in=question_ids).limit(limit).prefetch_related('exam__subject').all()
         return questions
