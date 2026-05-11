@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
 # 创建FastAPI应用
 app = FastAPI(
     title=settings.APP_NAME,
-    version="4.0.0",
+    version="0.9.0",
     description="在线答题系统 - FastAPI重构版",
     lifespan=lifespan,
 )
@@ -101,7 +101,7 @@ async def health_check():
     return JSONResponse({
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "version": "4.0.0"
+        "version": "0.9.0"
     })
 
 
