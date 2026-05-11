@@ -383,8 +383,10 @@ async def submission_detail(submission_id: int, request: Request, current_user: 
 # ===== 主观题评分 =====
 @router.get("/submissions/{submission_id}/grade", response_class=HTMLResponse)
 async def grade_submission_page(submission_id: int, request: Request, current_user: User = Depends(require_teacher)):
-    """主观题评分页面"""
-    submission = await Submission.get_or_none(id=submission_id).prefetch_related("user", "exam", "answers__question")
+    """评分页面 - 显示所有题目，可对任意题目评分"""
+    submission = await Submission.get_or_none(id=submission_id).prefetch_related(
+        "user", "exam", "answers", "answers__question"
+    )
 
     if not submission:
         raise HTTPException(status_code=404, detail="提交记录不存在")
@@ -394,17 +396,22 @@ async def grade_submission_page(submission_id: int, request: Request, current_us
     if not student or student.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权限查看此记录")
 
-    # 获取需要评分的主观题（简答题和编程题）
-    subjective_answers = []
+    # 获取试卷的全部题目
+    exam = await Exam.get_or_none(id=submission.exam_id).prefetch_related("questions")
+    questions = list(exam.questions) if exam else []
+
+    # 构建答案映射
+    answer_map = {}
     for answer in submission.answers:
-        if answer.question and answer.question.type in ["short_answer", "coding"]:
-            subjective_answers.append(answer)
+        answer_map[answer.question_id] = answer
 
     return templates.TemplateResponse("teacher/grade_submission.html", {
         "request": request,
         "current_user": current_user,
         "submission": submission,
-        "subjective_answers": subjective_answers
+        "exam": exam,
+        "questions": questions,
+        "answer_map": answer_map
     })
 
 

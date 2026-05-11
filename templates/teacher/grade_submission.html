@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}评分 - {{ get_app_name() }}{% endblock %}
+{% block title %}评分 - {{ super() }}{% endblock %}
 
 {% block content %}
 <div class="row mb-3">
@@ -15,9 +15,10 @@
     </div>
 </div>
 
+<!-- 试卷信息卡片 -->
 <div class="card mb-4">
-    <div class="card-header bg-warning text-dark">
-        <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>主观题评分</h5>
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>试卷评分</h5>
     </div>
     <div class="card-body">
         <div class="row">
@@ -25,59 +26,116 @@
                 <strong>学生：</strong>{{ submission.user.username }}
             </div>
             <div class="col-md-4">
-                <strong>试卷：</strong>{{ submission.exam.title if submission.exam else 'N/A' }}
+                <strong>试卷：</strong>{{ exam.title if exam else 'N/A' }}
             </div>
             <div class="col-md-4">
-                <strong>提交时间：</strong>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') if submission.submitted_at else '-' }}
+                <strong>当前得分：</strong><span id="currentScore">{{ submission.obtained_score or 0 }}</span> / {{ submission.total_score }}
             </div>
         </div>
     </div>
 </div>
 
 <form id="gradeForm">
-    {% for answer in subjective_answers %}
-    <div class="card mb-3">
-        <div class="card-header bg-light">
-            <h6 class="mb-0">{{ loop.index }}. {{ answer.question.type_display }}</h6>
+    <!-- 题目列表 -->
+    {% for q in questions %}
+    {% set q_idx = loop.index %}
+    {% set answer = answer_map[q.id] if q.id in answer_map else None %}
+    {% set is_auto_graded = q.type in ['single_choice', 'multiple_choice', 'true_false', 'fill_blank'] %}
+    <div class="card mb-3 question-grade-card" id="question-{{ q_idx }}">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <strong>第{{ q_idx }}题</strong>
+                <span class="badge bg-secondary">{{ q.type_display }}</span>
+                {% if is_auto_graded %}
+                <span class="badge bg-info">自动评分</span>
+                {% else %}
+                <span class="badge bg-warning">需要评分</span>
+                {% endif %}
+            </span>
+            <span class="badge bg-{{ 'success' if answer and answer.is_correct else 'secondary' }}">
+                {{ answer.score if answer and answer.score is not none else '-' }}分
+            </span>
         </div>
         <div class="card-body">
-            <div class="mb-3">
-                <strong>题目内容：</strong>
-                <p class="mb-2">{{ answer.question.content }}</p>
-                <strong>正确答案：</strong> {{ answer.question.correct_answer }}
+            <p><strong>题目：</strong>{{ q.content }}</p>
+
+            {% if q.type in ['single_choice', 'multiple_choice', 'true_false'] %}
+            {% if q.options %}
+            <div class="mb-2">
+                {% for opt_key, opt_val in q.options.items() %}
+                <div class="form-check {% if opt_key == q.correct_answer %}text-success fw-bold{% endif %}">
+                    {{ opt_key }}. {{ opt_val }}
+                </div>
+                {% endfor %}
             </div>
+            {% endif %}
+            <p><strong>正确答案：</strong>{{ q.correct_answer }}</p>
+            {% elif q.type == 'fill_blank' %}
+            <p><strong>正确答案：</strong>{{ q.correct_answer }}</p>
+            {% endif %}
+
             <div class="mb-3 p-3 bg-light rounded">
                 <strong>学生答案：</strong>
-                <div class="mt-2">{{ answer.user_answer }}</div>
+                <div class="mt-2">{{ answer.user_answer if answer and answer.user_answer else '（未作答）' }}</div>
             </div>
-            <div class="row align-items-center">
+
+            {% if is_auto_graded %}
+            <div class="text-muted small">
+                <i class="bi bi-check-circle"></i> 系统自动评分，无需手动操作
+            </div>
+            {% else %}
+            <div class="row align-items-center mt-3">
                 <div class="col-md-6">
-                    <label class="form-label">评分（满分 {{ answer.question.points }} 分）</label>
-                    <input type="number" class="form-control" name="score_{{ answer.id }}"
-                           value="{{ answer.score if answer.score else 0 }}"
-                           min="0" max="{{ answer.question.points }}" step="0.5">
+                    <label class="form-label">评分（满分 {{ q.points }} 分）</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control score-input" name="score_{{ q.id }}"
+                               value="{{ answer.score if answer and answer.score is not none else 0 }}"
+                               min="0" max="{{ q.points }}" step="0.5"
+                               data-question-id="{{ q.id }}" data-max-points="{{ q.points }}">
+                        <span class="input-group-text">/ {{ q.points }} 分</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <span class="text-muted small">
+                        得分范围: 0 ~ {{ q.points }}
+                    </span>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
-    {% else %}
-    <div class="alert alert-info">没有需要评分的主观题</div>
     {% endfor %}
 
-    <div class="text-end mt-4">
+    <!-- 提交按钮 -->
+    <div class="text-end mt-4 mb-5">
+        <a href="/teacher/submissions/{{ submission.id }}" class="btn btn-outline-secondary me-2">取消</a>
         <button type="submit" class="btn btn-success btn-lg">
-            <i class="bi bi-check-circle me-2"></i>提交评分
+            <i class="bi bi-check-circle me-2"></i>保存评分
         </button>
     </div>
 </form>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 document.getElementById('gradeForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const formData = new FormData(this);
+    const scores = {};
+
+    for (let [key, value] of formData.entries()) {
+        if (key.startsWith('score_')) {
+            scores[key.replace('score_', '')] = parseFloat(value) || 0;
+        }
+    }
+
+    // 如果没有手动评分，提示用户
+    const scoreKeys = Object.keys(scores);
+    if (scoreKeys.length === 0) {
+        alert('没有修改任何分数，无需保存');
+        return;
+    }
 
     try {
         const response = await fetch('/teacher/api/submissions/{{ submission.id }}/grade', {
@@ -86,7 +144,7 @@ document.getElementById('gradeForm').addEventListener('submit', async function(e
         });
         const result = await response.json();
         if (result.success) {
-            alert('评分成功！总得分：' + result.obtained_score);
+            alert('评分保存成功！总得分：' + result.obtained_score);
             window.location.href = '/teacher/submissions/{{ submission.id }}';
         } else {
             alert('评分失败: ' + result.message);
@@ -94,6 +152,16 @@ document.getElementById('gradeForm').addEventListener('submit', async function(e
     } catch (error) {
         alert('评分失败: ' + error);
     }
+});
+
+// 输入验证
+document.querySelectorAll('.score-input').forEach(input => {
+    input.addEventListener('change', function() {
+        const max = parseFloat(this.dataset.maxPoints);
+        const val = parseFloat(this.value);
+        if (val < 0) this.value = 0;
+        if (val > max) this.value = max;
+    });
 });
 </script>
 {% endblock %}
