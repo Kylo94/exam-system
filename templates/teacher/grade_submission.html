@@ -2,140 +2,244 @@
 
 {% block title %}评分 - {{ super() }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .question-nav-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 0.5rem;
+    }
+    .question-nav-btn {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .nav-section-title {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        padding: 0.25rem 0;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 0.25rem;
+    }
+    .question-nav-btn.btn-graded {
+        background-color: #198754 !important;
+        border-color: #198754 !important;
+        color: white !important;
+    }
+    .question-nav-btn.btn-needs-grade {
+        background-color: #ffc107 !important;
+        border-color: #ffc107 !important;
+        color: black !important;
+    }
+    .question-nav-btn.btn-auto-graded {
+        background-color: #0d6efd !important;
+        border-color: #0d6efd !important;
+        color: white !important;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb" style="background: var(--bg-tertiary); padding: 0.75rem 1rem; border-radius: 0.5rem;">
-                <li class="breadcrumb-item"><a href="/teacher/submissions" class="text-decoration-none">答题记录</a></li>
-                <li class="breadcrumb-item"><a href="/teacher/submissions/{{ submission.id }}" class="text-decoration-none">详情</a></li>
-                <li class="breadcrumb-item active">评分</li>
-            </ol>
-        </nav>
-    </div>
-</div>
-
-<!-- 试卷信息卡片 -->
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="bi bi-file-text me-2"></i>试卷评分</h5>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <strong>学生：</strong>{{ submission.user.username }}
+<div class="row">
+    <!-- 左侧：答题卡导航 -->
+    <div class="col-md-3">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="bi bi-pencil-square me-1"></i>评分</h6>
             </div>
-            <div class="col-md-4">
-                <strong>试卷：</strong>{{ exam.title if exam else 'N/A' }}
-            </div>
-            <div class="col-md-4">
-                <strong>当前得分：</strong><span id="currentScore">{{ submission.obtained_score or 0 }}</span> / {{ submission.total_score }}
-            </div>
-        </div>
-    </div>
-</div>
+            <div class="card-body" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                <h6 class="mb-3">题目导航</h6>
 
-<form id="gradeForm">
-    <!-- 题目列表 -->
-    {% for q in questions %}
-    {% set q_idx = loop.index %}
-    {% set answer = answer_map[q.id] if q.id in answer_map else None %}
-    {% set is_auto_graded = q.type in ['single_choice', 'multiple_choice', 'true_false', 'fill_blank'] %}
-    <div class="card mb-3 question-grade-card" id="question-{{ q_idx }}">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>
-                <strong>第{{ q_idx }}题</strong>
-                <span class="badge bg-secondary">{{ q.type_display }}</span>
-                {% if is_auto_graded %}
-                <span class="badge bg-info">自动评分</span>
-                {% else %}
-                <span class="badge bg-warning">需要评分</span>
-                {% endif %}
-            </span>
-            <span class="badge bg-{{ 'success' if answer and answer.is_correct else 'secondary' }}">
-                {{ answer.score if answer and answer.score is not none else '-' }}分
-            </span>
-        </div>
-        <div class="card-body">
-            <p><strong>题目：</strong>{{ q.content }}</p>
+                {% set type_groups = {
+                    'single_choice': '单选题',
+                    'multiple_choice': '多选题',
+                    'true_false': '判断题',
+                    'fill_blank': '填空题',
+                    'short_answer': '简答题',
+                    'coding': '编程题'
+                } %}
 
-            {% if q.type in ['single_choice', 'multiple_choice', 'true_false'] %}
-            {% if q.options %}
-            <div class="mb-2">
-                {% for opt_key, opt_val in q.options.items() %}
-                <div class="form-check {% if opt_key == q.correct_answer %}text-success fw-bold{% endif %}">
-                    {{ opt_key }}. {{ opt_val }}
-                </div>
+                {% set question_index_map = {} %}
+                {% for q in questions %}
+                    {% set _ = question_index_map.update({q.id: loop.index}) %}
                 {% endfor %}
-            </div>
-            {% endif %}
-            <p><strong>正确答案：</strong>{{ q.correct_answer }}</p>
-            {% elif q.type == 'fill_blank' %}
-            <p><strong>正确答案：</strong>{{ q.correct_answer }}</p>
-            {% endif %}
 
-            <div class="mb-3 p-3 bg-light rounded">
-                <strong>学生答案：</strong>
-                <div class="mt-2">{{ answer.user_answer if answer and answer.user_answer else '（未作答）' }}</div>
-            </div>
+                {% for type, type_name in type_groups.items() %}
+                    {% set type_questions = [] %}
+                    {% for q in questions %}
+                        {% if q.type == type %}
+                            {% set _ = type_questions.append(q) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if type_questions %}
+                    <div class="nav-section-title">{{ type_name }} ({{ type_questions|length }})</div>
+                    <div class="question-nav-grid mb-3">
+                        {% for q in type_questions %}
+                        {% set q_idx = question_index_map[q.id] %}
+                        {% set answer = answer_map[q.id] if q.id in answer_map else None %}
+                        {% set needs_manual_grade = q.type in ['short_answer', 'coding'] %}
+                        {% set has_score = answer and answer.score is not none and answer.score > 0 %}
+                        {% if answer and not needs_manual_grade %}
+                            {% set btn_class = 'btn-graded' %}
+                        {% elif needs_manual_grade %}
+                            {% if has_score %}
+                                {% set btn_class = 'btn-graded' %}
+                            {% else %}
+                                {% set btn_class = 'btn-needs-grade' %}
+                            {% endif %}
+                        {% else %}
+                            {% set btn_class = 'btn-auto-graded' %}
+                        {% endif %}
+                        <button type="button" class="btn btn-sm {{ btn_class }} question-nav-btn"
+                                data-question="{{ q_idx }}" onclick="scrollToQuestion({{ q_idx }})">
+                            {{ q_idx }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
 
-            {% if is_auto_graded %}
-            <div class="text-muted small">
-                <i class="bi bi-check-circle"></i> 系统自动评分，无需手动操作
+                <hr>
+                <div class="mb-2 small">
+                    <span class="badge bg-success me-1">●</span> 已评分
+                    <span class="badge bg-warning me-1">●</span> 待评分
+                    <span class="badge bg-primary">●</span> 自动评分
+                </div>
             </div>
-            {% else %}
-            <div class="row align-items-center mt-3">
-                <div class="col-md-6">
-                    <label class="form-label">评分（满分 {{ q.points }} 分）</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control score-input" name="score_{{ q.id }}"
-                               value="{{ answer.score if answer and answer.score is not none else 0 }}"
-                               min="0" max="{{ q.points }}" step="0.5"
-                               data-question-id="{{ q.id }}" data-max-points="{{ q.points }}">
-                        <span class="input-group-text">/ {{ q.points }} 分</span>
+        </div>
+    </div>
+
+    <!-- 右侧：题目详情和评分 -->
+    <div class="col-md-9">
+        <!-- 学生信息卡片 -->
+        <div class="card mb-4">
+            <div class="card-body text-center py-3">
+                <div class="row">
+                    <div class="col-4">
+                        <strong>学生：</strong>{{ submission.user.username }}
+                    </div>
+                    <div class="col-4">
+                        <strong>试卷：</strong>{{ exam.title if exam else 'N/A' }}
+                    </div>
+                    <div class="col-4">
+                        <strong>当前得分：</strong>
+                        <span id="currentScore">{{ submission.obtained_score or 0 }}</span> / {{ submission.total_score }}
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <span class="text-muted small">
-                        得分范围: 0 ~ {{ q.points }}
+            </div>
+        </div>
+
+        <form id="gradeForm">
+            <!-- 题目列表 -->
+            {% for q in questions %}
+            {% set q_idx = loop.index %}
+            {% set answer = answer_map[q.id] if q.id in answer_map else None %}
+            {% set needs_manual_grade = q.type in ['short_answer', 'coding'] %}
+            {% set is_auto_graded = q.type in ['single_choice', 'multiple_choice', 'true_false', 'fill_blank'] %}
+            <div class="card mb-3 question-card" id="question-{{ q_idx }}" data-question-index="{{ q_idx }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <strong>第{{ q_idx }}题</strong>
+                        <span class="badge bg-secondary">{{ q.type_display }}</span>
+                        {% if is_auto_graded %}
+                        <span class="badge bg-primary">自动评分</span>
+                        {% elif needs_manual_grade %}
+                        {% if answer and answer.score is not none and answer.score > 0 %}
+                        <span class="badge bg-success">已评分</span>
+                        {% else %}
+                        <span class="badge bg-warning">待评分</span>
+                        {% endif %}
+                        {% endif %}
+                    </span>
+                    <span class="badge bg-{{ 'success' if answer and answer.is_correct else 'secondary' }}">
+                        {{ answer.score if answer and answer.score is not none else 0 }}分
                     </span>
                 </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
+                <div class="card-body">
+                    <p><strong>题目：</strong>{{ q.content }}</p>
 
-    <!-- 提交按钮 -->
-    <div class="text-end mt-4 mb-5">
-        <a href="/teacher/submissions/{{ submission.id }}" class="btn btn-outline-secondary me-2">取消</a>
-        <button type="submit" class="btn btn-success btn-lg">
-            <i class="bi bi-check-circle me-2"></i>保存评分
-        </button>
+                    {% if q.type in ['single_choice', 'multiple_choice', 'true_false'] %}
+                    {% if q.options %}
+                    <div class="mb-2">
+                        {% for opt_key, opt_val in q.options.items() %}
+                        <div class="form-check {% if opt_key == q.correct_answer %}text-success fw-bold{% endif %}">
+                            {{ opt_key }}. {{ opt_val }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <p><strong>正确答案：</strong>{{ q.correct_answer }}</p>
+                    {% elif q.type == 'fill_blank' %}
+                    <p><strong>正确答案：</strong>{{ q.correct_answer }}</p>
+                    {% endif %}
+
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <strong>学生答案：</strong>
+                        <div class="mt-2">{{ answer.user_answer if answer and answer.user_answer else '（未作答）' }}</div>
+                    </div>
+
+                    {% if is_auto_graded %}
+                    <div class="text-muted small">
+                        <i class="bi bi-check-circle"></i> 系统自动评分，无需手动操作
+                    </div>
+                    {% elif needs_manual_grade %}
+                    <div class="row align-items-center mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">评分（满分 {{ q.points }} 分）</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control score-input" name="score_{{ q.id }}"
+                                       value="{{ answer.score if answer and answer.score is not none else 0 }}"
+                                       min="0" max="{{ q.points }}" step="0.5"
+                                       data-question-id="{{ q.id }}" data-max-points="{{ q.points }}">
+                                <span class="input-group-text">/ {{ q.points }} 分</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <span class="text-muted small">
+                                得分范围: 0 ~ {{ q.points }}
+                            </span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if q.explanation %}
+                    <div class="alert alert-info mt-3">
+                        <strong><i class="bi bi-lightbulb"></i> 解析：</strong>{{ q.explanation }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- 提交按钮 -->
+            <div class="text-end mt-4 mb-5">
+                <a href="/teacher/submissions/{{ submission.id }}" class="btn btn-outline-secondary me-2">取消</a>
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="bi bi-check-circle me-2"></i>保存评分
+                </button>
+            </div>
+        </form>
     </div>
-</form>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function scrollToQuestion(index) {
+    const el = document.getElementById('question-' + index);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('border-primary');
+        setTimeout(() => el.classList.remove('border-primary'), 2000);
+    }
+}
+
 document.getElementById('gradeForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const formData = new FormData(this);
-    const scores = {};
-
-    for (let [key, value] of formData.entries()) {
-        if (key.startsWith('score_')) {
-            scores[key.replace('score_', '')] = parseFloat(value) || 0;
-        }
-    }
-
-    // 如果没有手动评分，提示用户
-    const scoreKeys = Object.keys(scores);
-    if (scoreKeys.length === 0) {
-        alert('没有修改任何分数，无需保存');
-        return;
-    }
 
     try {
         const response = await fetch('/teacher/api/submissions/{{ submission.id }}/grade', {
