@@ -233,7 +233,7 @@
                 {% elif q.type in ['fill_blank', 'short_answer', 'coding'] %}
                 <p><strong>学生答案：</strong></p>
                 {% if answer and answer.user_answer %}
-                <div class="p-3 bg-dark text-light rounded font-monospace" style="white-space: pre-wrap; word-break: break-word;">{{ answer.user_answer }}</div>
+                <div class="p-3 bg-light rounded font-monospace" style="white-space: pre-wrap; word-break: break-word;">{{ answer.user_answer }}</div>
                 {% else %}
                 <div class="p-3 bg-secondary text-white rounded">（未作答）</div>
                 {% endif %}

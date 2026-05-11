@@ -436,20 +436,23 @@ async def grade_submission(
 
     for key, value in form_data.items():
         if key.startswith("score_"):
-            answer_id = key.replace("score_", "")
-            scores[answer_id] = float(value)
+            question_id = key.replace("score_", "")
+            scores[question_id] = float(value)
 
-    # 更新答案分数
+    # 更新答案分数（按 question_id 匹配）
     total_obtained = 0
     for answer in submission.answers:
-        if str(answer.id) in scores:
-            answer.score = scores[str(answer.id)]
+        qid = str(answer.question_id)
+        if qid in scores:
+            answer.score = scores[qid]
+            # 简答/编程题：分数字段同时作为 is_correct 标记
+            answer.is_correct = answer.score > 0
             await answer.save()
             total_obtained += answer.score
 
     # 计算总分并更新提交状态
     all_answers = await Answer.filter(submission_id=submission_id).all()
-    total_score = sum(a.score for a in all_answers)
+    total_score = sum(a.score if a.score is not None else 0 for a in all_answers)
 
     submission.obtained_score = total_score
     submission.status = "graded"
