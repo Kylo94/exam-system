@@ -71,8 +71,7 @@ class GeneratorService:
         question_type_distribution = {
             'multiple_choice': 0.4,  # 40%选择题
             'true_false': 0.2,       # 20%判断题
-            'short_answer': 0.3,     # 30%简答题
-            'essay': 0.1             # 10%论述题
+            'short_answer': 0.4             # 40%简答题
         }
 
         questions = []

@@ -39,7 +39,7 @@ async def admin_questions_page(
         {"value": "multiple_choice", "label": "多选题"},
         {"value": "true_false", "label": "判断题"},
         {"value": "fill_blank", "label": "填空题"},
-        {"value": "essay", "label": "简答题"},
+        {"value": "short_answer", "label": "简答题"},
     ]
 
     return templates.TemplateResponse("admin/questions.html", {

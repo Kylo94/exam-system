@@ -357,10 +357,10 @@ async def grade_submission_page(submission_id: int, request: Request, current_us
     if not student or student.teacher_id != current_user.id:
         raise HTTPException(status_code=403, detail="无权限查看此记录")
 
-    # 获取需要评分的主观题
+    # 获取需要评分的主观题（简答题和编程题）
     subjective_answers = []
     for answer in submission.answers:
-        if answer.question and answer.question.type in ["essay", "coding"]:
+        if answer.question and answer.question.type in ["short_answer", "coding"]:
             subjective_answers.append(answer)
 
     return templates.TemplateResponse("teacher/grade_submission.html", {
