@@ -572,6 +572,51 @@ async def get_user_info(user_id: int, current_user: User = Depends(require_teach
     }
 
 
+# ===== 教师端 API =====
+@router.get("/teacher/students")
+async def api_teacher_students(current_user: User = Depends(require_teacher)):
+    """获取教师的学生列表"""
+    students = await User.filter(teacher_id=current_user.id, role="student").order_by("-created_at")
+    return {
+        "success": True,
+        "data": [{"id": s.id, "username": s.username, "email": s.email} for s in students]
+    }
+
+
+@router.get("/teacher/submissions")
+async def api_teacher_submissions(
+    student_id: int = None,
+    exam_id: int = None,
+    current_user: User = Depends(require_teacher)
+):
+    """获取教师的学生的答题记录"""
+    student_ids = await User.filter(teacher_id=current_user.id).values_list("id", flat=True)
+
+    query = Submission.filter(user_id__in=student_ids)
+    if student_id:
+        query = query.filter(user_id=student_id)
+    if exam_id:
+        query = query.filter(exam_id=exam_id)
+
+    submissions = await query.prefetch_related("user", "exam").order_by("-created_at")
+
+    result = []
+    for s in submissions:
+        result.append({
+            "id": s.id,
+            "student_id": s.user_id,
+            "student_name": s.user.username if s.user else "未知",
+            "exam_id": s.exam_id,
+            "exam_title": s.exam.title if s.exam else "未知",
+            "obtained_score": s.obtained_score,
+            "status": s.status,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "submitted_at": s.submitted_at.isoformat() if s.submitted_at else None,
+        })
+
+    return {"success": True, "data": result}
+
+
 # ===== AI配置 API =====
 @router.get("/ai-configs")
 async def list_ai_configs(current_user: User = Depends(get_current_user)):

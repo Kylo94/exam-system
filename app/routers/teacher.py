@@ -77,6 +77,29 @@ async def teacher_students(request: Request, current_user: User = Depends(requir
     })
 
 
+@router.get("/students/{student_id}/submissions", response_class=HTMLResponse)
+async def teacher_student_submissions(
+    student_id: int,
+    request: Request,
+    current_user: User = Depends(require_teacher)
+):
+    """查看指定学生的答题记录"""
+    # 检查学生是否属于该教师
+    student = await User.get_or_none(id=student_id, role="student", teacher_id=current_user.id)
+    if not student:
+        raise HTTPException(status_code=404, detail="学生不存在或无权限")
+
+    submissions = await Submission.filter(user_id=student_id).prefetch_related("user", "exam").order_by("-created_at")
+
+    return templates.TemplateResponse("teacher/submissions.html", {
+        "request": request,
+        "current_user": current_user,
+        "submissions": submissions,
+        "students": [student],
+        "filters": {"student_id": student_id, "exam_id": None}
+    })
+
+
 # ===== 授权管理 =====
 @router.get("/exam-access", response_class=HTMLResponse)
 async def exam_access_management(
